@@ -40,6 +40,7 @@ along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 #include "commands/provides/provides.hpp"
 #include "commands/reinstall/reinstall.hpp"
 #include "commands/remove/remove.hpp"
+#include "commands/replay/replay.hpp"
 #include "commands/repo/repo.hpp"
 #include "commands/repoquery/repoquery.hpp"
 #include "commands/search/search.hpp"
@@ -674,6 +675,7 @@ static void add_commands(Context & context) {
     context.add_and_initialize_command(std::make_unique<MarkCommand>(context));
     context.add_and_initialize_command(std::make_unique<AutoremoveCommand>(context));
     context.add_and_initialize_command(std::make_unique<ProvidesCommand>(context));
+    context.add_and_initialize_command(std::make_unique<ReplayCommand>(context));
 
     context.add_and_initialize_command(std::make_unique<LeavesCommand>(context));
     context.add_and_initialize_command(std::make_unique<RepoqueryCommand>(context));
@@ -976,6 +978,33 @@ static void print_resolve_hints(dnf5::Context & context) {
         }
     }
 
+    // hint --ignore-extras if there are unexpected extra packages in the transaction
+    if ((transaction_problems & libdnf5::GoalProblem::EXTRA) == libdnf5::GoalProblem::EXTRA) {
+        const std::string_view arg{"--ignore-extras"};
+        if (has_named_arg(command, arg.substr(2))) {
+            hints.emplace_back(libdnf5::utils::sformat(_("{} to allow extra packages in the transaction"), arg));
+        }
+    }
+
+    // hint --ignore-installed if there are mismatches between installed and stored transaction packages in replay
+    if ((transaction_problems & libdnf5::GoalProblem::NOT_INSTALLED) == libdnf5::GoalProblem::NOT_INSTALLED ||
+        (transaction_problems & libdnf5::GoalProblem::INSTALLED_IN_DIFFERENT_VERSION) ==
+            libdnf5::GoalProblem::INSTALLED_IN_DIFFERENT_VERSION) {
+        for (const auto & resolve_log : context.get_transaction()->get_resolve_logs()) {
+            if (goal_action_is_replay(resolve_log.get_action())) {
+                const std::string_view arg{"--ignore-installed"};
+                if (has_named_arg(command, arg.substr(2))) {
+                    hints.emplace_back(libdnf5::utils::sformat(
+                        _("{} to allow mismatches between installed and stored transaction packages. This can result "
+                          "in an empty transaction because among other things the option can ignore failing Remove "
+                          "actions."),
+                        arg));
+                    break;
+                }
+            }
+        }
+    }
+
     if ((transaction_problems & libdnf5::GoalProblem::SOLVER_ERROR) == libdnf5::GoalProblem::SOLVER_ERROR) {
         bool conflict = false;
         bool broken_file_dep = false;
@@ -1186,13 +1215,6 @@ int main(int argc, char * argv[]) try {
             return 0;
         }
 
-        auto download_callbacks_uptr = std::make_unique<dnf5::DownloadCallbacks>();
-        auto * download_callbacks = download_callbacks_uptr.get();
-        download_callbacks->set_show_total_bar_limit(static_cast<std::size_t>(-1));
-        if (!context.get_quiet()) {
-            base.set_download_callbacks(std::move(download_callbacks_uptr));
-        }
-
         // Parse command line arguments
         {
             auto & arg_parser = context.get_argument_parser();
@@ -1243,6 +1265,13 @@ int main(int argc, char * argv[]) try {
                 dnf5::print_versions(context);
                 return static_cast<int>(libdnf5::cli::ExitCode::SUCCESS);
             }
+        }
+
+        auto download_callbacks_uptr = std::make_unique<dnf5::DownloadCallbacks>();
+        auto * download_callbacks = download_callbacks_uptr.get();
+        download_callbacks->set_show_total_bar_limit(static_cast<std::size_t>(-1));
+        if (!context.get_quiet()) {
+            base.set_download_callbacks(std::move(download_callbacks_uptr));
         }
 
         auto command = context.get_selected_command();
@@ -1414,6 +1443,11 @@ int main(int argc, char * argv[]) try {
     }
 
     log_router.info("DNF5 finished");
+
+    // Print Complete! message only when transaction is created to prevent poluting output from repoquery or other command
+    if (auto * transaction = context.get_transaction(); transaction && !transaction->empty()) {
+        context.print_info(_("Complete!"));
+    }
 
     return static_cast<int>(libdnf5::cli::ExitCode::SUCCESS);
 } catch (const libdnf5::Error & e) {

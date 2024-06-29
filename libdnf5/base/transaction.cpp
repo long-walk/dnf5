@@ -244,7 +244,7 @@ GoalProblem Transaction::Impl::report_not_found(
     libdnf5::Logger::Level log_level) {
     auto sack = base->get_rpm_package_sack();
     rpm::PackageQuery query(base, rpm::PackageQuery::ExcludeFlags::IGNORE_EXCLUDES);
-    if (action == GoalAction::REMOVE) {
+    if (action == GoalAction::REMOVE || action == GoalAction::REPLAY_REMOVE) {
         query.filter_installed();
     }
     auto nevra_pair_reports = query.resolve_pkg_spec(pkg_spec, settings, true);
@@ -260,7 +260,7 @@ GoalProblem Transaction::Impl::report_not_found(
             log_level);
         if (settings.get_report_hint()) {
             rpm::PackageQuery hints(base);
-            if (action == GoalAction::REMOVE) {
+            if (action == GoalAction::REMOVE || action == GoalAction::REPLAY_REMOVE) {
                 hints.filter_installed();
             }
             if (!settings.get_ignore_case() && settings.get_with_nevra()) {
@@ -767,10 +767,36 @@ void Transaction::Impl::set_transaction(
         packages.emplace_back(std::move(tspkg));
     }
 
-    // After all packages were added check rpm reason overrides
-    if (!rpm_reason_overrides.empty()) {
+    // After all packages were added check for extra packages and rpm reason overrides
+    if (!rpm_reason_overrides.empty() || !rpm_replays_nevra_cache.empty()) {
         for (auto & pkg : packages) {
-            const auto reason_override = rpm_reason_overrides.find(pkg.get_package().get_nevra());
+            auto nevra = pkg.get_package().get_nevra();
+            for (const auto & [rpm_cache, settings] : rpm_replays_nevra_cache) {
+                if (!rpm_cache.contains(nevra)) {
+                    // If ignore_installed is true we don't want to check for REPLACED extras in the
+                    // transaction. Some operation had to be done on an installed package but we are
+                    // ignoring it.
+                    if (!(settings.get_ignore_installed() &&
+                          pkg.get_action() == transaction::TransactionItemAction::REPLACED)) {
+                        auto log_level = libdnf5::Logger::Level::WARNING;
+                        if (!settings.get_ignore_extras()) {
+                            this->problems |= GoalProblem::EXTRA;
+                            log_level = libdnf5::Logger::Level::ERROR;
+                        }
+                        // report this as an error or a warning depending on the setting
+                        this->add_resolve_log(
+                            GoalAction::REPLAY_REASON_OVERRIDE,
+                            GoalProblem::EXTRA,
+                            GoalJobSettings(),
+                            libdnf5::transaction::TransactionItemType::PACKAGE,
+                            nevra,
+                            {transaction_item_action_to_string(pkg.get_action())},
+                            log_level);
+                    }
+                }
+            }
+
+            const auto reason_override = rpm_reason_overrides.find(nevra);
             if (reason_override != rpm_reason_overrides.end()) {
                 // For UPGRADE, DOWNGRADE and REINSTALL change the reason only if it stronger.
                 // This is required because we don't want to for example mark some user installed

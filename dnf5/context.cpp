@@ -19,7 +19,6 @@ along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "dnf5/context.hpp"
 
-#include "dnf5/offline.hpp"
 #include "download_callbacks.hpp"
 #include "plugins.hpp"
 #include "utils/string.hpp"
@@ -37,6 +36,7 @@ along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 #include <libdnf5/rpm/package_query.hpp>
 #include <libdnf5/rpm/package_set.hpp>
 #include <libdnf5/rpm/rpm_signature.hpp>
+#include <libdnf5/transaction/offline.hpp>
 #include <libdnf5/utils/bgettext/bgettext-lib.h>
 #include <libdnf5/utils/bgettext/bgettext-mark-domain.h>
 #include <libdnf5/utils/fs/file.hpp>
@@ -47,7 +47,6 @@ along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 #include <iostream>
 #include <regex>
 #include <set>
-#include <stdexcept>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -173,7 +172,12 @@ public:
     void set_should_store_offline(bool should_store_offline) { this->should_store_offline = should_store_offline; }
     bool get_should_store_offline() const { return should_store_offline; }
 
-    void set_json_output_requested(bool json_output) { this->json_output = json_output; }
+    void set_json_output_requested(bool json_output) {
+        this->json_output = json_output;
+        if (json_output) {
+            set_quiet(true);
+        }
+    }
     bool get_json_output_requested() const { return json_output; }
 
     libdnf5::Base & get_base() { return base; };
@@ -313,33 +317,33 @@ void Context::Impl::load_repos(bool load_system) {
 
 void Context::Impl::store_offline(libdnf5::base::Transaction & transaction) {
     const auto & installroot = base.get_config().get_installroot_option().get_value();
-    const auto & offline_datadir = installroot / dnf5::offline::DEFAULT_DATADIR.relative_path();
+    const auto & offline_datadir = installroot / libdnf5::offline::DEFAULT_DATADIR.relative_path();
     std::filesystem::create_directories(offline_datadir);
 
     constexpr const char * packages_in_trans_dir{"./packages"};
-    const auto & packages_location = offline_datadir / packages_in_trans_dir;
     constexpr const char * comps_in_trans_dir{"./comps"};
     const auto & comps_location = offline_datadir / comps_in_trans_dir;
 
-    const std::filesystem::path state_path{offline_datadir / dnf5::offline::TRANSACTION_STATE_FILENAME};
-    dnf5::offline::OfflineTransactionState state{state_path};
+    const std::filesystem::path state_path{offline_datadir / libdnf5::offline::TRANSACTION_STATE_FILENAME};
+    libdnf5::offline::OfflineTransactionState state{state_path};
 
-    if (state.get_data().status != dnf5::offline::STATUS_DOWNLOAD_INCOMPLETE) {
+    auto & offline_data = state.get_data();
+    if (offline_data.get_status() != libdnf5::offline::STATUS_DOWNLOAD_INCOMPLETE) {
         std::cout << "There is already an offline transaction queued, initiated by the following command:" << std::endl
-                  << "\t" << state.get_data().cmd_line << std::endl
+                  << "\t" << offline_data.get_cmd_line() << std::endl
                   << "Continuing will cancel the old offline transaction and replace it with this one." << std::endl;
         if (!libdnf5::cli::utils::userconfirm::userconfirm(base.get_config())) {
             throw libdnf5::cli::AbortedByUserError();
         }
     }
 
-    state.get_data().status = dnf5::offline::STATUS_DOWNLOAD_INCOMPLETE;
+    offline_data.set_status(libdnf5::offline::STATUS_DOWNLOAD_INCOMPLETE);
     state.write();
 
     // First, serialize the transaction
     transaction.store_comps(comps_location);
 
-    const auto transaction_json_path = offline_datadir / "transaction.json";
+    const auto transaction_json_path = offline_datadir / TRANSACTION_JSON;
     libdnf5::utils::fs::File transaction_json_file{transaction_json_path, "w"};
     transaction_json_file.write(transaction.serialize(packages_in_trans_dir, comps_in_trans_dir));
     transaction_json_file.close();
@@ -373,8 +377,8 @@ void Context::Impl::store_offline(libdnf5::base::Transaction & transaction) {
 
     // Download and transaction test complete. Fill out entries in offline
     // transaction state file.
-    state.get_data().status = dnf5::offline::STATUS_DOWNLOAD_COMPLETE;
-    state.get_data().cachedir = base.get_config().get_cachedir_option().get_value();
+    offline_data.set_status(libdnf5::offline::STATUS_DOWNLOAD_COMPLETE);
+    offline_data.set_cachedir(base.get_config().get_cachedir_option().get_value());
 
     std::vector<std::string> command_vector;
     auto * current_command = owner.get_selected_command();
@@ -382,17 +386,17 @@ void Context::Impl::store_offline(libdnf5::base::Transaction & transaction) {
         command_vector.insert(command_vector.begin(), current_command->get_argument_parser_command()->get_id());
         current_command = current_command->get_parent_command();
     }
-    state.get_data().verb = libdnf5::utils::string::join(command_vector, " ");
-    state.get_data().cmd_line = get_cmdline();
+    offline_data.set_verb(libdnf5::utils::string::join(command_vector, " "));
+    offline_data.set_cmd_line(get_cmdline());
 
     const auto & detected_releasever = libdnf5::Vars::detect_release(base.get_weak_ptr(), installroot);
     if (detected_releasever != nullptr) {
-        state.get_data().system_releasever = *detected_releasever;
+        offline_data.set_system_releasever(*detected_releasever);
     }
-    state.get_data().target_releasever = base.get_vars()->get_value("releasever");
+    offline_data.set_target_releasever(base.get_vars()->get_value("releasever"));
 
     if (!base.get_config().get_module_platform_id_option().empty()) {
-        state.get_data().module_platform_id = base.get_config().get_module_platform_id_option().get_value();
+        offline_data.set_module_platform_id(base.get_config().get_module_platform_id_option().get_value());
     }
 
     state.write();
@@ -400,7 +404,7 @@ void Context::Impl::store_offline(libdnf5::base::Transaction & transaction) {
 
 void Context::Impl::download_and_run(libdnf5::base::Transaction & transaction) {
     if (!transaction_store_path.empty()) {
-        auto transaction_location = transaction_store_path / "transaction.json";
+        auto transaction_location = transaction_store_path / TRANSACTION_JSON;
         constexpr const char * packages_in_trans_dir{"./packages"};
         auto packages_location = transaction_store_path / packages_in_trans_dir;
         constexpr const char * comps_in_trans_dir{"./comps"};
@@ -428,7 +432,7 @@ void Context::Impl::download_and_run(libdnf5::base::Transaction & transaction) {
 
     if (should_store_offline) {
         const auto & installroot = base.get_config().get_installroot_option().get_value();
-        const auto & offline_datadir = installroot / dnf5::offline::DEFAULT_DATADIR.relative_path();
+        const auto & offline_datadir = installroot / libdnf5::offline::DEFAULT_DATADIR.relative_path();
         std::filesystem::create_directories(offline_datadir);
 
         base.get_config().get_destdir_option().set(offline_datadir / "packages");

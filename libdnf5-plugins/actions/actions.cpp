@@ -21,9 +21,12 @@ along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 #include <libdnf5/base/base.hpp>
 #include <libdnf5/base/transaction.hpp>
 #include <libdnf5/common/exception.hpp>
+#include <libdnf5/common/sack/match_string.hpp>
 #include <libdnf5/plugin/iplugin.hpp>
+#include <libdnf5/repo/repo_query.hpp>
 #include <libdnf5/rpm/package_query.hpp>
 #include <libdnf5/utils/bgettext/bgettext-mark-domain.h>
+#include <libdnf5/utils/patterns.hpp>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -42,7 +45,7 @@ using namespace libdnf5;
 namespace {
 
 constexpr const char * PLUGIN_NAME = "actions";
-constexpr plugin::Version PLUGIN_VERSION{1, 0, 0};
+constexpr plugin::Version PLUGIN_VERSION{1, 1, 0};
 
 constexpr const char * attrs[]{"author.name", "author.email", "description", nullptr};
 constexpr const char * attrs_value[]{"Jaroslav Rohel", "jrohel@redhat.com", "Actions Plugin."};
@@ -128,6 +131,9 @@ private:
     [[nodiscard]] std::pair<std::vector<std::string>, bool> substitute_args(
         const libdnf5::base::TransactionPackage * trans_pkg, const libdnf5::rpm::Package * pkg, const Action & action);
 
+    std::vector<std::pair<std::string, std::string>> get_conf(const std::string & key);
+    std::vector<std::pair<std::string, std::string>> set_conf(const std::string & key, const std::string & value);
+
     void process_command_output_line(std::string_view line);
 
     // Parsed actions for individual hooks
@@ -157,6 +163,12 @@ class ActionsPluginError : public libdnf5::Error {
     using Error::Error;
     const char * get_domain_name() const noexcept override { return "libdnf5::plugin"; }
     const char * get_name() const noexcept override { return "ActionsPluginError"; }
+};
+
+
+// The ConfigError exception is handled internally. It will not leave the actions plugin.
+class ConfigError : public std::runtime_error {
+    using runtime_error::runtime_error;
 };
 
 
@@ -197,6 +209,31 @@ std::vector<std::string> split(const std::string & str) {
     return ret;
 }
 
+
+// Replaces ',' with the escape sequence "\\x2C". (one '\' is removed later)
+std::string escape_list_value(const std::string & value) {
+    std::size_t escaped_chars = 0;
+    for (const char ch : value) {
+        if (ch == ',') {
+            escaped_chars += 4;
+        }
+    }
+    if (escaped_chars == 0) {
+        return value;
+    }
+    std::string ret;
+    ret.reserve(value.length() + escaped_chars);
+    for (const char ch : value) {
+        if (ch == ',') {
+            ret += "\\\\x2C";
+        } else {
+            ret += ch;
+        }
+    }
+    return ret;
+}
+
+
 std::pair<std::string, bool> Actions::substitute(
     const libdnf5::base::TransactionPackage * trans_pkg,
     const libdnf5::rpm::Package * pkg,
@@ -236,10 +273,48 @@ std::pair<std::string, bool> Actions::substitute(
                 var_value = fmt::format("{}.{}.{}", PLUGIN_VERSION.major, PLUGIN_VERSION.minor, PLUGIN_VERSION.micro);
             }
         } else if (var_name.starts_with("conf.")) {
-            auto config_opts = base.get_config().opt_binds();
-            auto it = config_opts.find(std::string(var_name.substr(5)));
-            if (it != config_opts.end()) {
-                var_value = it->second.get_value_string();
+            auto key = std::string(var_name.substr(5));
+            const auto dot_pos = key.rfind('.');
+            if (dot_pos != std::string::npos) {
+                // It is a repository option. The repoid is part of the key and can contain globs.
+                // Will be substituted by a list of "repoid.option=value" pairs for the matching repositories.
+                // Pairs are separated by ',' character. The ',' character in the value is replaced by escape sequence.
+                // Supported formats: `<repoid_pattern>.<opt_name>` or `<repoid_pattern>.<opt_name>=<value_pattern>`
+                std::string value_pattern;
+                const auto equal_pos = key.find('=');
+                if (equal_pos != std::string::npos) {
+                    value_pattern = key.substr(equal_pos + 1);
+                    key = key.substr(0, equal_pos);
+                }
+                try {
+                    const bool is_glob_pattern = utils::is_glob_pattern(value_pattern.c_str());
+                    const auto list_key_vals = get_conf(key);
+                    for (const auto & [key, val] : list_key_vals) {
+                        if (!value_pattern.empty()) {
+                            if (is_glob_pattern) {
+                                if (!sack::match_string(val, sack::QueryCmp::GLOB, value_pattern)) {
+                                    continue;
+                                }
+                            } else {
+                                if (val != value_pattern) {
+                                    continue;
+                                }
+                            }
+                        }
+                        if (var_value) {
+                            *var_value += "," + key + '=' + escape_list_value(val);
+                        } else {
+                            var_value = key + '=' + escape_list_value(val);
+                        }
+                    }
+                } catch (const ConfigError & ex) {
+                }
+            } else {
+                auto config_opts = base.get_config().opt_binds();
+                auto it = config_opts.find(key);
+                if (it != config_opts.end()) {
+                    var_value = it->second.get_value_string();
+                }
             }
         } else if (var_name.starts_with("var.")) {
             auto vars = base.get_vars();
@@ -576,6 +651,111 @@ void Actions::parse_action_files() {
     }
 }
 
+
+// Parses the input key and returns the repoid and option name.
+// If there is a global option on the input, repoid will be an empty string
+std::pair<std::string, std::string> get_repoid_and_optname_from_key(std::string_view key) {
+    std::string repo_id;
+    std::string opt_name;
+
+    auto dot_pos = key.rfind('.');
+    if (dot_pos != std::string::npos) {
+        if (dot_pos == key.size() - 1) {
+            throw ConfigError(fmt::format("Badly formatted argument value: Last key character cannot be '.': {}", key));
+        }
+        repo_id = key.substr(0, dot_pos);
+        opt_name = key.substr(dot_pos + 1);
+    } else {
+        opt_name = key;
+    }
+
+    return {repo_id, opt_name};
+}
+
+
+// Returns a list of matching "key=value" pairs.
+// The key can be a global option or repository option. The input key can contain globs in repository name.
+std::vector<std::pair<std::string, std::string>> Actions::get_conf(const std::string & key) {
+    auto & base = get_base();
+    std::vector<std::pair<std::string, std::string>> list_set_key_vals;
+
+    auto [repo_id_pattern, opt_name] = get_repoid_and_optname_from_key(key);
+    if (!repo_id_pattern.empty()) {
+        repo::RepoQuery query(base);
+        query.filter_id(repo_id_pattern, sack::QueryCmp::GLOB);
+        for (auto repo : query) {
+            auto config_opts = repo->get_config().opt_binds();
+            auto it = config_opts.find(opt_name);
+            if (it == config_opts.end()) {
+                throw ConfigError(fmt::format("Unknown repo config option: {}", key));
+            }
+            std::string value;
+            try {
+                value = it->second.get_value_string();
+            } catch (libdnf5::OptionError & ex) {
+                throw ConfigError(fmt::format("Cannot get repo config option \"{}\": {}", key, ex.what()));
+            }
+            list_set_key_vals.emplace_back(repo->get_id() + '.' + it->first, value);
+        }
+    } else {
+        auto config_opts = base.get_config().opt_binds();
+        auto it = config_opts.find(key);
+        if (it == config_opts.end()) {
+            throw ConfigError(fmt::format("Unknown config option \"{}\"", key));
+        }
+        std::string value;
+        try {
+            value = it->second.get_value_string();
+        } catch (libdnf5::OptionError & ex) {
+            throw ConfigError(fmt::format("Cannot get config option \"{}\": {}", key, ex.what()));
+        }
+        list_set_key_vals.emplace_back(key, value);
+    }
+    return list_set_key_vals;
+}
+
+
+// Sets the matching keys to the given value.
+// Returns a list of matching "key=value" pairs. The key can be a global option or repository option.
+// The input key can contain globs in repository name. New value is returned.
+std::vector<std::pair<std::string, std::string>> Actions::set_conf(const std::string & key, const std::string & value) {
+    auto & base = get_base();
+    std::vector<std::pair<std::string, std::string>> list_set_key_vals;
+
+    auto [repo_id_pattern, opt_name] = get_repoid_and_optname_from_key(key);
+    if (!repo_id_pattern.empty()) {
+        repo::RepoQuery query(base);
+        query.filter_id(repo_id_pattern, sack::QueryCmp::GLOB);
+        for (auto repo : query) {
+            auto config_opts = repo->get_config().opt_binds();
+            auto it = config_opts.find(opt_name);
+            if (it == config_opts.end()) {
+                throw ConfigError(fmt::format("Unknown repo config option: {}", key));
+            }
+            try {
+                it->second.new_string(libdnf5::Option::Priority::PLUGINCONFIG, value);
+            } catch (libdnf5::OptionError & ex) {
+                throw ConfigError(fmt::format("Cannot set repo config option \"{}={}\": {}", key, value, ex.what()));
+            }
+            list_set_key_vals.emplace_back(repo->get_id() + '.' + it->first, value);
+        }
+    } else {
+        auto config_opts = base.get_config().opt_binds();
+        auto it = config_opts.find(key);
+        if (it == config_opts.end()) {
+            throw ConfigError(fmt::format("Unknown config option \"{}\"", key));
+        }
+        try {
+            it->second.new_string(libdnf5::Option::Priority::PLUGINCONFIG, value);
+        } catch (libdnf5::OptionError & ex) {
+            throw ConfigError(fmt::format("Cannot set config option \"{}={}\": {}", key, value, ex.what()));
+        }
+        list_set_key_vals.emplace_back(key, value);
+    }
+    return list_set_key_vals;
+}
+
+
 void Actions::process_command_output_line(std::string_view line) {
     auto & base = get_base();
 
@@ -595,22 +775,12 @@ void Actions::process_command_output_line(std::string_view line) {
         return;
     }
     if (line.starts_with("conf.")) {
-        std::string var_name(line.substr(5, eq_pos - 5));
-        std::string var_value(line.substr(eq_pos + 1));
-        auto config_opts = base.get_config().opt_binds();
-        auto it = config_opts.find(var_name);
-        if (it == config_opts.end()) {
-            base.get_logger()->error("Actions plugin: Command returns unknown config option \"{}\"", var_name);
-            return;
-        }
+        std::string key(line.substr(5, eq_pos - 5));
+        std::string conf_value(line.substr(eq_pos + 1));
         try {
-            it->second.new_string(libdnf5::Option::Priority::PLUGINCONFIG, var_value);
-        } catch (libdnf5::OptionError & ex) {
-            base.get_logger()->error(
-                "Actions plugin: Cannot set config value returned by command \"{}={}\": {}",
-                var_name,
-                var_value,
-                std::string(ex.what()));
+            set_conf(key, conf_value);
+        } catch (const ConfigError & ex) {
+            base.get_logger()->error("Actions plugin: {}", ex.what());
         }
     } else if (line.starts_with("var.")) {
         std::string var_name(line.substr(4, eq_pos - 4));
@@ -625,6 +795,7 @@ void Actions::process_command_output_line(std::string_view line) {
 }
 
 void Actions::execute_command(CommandToRun & command) {
+    enum PipeEnd { READ = 0, WRITE = 1 };
     auto & base = get_base();
 
     int pipe_out_from_child[2];
@@ -635,8 +806,8 @@ void Actions::execute_command(CommandToRun & command) {
     }
     if (pipe(pipe_out_from_child) == -1) {
         auto errnum = errno;
-        close(pipe_to_child[1]);
-        close(pipe_to_child[0]);
+        close(pipe_to_child[PipeEnd::WRITE]);
+        close(pipe_to_child[PipeEnd::READ]);
         base.get_logger()->error("Actions plugin: Cannot create pipe: {}", std::strerror(errnum));
         return;
     }
@@ -644,28 +815,28 @@ void Actions::execute_command(CommandToRun & command) {
     auto child_pid = fork();
     if (child_pid == -1) {
         auto errnum = errno;
-        close(pipe_to_child[1]);
-        close(pipe_to_child[0]);
-        close(pipe_out_from_child[1]);
-        close(pipe_out_from_child[0]);
+        close(pipe_to_child[PipeEnd::WRITE]);
+        close(pipe_to_child[PipeEnd::READ]);
+        close(pipe_out_from_child[PipeEnd::WRITE]);
+        close(pipe_out_from_child[PipeEnd::READ]);
         base.get_logger()->error("Actions plugin: Cannot fork: {}", std::strerror(errnum));
     } else if (child_pid == 0) {
-        close(pipe_to_child[1]);        // close writing end of the pipe on the child side
-        close(pipe_out_from_child[0]);  // close reading end of the pipe on the child side
+        close(pipe_to_child[PipeEnd::WRITE]);       // close writing end of the pipe on the child side
+        close(pipe_out_from_child[PipeEnd::READ]);  // close reading end of the pipe on the child side
 
         // bind stdin of the child process to the reading end of the pipe
-        if (dup2(pipe_to_child[0], fileno(stdin)) == -1) {
+        if (dup2(pipe_to_child[PipeEnd::READ], fileno(stdin)) == -1) {
             base.get_logger()->error("Actions plugin: Cannot bind command stdin: {}", std::strerror(errno));
             _exit(255);
         }
-        close(pipe_to_child[0]);
+        close(pipe_to_child[PipeEnd::READ]);
 
         // bind stdout of the child process to the writing end of the pipe
-        if (dup2(pipe_out_from_child[1], fileno(stdout)) == -1) {
+        if (dup2(pipe_out_from_child[PipeEnd::WRITE], fileno(stdout)) == -1) {
             base.get_logger()->error("Actions plugin: Cannot bind command stdout: {}", std::strerror(errno));
             _exit(255);
         }
-        close(pipe_out_from_child[1]);
+        close(pipe_out_from_child[PipeEnd::WRITE]);
 
         std::vector<char *> args;
         args.reserve(command.args.size() + 1);
@@ -685,15 +856,15 @@ void Actions::execute_command(CommandToRun & command) {
             "Actions plugin: Cannot execute \"{}{}\": {}", command.command, args_string, std::strerror(errnum));
         _exit(255);
     } else {
-        close(pipe_to_child[0]);
-        close(pipe_to_child[1]);
+        close(pipe_to_child[PipeEnd::READ]);
+        close(pipe_to_child[PipeEnd::WRITE]);
 
-        close(pipe_out_from_child[1]);
+        close(pipe_out_from_child[PipeEnd::WRITE]);
         char read_buf[256];
         std::string input;
         std::size_t num_tested_chars = 0;
         do {
-            auto len = read(pipe_out_from_child[0], read_buf, sizeof(read_buf));
+            auto len = read(pipe_out_from_child[PipeEnd::READ], read_buf, sizeof(read_buf));
             if (len > 0) {
                 std::size_t line_begin_pos = 0;
                 input.append(read_buf, static_cast<std::size_t>(len));
@@ -719,7 +890,7 @@ void Actions::execute_command(CommandToRun & command) {
                 break;
             }
         } while (true);
-        close(pipe_out_from_child[0]);
+        close(pipe_out_from_child[PipeEnd::READ]);
 
         waitpid(child_pid, nullptr, 0);
     }

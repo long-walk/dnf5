@@ -24,6 +24,7 @@ along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "libdnf5/base/goal_elements.hpp"
 #include "libdnf5/base/transaction.hpp"
+#include "libdnf5/defs.h"
 #include "libdnf5/rpm/package.hpp"
 
 
@@ -31,7 +32,7 @@ namespace libdnf5 {
 
 
 /// Centralized point to perform operations with RPMs, Comps groups, and Modules
-class Goal {
+class LIBDNF_API Goal {
 public:
     explicit Goal(const libdnf5::BaseWeakPtr & base);
     explicit Goal(libdnf5::Base & base);
@@ -364,6 +365,16 @@ public:
         const std::filesystem::path & transaction_path,
         const libdnf5::GoalJobSettings & settings = libdnf5::GoalJobSettings());
 
+    /// @warning This method is experimental/unstable and should not be relied on. It may be removed without warning
+    /// Add revert request of history transactions to the goal.
+    /// Can be called only once per Goal.
+    ///
+    /// @param transactions                     A vector of history transactions to be reverted.
+    /// @param settings                         A structure to override default goal settings.
+    void add_revert_transactions(
+        const std::vector<libdnf5::transaction::Transaction> & transactions,
+        const libdnf5::GoalJobSettings & settings = libdnf5::GoalJobSettings());
+
     /// When true it allows to remove installed packages to resolve dependency problems
     void set_allow_erasing(bool value);
 
@@ -386,8 +397,8 @@ public:
     libdnf5::BaseWeakPtr get_base() const;
 
 private:
-    rpm::PackageId get_running_kernel_internal();
-    class Impl;
+    LIBDNF_LOCAL rpm::PackageId get_running_kernel_internal();
+    class LIBDNF_LOCAL Impl;
     std::unique_ptr<Impl> p_impl;
 };
 

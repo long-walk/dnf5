@@ -29,6 +29,7 @@ along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 #include <libdnf5/base/goal.hpp>
 #include <libdnf5/conf/const.hpp>
 #include <libdnf5/conf/option_path.hpp>
+#include <libdnf5/transaction/offline.hpp>
 #include <libdnf5/utils/bgettext/bgettext-lib.h>
 #include <libdnf5/utils/bgettext/bgettext-mark-domain.h>
 #include <sys/wait.h>
@@ -45,7 +46,7 @@ along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 
 using namespace libdnf5::cli;
 
-const std::string & ID_TO_IDENTIFY_BOOTS = dnf5::offline::OFFLINE_STARTED_ID;
+const std::string & ID_TO_IDENTIFY_BOOTS = libdnf5::offline::OFFLINE_STARTED_ID;
 
 const std::string SYSTEMD_DESTINATION_NAME{"org.freedesktop.systemd1"};
 const std::string SYSTEMD_OBJECT_PATH{"/org/freedesktop/systemd1"};
@@ -201,18 +202,14 @@ OfflineSubcommand::OfflineSubcommand(Context & context, const std::string & name
 
 void OfflineSubcommand::configure() {
     auto & ctx = get_context();
-    // This value comes from systemd, see
-    // https://www.freedesktop.org/wiki/Software/systemd/SystemUpdates or
-    // systemd.offline-updates(7).
-    magic_symlink = "/system-update";
 
     const std::filesystem::path installroot = ctx.get_base().get_config().get_installroot_option().get_value();
-    datadir = installroot / dnf5::offline::DEFAULT_DATADIR.relative_path();
+    datadir = installroot / libdnf5::offline::DEFAULT_DATADIR.relative_path();
     std::filesystem::create_directories(datadir);
-    state = std::make_optional<dnf5::offline::OfflineTransactionState>(datadir / "offline-transaction-state.toml");
+    state = std::make_optional<libdnf5::offline::OfflineTransactionState>(datadir / "offline-transaction-state.toml");
 }
 
-void check_state(const dnf5::offline::OfflineTransactionState & state) {
+void check_state(const libdnf5::offline::OfflineTransactionState & state) {
     const auto & read_exception = state.get_read_exception();
     if (read_exception != nullptr) {
         try {
@@ -296,8 +293,9 @@ void OfflineRebootCommand::run() {
 
     check_state(*state);
 
-    if (state->get_data().status != dnf5::offline::STATUS_DOWNLOAD_COMPLETE &&
-        state->get_data().status != dnf5::offline::STATUS_READY) {
+    auto & offline_data = state->get_data();
+    if (offline_data.get_status() != libdnf5::offline::STATUS_DOWNLOAD_COMPLETE &&
+        offline_data.get_status() != libdnf5::offline::STATUS_READY) {
         throw libdnf5::cli::CommandExitError(1, M_("System is not ready for offline transaction."));
     }
     if (!std::filesystem::is_directory(get_datadir())) {
@@ -330,34 +328,34 @@ void OfflineRebootCommand::run() {
     }
 #endif
 
-    const auto & system_releasever = state->get_data().system_releasever;
-    const auto & target_releasever = state->get_data().target_releasever;
+    const auto & system_releasever = offline_data.get_system_releasever();
+    const auto & target_releasever = offline_data.get_target_releasever();
 
-    if (state->get_data().verb == "system-upgrade download") {
+    if (offline_data.get_verb() == "system-upgrade download") {
         std::cout << _("The system will now reboot to upgrade to release version ") << target_releasever << "."
                   << std::endl;
     } else {
         std::cout
             << _("The system will now reboot to perform the offline transaction initiated by the following command:")
             << std::endl
-            << "\t" << state->get_data().cmd_line << std::endl;
+            << "\t" << offline_data.get_cmd_line() << std::endl;
     }
     if (!libdnf5::cli::utils::userconfirm::userconfirm(ctx.get_base().get_config())) {
         return;
     }
 
-    if (!std::filesystem::is_symlink(get_magic_symlink())) {
-        std::filesystem::create_symlink(get_datadir(), get_magic_symlink());
+    if (!std::filesystem::is_symlink(libdnf5::offline::MAGIC_SYMLINK)) {
+        std::filesystem::create_symlink(get_datadir(), libdnf5::offline::MAGIC_SYMLINK);
     }
 
-    state->get_data().status = dnf5::offline::STATUS_READY;
-    state->get_data().poweroff_after = poweroff_after->get_value();
+    offline_data.set_status(libdnf5::offline::STATUS_READY);
+    offline_data.set_poweroff_after(poweroff_after->get_value());
     state->write();
 
     dnf5::offline::log_status(
         ctx,
         "Rebooting to perform offline transaction.",
-        dnf5::offline::REBOOT_REQUESTED_ID,
+        libdnf5::offline::REBOOT_REQUESTED_ID,
         system_releasever,
         target_releasever);
 
@@ -395,11 +393,11 @@ void OfflineExecuteCommand::configure() {
     OfflineSubcommand::configure();
     auto & ctx = get_context();
 
-    if (!std::filesystem::is_symlink(get_magic_symlink())) {
+    if (!std::filesystem::is_symlink(libdnf5::offline::MAGIC_SYMLINK)) {
         throw libdnf5::cli::CommandExitError(0, M_("Trigger file does not exist. Exiting."));
     }
 
-    if (!std::filesystem::equivalent(get_magic_symlink(), get_datadir())) {
+    if (!std::filesystem::equivalent(libdnf5::offline::MAGIC_SYMLINK, get_datadir())) {
         throw libdnf5::cli::CommandExitError(0, M_("Another offline transaction tool is running. Exiting."));
     }
 
@@ -410,24 +408,27 @@ void OfflineExecuteCommand::configure() {
     ctx.set_load_available_repos(Context::LoadAvailableRepos::NONE);
 
     // Get the cache from the cachedir specified in the state file
-    ctx.get_base().get_config().get_system_cachedir_option().set(state->get_data().cachedir);
-    ctx.get_base().get_config().get_cachedir_option().set(state->get_data().cachedir);
+    auto cachedir = state->get_data().get_cachedir();
+    ctx.get_base().get_config().get_system_cachedir_option().set(cachedir);
+    ctx.get_base().get_config().get_cachedir_option().set(cachedir);
 
-    if (!state->get_data().module_platform_id.empty()) {
-        ctx.get_base().get_config().get_module_platform_id_option().set(state->get_data().module_platform_id);
+    auto module_platform_id = state->get_data().get_module_platform_id();
+    if (!module_platform_id.empty()) {
+        ctx.get_base().get_config().get_module_platform_id_option().set(module_platform_id);
     }
 }
 
 void OfflineExecuteCommand::run() {
     auto & ctx = get_context();
+    auto & offline_data = state->get_data();
 
-    const auto & system_releasever = state->get_data().system_releasever;
-    const auto & target_releasever = state->get_data().target_releasever;
+    const auto & system_releasever = offline_data.get_system_releasever();
+    const auto & target_releasever = offline_data.get_target_releasever();
 
     dnf5::offline::log_status(
         ctx,
         "Starting offline transaction. This will take a while.",
-        dnf5::offline::OFFLINE_STARTED_ID,
+        libdnf5::offline::OFFLINE_STARTED_ID,
         system_releasever,
         target_releasever);
 
@@ -436,19 +437,19 @@ void OfflineExecuteCommand::run() {
              "the user. To initiate the system upgrade/offline transaction, you should run `dnf5 offline reboot`.")
         << std::endl;
 
-    std::filesystem::remove(get_magic_symlink());
+    std::filesystem::remove(libdnf5::offline::MAGIC_SYMLINK);
 
-    if (state->get_data().status != dnf5::offline::STATUS_READY) {
+    if (offline_data.get_status() != libdnf5::offline::STATUS_READY) {
         throw libdnf5::cli::CommandExitError(1, M_("Use `dnf5 offline reboot` to begin the transaction."));
     }
 
-    state->get_data().status = dnf5::offline::STATUS_TRANSACTION_INCOMPLETE;
+    offline_data.set_status(libdnf5::offline::STATUS_TRANSACTION_INCOMPLETE);
     state->write();
 
     const auto & installroot = ctx.get_base().get_config().get_installroot_option().get_value();
-    const auto & datadir = installroot / dnf5::offline::DEFAULT_DATADIR.relative_path();
+    const auto & datadir = installroot / libdnf5::offline::DEFAULT_DATADIR.relative_path();
     std::filesystem::create_directories(datadir);
-    const auto & transaction_json_path = datadir / "transaction.json";
+    const auto & transaction_json_path = datadir / TRANSACTION_JSON;
 
     const auto & goal = std::make_unique<libdnf5::Goal>(ctx.get_base());
 
@@ -485,7 +486,7 @@ void OfflineExecuteCommand::run() {
     callbacks->get_multi_progress_bar()->set_total_num_of_bars(num_of_actions);
     transaction.set_callbacks(std::move(callbacks));
 
-    transaction.set_description(state->get_data().cmd_line);
+    transaction.set_description(offline_data.get_cmd_line());
 
     const auto result = transaction.run();
     std::cout << std::endl;
@@ -506,7 +507,7 @@ void OfflineExecuteCommand::run() {
     }
 
     std::string transaction_complete_message;
-    if (state->get_data().poweroff_after) {
+    if (offline_data.get_poweroff_after()) {
         transaction_complete_message = "Transaction complete! Cleaning up and powering off...";
     } else {
         transaction_complete_message = "Transaction complete! Cleaning up and rebooting...";
@@ -514,12 +515,12 @@ void OfflineExecuteCommand::run() {
 
     plymouth.message(_(transaction_complete_message.c_str()));
     dnf5::offline::log_status(
-        ctx, transaction_complete_message, dnf5::offline::OFFLINE_FINISHED_ID, system_releasever, target_releasever);
+        ctx, transaction_complete_message, libdnf5::offline::OFFLINE_FINISHED_ID, system_releasever, target_releasever);
 
     // If the transaction succeeded, remove downloaded data
     clean_datadir(ctx, get_datadir());
 
-    reboot(state->get_data().poweroff_after);
+    reboot(offline_data.get_poweroff_after());
 }
 
 void OfflineCleanCommand::set_argument_parser() {
@@ -530,7 +531,7 @@ void OfflineCleanCommand::set_argument_parser() {
 
 void OfflineCleanCommand::run() {
     auto & ctx = get_context();
-    std::filesystem::remove(get_magic_symlink());
+    std::filesystem::remove(libdnf5::offline::MAGIC_SYMLINK);
     clean_datadir(ctx, get_datadir());
 }
 
@@ -673,20 +674,20 @@ void OfflineStatusCommand::run() {
     }
     check_state(*state);
 
-    const auto & status = state->get_data().status;
-    if (status == offline::STATUS_DOWNLOAD_INCOMPLETE) {
+    const auto & status = state->get_data().get_status();
+    if (status == libdnf5::offline::STATUS_DOWNLOAD_INCOMPLETE) {
         std::cout << no_transaction_message << std::endl;
-    } else if (status == offline::STATUS_DOWNLOAD_COMPLETE || status == offline::STATUS_READY) {
+    } else if (status == libdnf5::offline::STATUS_DOWNLOAD_COMPLETE || status == libdnf5::offline::STATUS_READY) {
         std::cout << _("An offline transaction was initiated by the following command:") << std::endl
-                  << "\t" << state->get_data().cmd_line << std::endl
+                  << "\t" << state->get_data().get_cmd_line() << std::endl
                   << _("Run `dnf5 offline reboot` to reboot and perform the offline transaction.") << std::endl;
-    } else if (status == offline::STATUS_TRANSACTION_INCOMPLETE) {
+    } else if (status == libdnf5::offline::STATUS_TRANSACTION_INCOMPLETE) {
         std::cout << _("An offline transaction was started, but it did not finish. Run `dnf5 offline log` for more "
                        "information. The command that initiated the transaction was:")
                   << std::endl
-                  << "\t" << state->get_data().cmd_line << std::endl;
+                  << "\t" << state->get_data().get_cmd_line() << std::endl;
     } else {
-        std::cout << _("Unknown offline transaction status: ") << "`" << state->get_data().status << "`" << std::endl;
+        std::cout << _("Unknown offline transaction status: ") << "`" << status << "`" << std::endl;
     }
 }
 

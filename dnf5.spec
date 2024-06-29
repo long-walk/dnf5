@@ -1,6 +1,6 @@
 %global project_version_prime 5
 %global project_version_major 2
-%global project_version_minor 3
+%global project_version_minor 4
 %global project_version_micro 0
 
 %bcond dnf5_obsoletes_dnf %[0%{?fedora} > 40 || 0%{?rhel} > 11]
@@ -58,6 +58,7 @@ Provides:       dnf5-command(module)
 Provides:       dnf5-command(offline)
 Provides:       dnf5-command(provides)
 Provides:       dnf5-command(reinstall)
+Provides:       dnf5-command(replay)
 Provides:       dnf5-command(remove)
 Provides:       dnf5-command(repo)
 Provides:       dnf5-command(repoquery)
@@ -114,7 +115,7 @@ Provides:       dnf5-command(versionlock)
 # ========== versions of dependencies ==========
 
 %global libmodulemd_version 2.5.0
-%global librepo_version 1.15.0
+%global librepo_version 1.18.0
 %global libsolv_version 0.7.25
 %global sqlite_version 3.35.0
 %global swig_version 4
@@ -308,6 +309,7 @@ It supports RPM packages, modulemd modules, and comps groups & environments.
 %{_mandir}/man8/dnf*-provides.8.*
 %{_mandir}/man8/dnf*-reinstall.8.*
 %{_mandir}/man8/dnf*-remove.8.*
+%{_mandir}/man8/dnf*-replay.8.*
 %{_mandir}/man8/dnf*-repo.8.*
 %{_mandir}/man8/dnf*-repoquery.8.*
 %{_mandir}/man8/dnf*-search.8.*
@@ -716,6 +718,7 @@ config-manager, copr, and repoclosure commands.
 %{_mandir}/man8/dnf*-copr.8.*
 %{_mandir}/man8/dnf*-needs-restarting.8.*
 %{_mandir}/man8/dnf*-repoclosure.8.*
+%{_datadir}/dnf5/aliases.d/compatibility-plugins.conf
 
 
 # ========== dnf5-automatic plugin ==========
@@ -866,6 +869,9 @@ popd
 %ldconfig_scriptlets
 
 %changelog
+* Wed Jun 26 2024 Packit Team <hello@packit.dev> - 5.2.4.0-1
+- New upstream release 5.2.4.0
+
 * Mon Jun 03 2024 Packit Team <hello@packit.dev> - 5.2.3.0-1
 - New upstream release 5.2.3.0
 

@@ -24,6 +24,7 @@ along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 #include "libdnf5/advisory/advisory_query.hpp"
 #include "libdnf5/comps/group/package.hpp"
 #include "libdnf5/conf/config_main.hpp"
+#include "libdnf5/defs.h"
 #include "libdnf5/rpm/nevra.hpp"
 
 #include <cstdint>
@@ -117,7 +118,11 @@ enum class GoalProblem : uint32_t {
     MODULE_SOLVER_ERROR_LATEST = (1 << 19),
     /// Error detected during resolvement of module dependencies
     MODULE_SOLVER_ERROR = (1 << 20),
-    MODULE_CANNOT_SWITH_STREAMS = (1 << 21)
+    MODULE_CANNOT_SWITH_STREAMS = (1 << 21),
+    /// Error when transaction contains additional unexpected elements.
+    /// Used when replaying transactions.
+    EXTRA = (1 << 22),
+    MALFORMED = (1 << 23)
 };
 
 /// Types of Goal actions
@@ -139,11 +144,22 @@ enum class GoalAction {
     REASON_CHANGE,
     ENABLE,
     DISABLE,
-    RESET
+    RESET,
+    REPLAY_PARSE,
+    REPLAY_INSTALL,
+    REPLAY_REMOVE,
+    REPLAY_UPGRADE,
+    REPLAY_REINSTALL,
+    REPLAY_REASON_CHANGE,
+    REPLAY_REASON_OVERRIDE,
+    REVERT_COMPS_UPGRADE
 };
 
 /// Convert GoalAction enum to user-readable string
-std::string goal_action_to_string(GoalAction action);
+LIBDNF_API std::string goal_action_to_string(GoalAction action);
+
+/// Check whether the action is a replay action
+LIBDNF_API bool goal_action_is_replay(GoalAction action);
 
 /// Settings for GoalJobSettings
 enum class GoalSetting { AUTO, SET_TRUE, SET_FALSE };
@@ -153,7 +169,7 @@ enum class GoalUsedSetting { UNUSED, USED_TRUE, USED_FALSE };
 
 /// Configure SPEC resolving.
 /// Important for queries that resolve SPEC.
-struct ResolveSpecSettings {
+struct LIBDNF_API ResolveSpecSettings {
 public:
     ResolveSpecSettings();
     ~ResolveSpecSettings();
@@ -235,11 +251,11 @@ public:
     bool get_group_search_environments() const;
 
 private:
-    class Impl;
+    class LIBDNF_LOCAL Impl;
     std::unique_ptr<Impl> p_impl;
 };
 
-struct GoalJobSettings : public ResolveSpecSettings {
+struct LIBDNF_API GoalJobSettings : public ResolveSpecSettings {
 public:
     GoalJobSettings();
     ~GoalJobSettings();
@@ -328,6 +344,20 @@ public:
     void set_to_repo_ids(std::vector<std::string> to_repo_ids);
     std::vector<std::string> get_to_repo_ids() const;
 
+    /// If set to true, after resolving serialized or reverted transactions don't check for
+    /// extra packages pulled into the transaction.
+    ///
+    /// Default: false
+    void set_ignore_extras(bool ignore_extras);
+    bool get_ignore_extras() const;
+
+    /// If set to true, after resolving serialized or reverted transactions don't check for
+    /// installed packages matching those in the transactions.
+    ///
+    /// Default: false
+    void set_ignore_installed(bool ignore_installed);
+    bool get_ignore_installed() const;
+
 private:
     friend class Goal;
 
@@ -340,13 +370,13 @@ private:
     /// @return Resolved value.
     /// @exception libdnf5::AssertionError When a different value already stored or when invalid value
     /// @since 1.0
-    bool resolve_skip_broken(const libdnf5::ConfigMain & cfg_main);
+    LIBDNF_LOCAL bool resolve_skip_broken(const libdnf5::ConfigMain & cfg_main);
     /// Resolve skip_broken value and store the result as the value used. When GoalSetting::auto it returns false
     ///
     /// @return Resolved value.
     /// @exception libdnf5::AssertionError When a different value already stored
     /// @since 1.0
-    bool resolve_skip_broken();
+    LIBDNF_LOCAL bool resolve_skip_broken();
 
     /// Resolve skip_unavailable value and store the result as the value used.
     ///
@@ -354,7 +384,7 @@ private:
     /// @return Resolved value.
     /// @exception libdnf5::AssertionError When a different value already stored or when invalid value
     /// @since 1.0
-    bool resolve_skip_unavailable(const libdnf5::ConfigMain & cfg_main);
+    LIBDNF_LOCAL bool resolve_skip_unavailable(const libdnf5::ConfigMain & cfg_main);
 
     /// Resolve best value and store the result as the value used.
     ///
@@ -362,27 +392,27 @@ private:
     /// @return Resolved value.
     /// @exception libdnf5::AssertionError When a different value already stored or when invalid value
     /// @since 1.0
-    bool resolve_best(const libdnf5::ConfigMain & cfg_main);
+    LIBDNF_LOCAL bool resolve_best(const libdnf5::ConfigMain & cfg_main);
     /// Resolve clean_requirements_on_remove value and store the result as the value used.
     ///
     /// @param cfg_main Main config used to resolve GoalSetting::auto
     /// @return Resolved value.
     /// @exception libdnf5::AssertionError When a different value already stored or when invalid value
     /// @since 1.0
-    bool resolve_clean_requirements_on_remove(const libdnf5::ConfigMain & cfg_main);
+    LIBDNF_LOCAL bool resolve_clean_requirements_on_remove(const libdnf5::ConfigMain & cfg_main);
     /// Resolve clean_requirements_on_remove value and store the result as the value used.
     ///
     /// @return Resolved value.
     /// @exception libdnf5::AssertionError When a different value already stored or when invalid value
     /// @since 1.0
-    bool resolve_clean_requirements_on_remove();
+    LIBDNF_LOCAL bool resolve_clean_requirements_on_remove();
 
     /// Compute and store effective group_package_types value. Used only for goal jobs operating on groups.
     /// @return group_package_types value if set, cfg_main.group_package_types value otherwise.
     /// @exception libdnf5::AssertionError When a different value already stored or when invalid value
-    libdnf5::comps::PackageType resolve_group_package_types(const libdnf5::ConfigMain & cfg_main);
+    LIBDNF_LOCAL libdnf5::comps::PackageType resolve_group_package_types(const libdnf5::ConfigMain & cfg_main);
 
-    class Impl;
+    class LIBDNF_LOCAL Impl;
     std::unique_ptr<Impl> p_impl;
 };
 
