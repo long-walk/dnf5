@@ -884,6 +884,9 @@ popd
 %ldconfig_scriptlets
 
 %changelog
+* Fri Nov 01 2024 Thomas <temp.mail@hispeed.ch>
+- new package built with tito
+
 * Fri Sep 20 2024 Packit Team <hello@packit.dev> - 5.2.6.2-1
 - New upstream release 5.2.6.2
 
