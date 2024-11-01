@@ -6,7 +6,7 @@
 %bcond dnf5_obsoletes_dnf %[0%{?fedora} > 40 || 0%{?rhel} > 11]
 
 Name:           dnf5
-Version:        %{project_version_prime}.%{project_version_major}.%{project_version_minor}.%{project_version_micro}
+Version:        5.2.6.2
 Release:        1%{?dist}
 Summary:        Command-line package manager
 License:        GPL-2.0-or-later
@@ -884,6 +884,9 @@ popd
 %ldconfig_scriptlets
 
 %changelog
+* Fri Nov 01 2024 Thomas <temp.mail@hispeed.ch> 5.2.6.2-1
+- new package built with tito
+
 * Fri Nov 01 2024 Thomas <temp.mail@hispeed.ch>
 - new package built with tito
 
