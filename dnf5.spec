@@ -884,6 +884,12 @@ popd
 %ldconfig_scriptlets
 
 %changelog
+* Sat Nov 02 2024 Thomas <temp.mail@hispeed.ch> 5.2.6.2-1
+- new package built with tito
+
+* Sat Nov 02 2024 Thomas <temp.mail@hispeed.ch>
+- new package built with tito
+
 * Sat Nov 02 2024 Thomas <temp.mail@hispeed.ch> 5.2.6.3-1
 - test 9 (temp.mail@hispeed.ch)
 - test 8 (temp.mail@hispeed.ch)
