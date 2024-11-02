@@ -6,7 +6,7 @@
 %bcond dnf5_obsoletes_dnf %[0%{?fedora} > 40 || 0%{?rhel} > 11]
 
 Name:           dnf5
-Version:        5.2.6.3
+Version:        5.2.6.2
 Release:        1%{?dist}
 Summary:        Command-line package manager
 License:        GPL-2.0-or-later
