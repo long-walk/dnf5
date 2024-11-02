@@ -6,8 +6,8 @@
 %bcond dnf5_obsoletes_dnf %[0%{?fedora} > 40 || 0%{?rhel} > 11]
 
 Name:           dnf5
-Version:        5.2.6.2
-Release:        5%{?dist}
+Version:        5.2.6.3
+Release:        1%{?dist}
 Summary:        Command-line package manager
 License:        GPL-2.0-or-later
 URL:            https://github.com/rpm-software-management/dnf5
@@ -884,6 +884,11 @@ popd
 %ldconfig_scriptlets
 
 %changelog
+* Sat Nov 02 2024 Thomas <temp.mail@hispeed.ch> 5.2.6.3-1
+- test 9 (temp.mail@hispeed.ch)
+- test 8 (temp.mail@hispeed.ch)
+- test 7 (temp.mail@hispeed.ch)
+
 * Sat Nov 02 2024 Thomas <temp.mail@hispeed.ch>
 - test 8 (temp.mail@hispeed.ch)
 - test 7 (temp.mail@hispeed.ch)
