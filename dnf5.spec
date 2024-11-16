@@ -1,12 +1,12 @@
 %global project_version_prime 5
 %global project_version_major 2
-%global project_version_minor 6
-%global project_version_micro 2
+%global project_version_minor 7
+%global project_version_micro 0
 
 %bcond dnf5_obsoletes_dnf %[0%{?fedora} > 40 || 0%{?rhel} > 11]
 
 Name:           dnf5
-Version:        5.2.6.2
+Version:        %{project_version_prime}.%{project_version_major}.%{project_version_minor}.%{project_version_micro}
 Release:        1%{?dist}
 Summary:        Command-line package manager
 License:        GPL-2.0-or-later
@@ -263,12 +263,23 @@ DNF5 is a command-line package manager that automates the process of installing,
 upgrading, configuring, and removing computer programs in a consistent manner.
 It supports RPM packages, modulemd modules, and comps groups & environments.
 
+%post
+%systemd_post dnf5-makecache.timer
+
+%preun
+%systemd_preun dnf5-makecache.timer
+
+%postun
+%systemd_postun_with_restart dnf5-makecache.timer
+
 %files -f dnf5.lang
 %{_bindir}/dnf5
 %if %{with dnf5_obsoletes_dnf}
 %{_bindir}/dnf
 %{_bindir}/yum
 %endif
+%{_unitdir}/dnf5-makecache.service
+%{_unitdir}/dnf5-makecache.timer
 
 %if 0%{?fedora} || 0%{?rhel} > 10
 %{_bindir}/microdnf
@@ -884,39 +895,8 @@ popd
 %ldconfig_scriptlets
 
 %changelog
-* Sat Nov 02 2024 Thomas <temp.mail@hispeed.ch> 5.2.6.2-1
-- new package built with tito
-
-* Sat Nov 02 2024 Thomas <temp.mail@hispeed.ch>
-- new package built with tito
-
-* Sat Nov 02 2024 Thomas <temp.mail@hispeed.ch> 5.2.6.3-1
-- test 9 (temp.mail@hispeed.ch)
-- test 8 (temp.mail@hispeed.ch)
-- test 7 (temp.mail@hispeed.ch)
-
-* Sat Nov 02 2024 Thomas <temp.mail@hispeed.ch>
-- test 8 (temp.mail@hispeed.ch)
-- test 7 (temp.mail@hispeed.ch)
-
-* Sat Nov 02 2024 Thomas <temp.mail@hispeed.ch>
-- test 8 (temp.mail@hispeed.ch)
-- test 7 (temp.mail@hispeed.ch)
-
-* Sat Nov 02 2024 Thomas <temp.mail@hispeed.ch>
-- test 7 (temp.mail@hispeed.ch)
-
-* Fri Nov 01 2024 Thomas <temp.mail@hispeed.ch>
-- test 7 (temp.mail@hispeed.ch)
-
-* Fri Nov 01 2024 Thomas <temp.mail@hispeed.ch>
-- test 7 (temp.mail@hispeed.ch)
-
-* Fri Nov 01 2024 Thomas <temp.mail@hispeed.ch> 5.2.6.2-1
-- new package built with tito
-
-* Fri Nov 01 2024 Thomas <temp.mail@hispeed.ch>
-- new package built with tito
+* Tue Nov 12 2024 Packit Team <hello@packit.dev> - 5.2.7.0-1
+- New upstream release 5.2.7.0
 
 * Fri Sep 20 2024 Packit Team <hello@packit.dev> - 5.2.6.2-1
 - New upstream release 5.2.6.2
