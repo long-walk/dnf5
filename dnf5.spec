@@ -6,7 +6,7 @@
 %bcond dnf5_obsoletes_dnf %[0%{?fedora} > 40 || 0%{?rhel} > 11]
 
 Name:           dnf5
-Version:        %{project_version_prime}.%{project_version_major}.%{project_version_minor}.%{project_version_micro}
+Version:        5.2.7.0
 Release:        1%{?dist}
 Summary:        Command-line package manager
 License:        GPL-2.0-or-later
@@ -895,6 +895,35 @@ popd
 %ldconfig_scriptlets
 
 %changelog
+* Sat Nov 16 2024 Thomas <temp.mail@hispeed.ch> 5.2.7.0-1
+- Release 5.2.7.0 (evan-goode@users.noreply.github.com)
+- Update translations from weblate (github-actions@github.com)
+- dnfdaemon: resolve and do_transaction cannot run simultaneously
+  (mblaha@redhat.com)
+- dnfdaemon: Base.reset() API (mblaha@redhat.com)
+- dnfdaemon: Call base.setup() after setting releasever (mblaha@redhat.com)
+- dnfdaemon: Move base initialization to special method (mblaha@redhat.com)
+- dnfdaemon: Store session goal in unique_ptr (mblaha@redhat.com)
+- dnfdaemon: Add transaction mutex to the Session class (mblaha@redhat.com)
+- daemon tests: Adjust tests to current behavior (mblaha@redhat.com)
+- daemon tests: Drop test_repoconf.py (mblaha@redhat.com)
+- repo: Fix invalid free() (mblaha@redhat.com)
+- Optimise multi_progress_bar tty control sequences (giedriusj1@gmail.com)
+- MultiProgressBar now buffers the output text to a single write
+  (giedriusj1@gmail.com)
+- Clear up changes doc about optional subcommands (amatej@redhat.com)
+- PackageDownloader unit tests: Number of add_new_download and end calls
+  (jrohel@redhat.com)
+- DownloadCallbacks: Ensure `end` for every successful `add_new_download`
+  (jrohel@redhat.com)
+- Behave more like the old service, with the "--timer" option.
+  (gordon.messmer@gmail.com)
+- Run "makecache" periodically to keep the cache ready.
+  (gordon.messmer@gmail.com)
+- Add couple progress bar unit tests (amatej@redhat.com)
+- When `multi_progress_bar` finishes print new line automatically
+  (amatej@redhat.com)
+
 * Tue Nov 12 2024 Packit Team <hello@packit.dev> - 5.2.7.0-1
 - New upstream release 5.2.7.0
 
