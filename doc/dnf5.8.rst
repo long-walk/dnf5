@@ -167,6 +167,9 @@ These are available after installing the ``dnf5-plugins`` package.
 :ref:`repoclosure <repoclosure_plugin_ref-label>`
     | Display a list of unresolved dependencies for repositories.
 
+:ref:`reposync <reposync_plugin_ref-label>`
+    | Synchronize packages and metadata of a remote DNF repository to a local directory.
+
 
 Options
 =======
@@ -261,7 +264,7 @@ Following options are applicable in the general context for any ``dnf5`` command
     | It sets the ``RPMTRANS_FLAG_NODOCS`` flag.
 
 ``--no-gpgchecks``
-    | Skip checking GPG signatures on packages (if ``RPM`` policy allows that).
+    | Skip checking OpenPGP signatures on packages (if ``RPM`` policy allows that).
 
 ``--no-plugins``
     | Disable all libdnf5 plugins.
@@ -444,6 +447,7 @@ Application Plugins:
     | :manpage:`dnf5-copr(8)`, :ref:`Copr command <copr_plugin_ref-label>`
     | :manpage:`dnf5-needs-restarting(8)`, :ref:`Needs-Restarting command <needs_restarting_plugin_ref-label>`
     | :manpage:`dnf5-repoclosure(8)`, :ref:`Repoclosure command <repoclosure_plugin_ref-label>`
+    | :manpage:`dnf5-reposync(8)`, :ref:`Reposync command <reposync_plugin_ref-label>`
 
 
 Library Plugins:

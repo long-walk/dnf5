@@ -411,24 +411,25 @@ void Repo::load_available_repo() {
     p_impl->solv_repo->load_repo_main(p_impl->downloader->repomd_filename, primary_fn);
 
     auto optional_metadata = p_impl->config.get_main_config().get_optional_metadata_types_option().get_value();
+    const bool all_metadata = optional_metadata.contains(libdnf5::METADATA_TYPE_ALL);
 
-    if (optional_metadata.contains(libdnf5::METADATA_TYPE_FILELISTS)) {
+    if (all_metadata || optional_metadata.contains(libdnf5::METADATA_TYPE_FILELISTS)) {
         p_impl->solv_repo->load_repo_ext(RepodataType::FILELISTS, *p_impl->downloader.get());
     }
 
-    if (optional_metadata.contains(libdnf5::METADATA_TYPE_OTHER)) {
+    if (all_metadata || optional_metadata.contains(libdnf5::METADATA_TYPE_OTHER)) {
         p_impl->solv_repo->load_repo_ext(RepodataType::OTHER, *p_impl->downloader.get());
     }
 
-    if (optional_metadata.contains(libdnf5::METADATA_TYPE_PRESTO)) {
+    if (all_metadata || optional_metadata.contains(libdnf5::METADATA_TYPE_PRESTO)) {
         p_impl->solv_repo->load_repo_ext(RepodataType::PRESTO, *p_impl->downloader.get());
     }
 
-    if (optional_metadata.contains(libdnf5::METADATA_TYPE_UPDATEINFO)) {
+    if (all_metadata || optional_metadata.contains(libdnf5::METADATA_TYPE_UPDATEINFO)) {
         p_impl->solv_repo->load_repo_ext(RepodataType::UPDATEINFO, *p_impl->downloader.get());
     }
 
-    if (optional_metadata.contains(libdnf5::METADATA_TYPE_COMPS)) {
+    if (all_metadata || optional_metadata.contains(libdnf5::METADATA_TYPE_COMPS)) {
         p_impl->solv_repo->load_repo_ext(RepodataType::COMPS, *p_impl->downloader.get());
     }
 
@@ -536,9 +537,17 @@ bool Repo::clone_root_metadata() {
     repo_cache.remove_solv_files();
 
     auto repodata_cachedir = std::filesystem::path(repo_cachedir) / CACHE_METADATA_DIR;
+    auto root_repodata_metalink = std::filesystem::path(root_repo_cachedir) / CACHE_METALINK_FILE;
+    auto root_repodata_mirrorlist = std::filesystem::path(root_repo_cachedir) / CACHE_MIRRORLIST_FILE;
     try {
         std::filesystem::create_directories(repodata_cachedir);
         std::filesystem::copy(root_repodata_cachedir, repodata_cachedir);
+        if (std::filesystem::exists(root_repodata_metalink)) {
+            std::filesystem::copy(root_repodata_metalink, repo_cachedir);
+        }
+        if (std::filesystem::exists(root_repodata_mirrorlist)) {
+            std::filesystem::copy(root_repodata_mirrorlist, repo_cachedir);
+        }
     } catch (const std::filesystem::filesystem_error & e) {
         logger.debug(
             "Error when cloning root repodata from \"{}\" to \"{}\" : \"{}\"",

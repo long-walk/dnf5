@@ -22,6 +22,8 @@ along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "libdnf5-cli/tty.hpp"
 
+#include "libdnf5/utils/bgettext/bgettext-lib.h"
+
 #include <unistd.h>
 
 #include <algorithm>
@@ -31,7 +33,7 @@ along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 namespace libdnf5::cli::progressbar {
 
 
-MultiProgressBar::MultiProgressBar() : total(0, "Total") {
+MultiProgressBar::MultiProgressBar() : total(0, _("Total")) {
     total.set_auto_finish(false);
     total.start();
     if (tty::is_interactive()) {
@@ -104,14 +106,15 @@ std::ostream & operator<<(std::ostream & stream, MultiProgressBar & mbar) {
     text_buffer.str("");
     text_buffer.clear();
 
+    std::size_t last_num_of_lines_to_clear = mbar.num_of_lines_to_clear;
+    std::size_t num_of_lines_permanent = 0;
+
     if (is_interactive && mbar.num_of_lines_to_clear > 0) {
         if (mbar.num_of_lines_to_clear > 1) {
             // Move the cursor up by the number of lines we want to write over
             text_buffer << "\033[" << (mbar.num_of_lines_to_clear - 1) << "A";
         }
         text_buffer << "\r";
-    } else if (mbar.line_printed) {
-        text_buffer << std::endl;
     }
 
     mbar.num_of_lines_to_clear = 0;
@@ -133,6 +136,8 @@ std::ostream & operator<<(std::ostream & stream, MultiProgressBar & mbar) {
         numbers.pop_back();
         text_buffer << *bar;
         text_buffer << std::endl;
+        num_of_lines_permanent++;
+        num_of_lines_permanent += bar->get_messages().size();
         mbar.bars_done.push_back(bar);
         // TODO(dmach): use iterator
         mbar.bars_todo.erase(mbar.bars_todo.begin() + static_cast<int>(i));
@@ -204,8 +209,32 @@ std::ostream & operator<<(std::ostream & stream, MultiProgressBar & mbar) {
         }
 
         text_buffer << mbar.total;
-        text_buffer << std::endl;
-        mbar.num_of_lines_to_clear += 3;
+        mbar.num_of_lines_to_clear += 2;
+        if (mbar.total.is_finished()) {
+            text_buffer << std::endl;
+        } else {
+            mbar.line_printed = true;
+        }
+    }
+
+    // If we have written less lines than last time we need to clear the rest otherwise
+    // there would be garbage under the updated progressbar. This is because normally
+    // we don't actually clear the lines we just write over the old output to ensure smooth
+    // output updating.
+    // TODO(amatej): It would be sufficient to do this only once after all progressbars have
+    // finished but unfortunaly MultiProgressBar doesn't have a pImpl so we cannot
+    // store the highest line count it had. We could fix this when breaking ABI.
+    size_t all_written = num_of_lines_permanent + mbar.num_of_lines_to_clear;
+    if (last_num_of_lines_to_clear > all_written) {
+        auto delta = last_num_of_lines_to_clear - all_written;
+        if (!mbar.line_printed) {
+            text_buffer << tty::clear_line;
+        }
+        for (std::size_t i = 0; i < delta; i++) {
+            text_buffer << tty::cursor_down << tty::clear_line;
+        }
+        // Move cursor back up after clearing lines leftover from previous print
+        text_buffer << "\033[" << delta << "A";
     }
 
     stream << text_buffer.str();  // Single syscall to output all commands

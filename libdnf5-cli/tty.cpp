@@ -52,6 +52,18 @@ int get_width() {
 
 
 bool is_interactive() {
+    // Use a custom "DNF5_FORCE_INTERACTIVE" variable for testing purposes.
+    // "interactivity" depends on stdout configuration which is hard to control sometimes
+    char * force_interactive = std::getenv("DNF5_FORCE_INTERACTIVE");
+    if (force_interactive != nullptr) {
+        try {
+            // Convert to an int which is then converted to bool,
+            // so when defined accept 0 as FALSE and non 0 as TRUE
+            return std::stoi(force_interactive);
+        } catch (std::invalid_argument & ex) {
+        } catch (std::out_of_range & ex) {
+        }
+    }
     return isatty(fileno(stdout)) == 1;
 }
 
@@ -106,6 +118,9 @@ TTY_COMMAND(clear_line, "\033[2K")
 
 // tty::cursor_up
 TTY_COMMAND(cursor_up, "\x1b[A")
+
+// tty::cursor_down
+TTY_COMMAND(cursor_down, "\x1b[B")
 
 // tty::cursor_hide
 TTY_COMMAND(cursor_hide, "\x1b[?25l")

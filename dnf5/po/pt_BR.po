@@ -12,7 +12,7 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2024-11-06 03:02+0000\n"
-"PO-Revision-Date: 2024-10-30 12:08+0000\n"
+"PO-Revision-Date: 2024-12-05 11:38+0000\n"
 "Last-Translator: \"Geraldo S. Simião Kutz\" <geraldo.simiao.kutz@gmail.com>\n"
 "Language-Team: Portuguese (Brazil) <https://translate.fedoraproject.org/"
 "projects/dnf5/dnf5/pt_BR/>\n"
@@ -21,7 +21,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n > 1;\n"
-"X-Generator: Weblate 5.7.2\n"
+"X-Generator: Weblate 5.8.4\n"
 
 #: commands/advisory/advisory.cpp:36
 msgid "Manage advisories"
@@ -861,7 +861,7 @@ msgstr "Atualizando e carregando repositórios:"
 
 #: context.cpp:332
 msgid "Repositories loaded."
-msgstr "Repositórios caregados."
+msgstr "Repositórios carregados."
 
 #: context.cpp:338
 msgid "Testing offline transaction"
@@ -1446,7 +1446,7 @@ msgstr "DNF5 concluído"
 
 #: main.cpp:1467
 msgid "Complete!"
-msgstr "Terminado!"
+msgstr "Concluído!"
 
 #: shared_options.cpp:32
 msgid "Allow removing of installed packages to resolve problems"

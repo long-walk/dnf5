@@ -20,6 +20,9 @@ along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 #include "builddep.hpp"
 
 #include "utils/string.hpp"
+#include "utils/url.hpp"
+
+#include "libdnf5/repo/file_downloader.hpp"
 
 #include <dnf5/shared_options.hpp>
 #include <libdnf5-cli/exception.hpp>
@@ -61,6 +64,7 @@ void BuildDepCommand::set_argument_parser() {
     specs->set_complete_hook_func([&ctx](const char * arg) {
         return match_specs(ctx, arg, false, true, true, false, ".*\\.(spec|src\\.rpm|nosrc\\.rpm)");
     });
+    specs->set_nrepeats(ArgumentParser::PositionalArg::AT_LEAST_ONE);
     cmd.register_positional_arg(specs);
 
     auto defs = parser.add_new_named_arg("rpm_macros");
@@ -119,6 +123,30 @@ void BuildDepCommand::set_argument_parser() {
     auto skip_unavailable = std::make_unique<SkipUnavailableOption>(*this);
     create_allow_downgrade_options(*this);
     create_store_option(*this);
+
+    auto spec_arg = parser.add_new_named_arg("spec");
+    spec_arg->set_long_name("spec");
+    spec_arg->set_description("Treat following commandline arguments as spec files");
+    spec_arg->set_parse_hook_func([this](
+                                      [[maybe_unused]] ArgumentParser::NamedArg * arg,
+                                      [[maybe_unused]] const char * option,
+                                      [[maybe_unused]] const char * value) {
+        this->arg_type = ArgType::SPEC;
+        return true;
+    });
+    cmd.register_named_arg(spec_arg);
+
+    auto srpm_arg = parser.add_new_named_arg("srpm");
+    srpm_arg->set_long_name("srpm");
+    srpm_arg->set_description("Treat following commandline arguments as source rpm");
+    srpm_arg->set_parse_hook_func([this](
+                                      [[maybe_unused]] ArgumentParser::NamedArg * arg,
+                                      [[maybe_unused]] const char * option,
+                                      [[maybe_unused]] const char * value) {
+        this->arg_type = ArgType::SRPM;
+        return true;
+    });
+    cmd.register_named_arg(srpm_arg);
 }
 
 void BuildDepCommand::configure() {
@@ -136,19 +164,44 @@ void BuildDepCommand::parse_builddep_specs(int specs_count, const char * const s
     const std::string_view ext_srpm(".src.rpm");
     const std::string_view ext_nosrpm(".nosrc.rpm");
     std::set<std::string> unique_items;
+    libdnf5::repo::FileDownloader downloader(get_context().get_base());
     for (int i = 0; i < specs_count; ++i) {
         const std::string_view spec(specs[i]);
+        // Remote specs are downloaded to temp files which have random suffix.
+        // They cannot be used to compare extensions.
+        std::string spec_location(specs[i]);
         if (auto [it, inserted] = unique_items.emplace(spec); inserted) {
-            // TODO(mblaha): download remote URLs to temporary location + remove them afterwards
-            if (spec.ends_with(ext_spec)) {
-                spec_file_paths.emplace_back(spec);
-            } else if (spec.ends_with(ext_srpm) || spec.ends_with(ext_nosrpm)) {
-                srpm_file_paths.emplace_back(spec);
-            } else {
-                pkg_specs.emplace_back(spec);
+            if (libdnf5::utils::url::is_url(spec_location)) {
+                if (spec_location.starts_with("file://")) {
+                    spec_location = spec_location.substr(7);
+                } else {
+                    // Download remote argument
+                    downloaded_remotes.push_back(std::make_unique<libdnf5::utils::fs::TempFile>(
+                        std::filesystem::path(spec_location).filename()));
+                    downloader.add(specs[i], downloaded_remotes.back()->get_path());
+                    spec_location = downloaded_remotes.back()->get_path();
+                }
+            }
+            switch (arg_type) {
+                case ArgType::SPEC:
+                    spec_file_paths.emplace_back(std::move(spec_location));
+                    break;
+                case ArgType::SRPM:
+                    srpm_file_paths.emplace_back(std::move(spec_location));
+                    break;
+                case ArgType::AUTO:
+                    if (spec.ends_with(ext_spec)) {
+                        spec_file_paths.emplace_back(std::move(spec_location));
+                    } else if (spec.ends_with(ext_srpm) || spec.ends_with(ext_nosrpm)) {
+                        srpm_file_paths.emplace_back(std::move(spec_location));
+                    } else {
+                        pkg_specs.emplace_back(std::move(spec_location));
+                    }
+                    break;
             }
         }
     }
+    downloader.download();
 }
 
 bool BuildDepCommand::add_from_spec_file(

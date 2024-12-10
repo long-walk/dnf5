@@ -1,12 +1,12 @@
 %global project_version_prime 5
 %global project_version_major 2
-%global project_version_minor 7
-%global project_version_micro 0
+%global project_version_minor 8
+%global project_version_micro 1
 
-%bcond dnf5_obsoletes_dnf %[0%{?fedora} > 40 || 0%{?rhel} > 11]
+%bcond dnf5_obsoletes_dnf %[0%{?fedora} > 40 || 0%{?rhel} > 10]
 
 Name:           dnf5
-Version:        5.2.7.0
+Version:        %{project_version_prime}.%{project_version_major}.%{project_version_minor}.%{project_version_micro}
 Release:        1%{?dist}
 Summary:        Command-line package manager
 License:        GPL-2.0-or-later
@@ -242,6 +242,7 @@ BuildRequires:  perl(strict)
 BuildRequires:  perl(Test::More)
 BuildRequires:  perl(Test::Exception)
 BuildRequires:  perl(warnings)
+BuildRequires:  perl(FindBin)
 %endif
 %endif
 
@@ -721,25 +722,29 @@ Provides:       dnf5-command(config-manager)
 Provides:       dnf5-command(copr)
 Provides:       dnf5-command(needs-restarting)
 Provides:       dnf5-command(repoclosure)
+Provides:       dnf5-command(reposync)
 
 %description -n dnf5-plugins
 Core DNF5 plugins that enhance dnf5 with builddep, changelog,
-config-manager, copr, and repoclosure commands.
+config-manager, copr, repoclosure, and reposync commands.
 
-%files -n dnf5-plugins -f dnf5-plugin-builddep.lang -f dnf5-plugin-changelog.lang -f dnf5-plugin-config-manager.lang -f dnf5-plugin-copr.lang -f dnf5-plugin-needs-restarting.lang -f dnf5-plugin-repoclosure.lang
+%files -n dnf5-plugins -f dnf5-plugin-builddep.lang -f dnf5-plugin-changelog.lang -f dnf5-plugin-config-manager.lang -f dnf5-plugin-copr.lang -f dnf5-plugin-needs-restarting.lang -f dnf5-plugin-repoclosure.lang -f dnf5-plugin-reposync.lang
 %{_libdir}/dnf5/plugins/builddep_cmd_plugin.so
 %{_libdir}/dnf5/plugins/changelog_cmd_plugin.so
 %{_libdir}/dnf5/plugins/config-manager_cmd_plugin.so
 %{_libdir}/dnf5/plugins/copr_cmd_plugin.so
 %{_libdir}/dnf5/plugins/needs_restarting_cmd_plugin.so
 %{_libdir}/dnf5/plugins/repoclosure_cmd_plugin.so
+%{_libdir}/dnf5/plugins/reposync_cmd_plugin.so
 %{_mandir}/man8/dnf*-builddep.8.*
 %{_mandir}/man8/dnf*-changelog.8.*
 %{_mandir}/man8/dnf*-config-manager.8.*
 %{_mandir}/man8/dnf*-copr.8.*
 %{_mandir}/man8/dnf*-needs-restarting.8.*
 %{_mandir}/man8/dnf*-repoclosure.8.*
+%{_mandir}/man8/dnf*-reposync.8.*
 %{_datadir}/dnf5/aliases.d/compatibility-plugins.conf
+%{_datadir}/dnf5/aliases.d/compatibility-reposync.conf
 
 
 # ========== dnf5-automatic plugin ==========
@@ -885,6 +890,7 @@ popd
 %find_lang dnf5-plugin-copr
 %find_lang dnf5-plugin-needs-restarting
 %find_lang dnf5-plugin-repoclosure
+%find_lang dnf5-plugin-reposync
 %find_lang dnf5daemon-client
 %find_lang dnf5daemon-server
 %find_lang libdnf5
@@ -895,34 +901,11 @@ popd
 %ldconfig_scriptlets
 
 %changelog
-* Sat Nov 16 2024 Thomas <temp.mail@hispeed.ch> 5.2.7.0-1
-- Release 5.2.7.0 (evan-goode@users.noreply.github.com)
-- Update translations from weblate (github-actions@github.com)
-- dnfdaemon: resolve and do_transaction cannot run simultaneously
-  (mblaha@redhat.com)
-- dnfdaemon: Base.reset() API (mblaha@redhat.com)
-- dnfdaemon: Call base.setup() after setting releasever (mblaha@redhat.com)
-- dnfdaemon: Move base initialization to special method (mblaha@redhat.com)
-- dnfdaemon: Store session goal in unique_ptr (mblaha@redhat.com)
-- dnfdaemon: Add transaction mutex to the Session class (mblaha@redhat.com)
-- daemon tests: Adjust tests to current behavior (mblaha@redhat.com)
-- daemon tests: Drop test_repoconf.py (mblaha@redhat.com)
-- repo: Fix invalid free() (mblaha@redhat.com)
-- Optimise multi_progress_bar tty control sequences (giedriusj1@gmail.com)
-- MultiProgressBar now buffers the output text to a single write
-  (giedriusj1@gmail.com)
-- Clear up changes doc about optional subcommands (amatej@redhat.com)
-- PackageDownloader unit tests: Number of add_new_download and end calls
-  (jrohel@redhat.com)
-- DownloadCallbacks: Ensure `end` for every successful `add_new_download`
-  (jrohel@redhat.com)
-- Behave more like the old service, with the "--timer" option.
-  (gordon.messmer@gmail.com)
-- Run "makecache" periodically to keep the cache ready.
-  (gordon.messmer@gmail.com)
-- Add couple progress bar unit tests (amatej@redhat.com)
-- When `multi_progress_bar` finishes print new line automatically
-  (amatej@redhat.com)
+* Thu Dec 05 2024 Packit Team <hello@packit.dev> - 5.2.8.1-1
+- New upstream release 5.2.8.1
+
+* Mon Dec 02 2024 Packit Team <hello@packit.dev> - 5.2.8.0-1
+- New upstream release 5.2.8.0
 
 * Tue Nov 12 2024 Packit Team <hello@packit.dev> - 5.2.7.0-1
 - New upstream release 5.2.7.0

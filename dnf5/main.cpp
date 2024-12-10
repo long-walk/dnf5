@@ -414,7 +414,7 @@ void RootCommand::set_argument_parser() {
 
     auto no_gpgchecks = parser.add_new_named_arg("no-gpgchecks");
     no_gpgchecks->set_long_name("no-gpgchecks");
-    no_gpgchecks->set_description(_("disable gpg signature checking (if RPM policy allows)"));
+    no_gpgchecks->set_description(_("disable OpenPGP signature checking (if RPM policy allows)"));
     no_gpgchecks->set_parse_hook_func([&ctx](
                                           [[maybe_unused]] ArgumentParser::NamedArg * arg,
                                           [[maybe_unused]] const char * option,
@@ -1076,7 +1076,8 @@ static void print_resolve_hints(dnf5::Context & context) {
         if (broken_file_dep) {
             const std::string_view arg{"--setopt=optional_metadata_types=filelists"};
             auto optional_metadata = conf.get_optional_metadata_types_option().get_value();
-            if (!optional_metadata.contains("filelists")) {
+            if (!optional_metadata.contains(libdnf5::METADATA_TYPE_FILELISTS) &&
+                !optional_metadata.contains(libdnf5::METADATA_TYPE_ALL)) {
                 hints.emplace_back(libdnf5::utils::sformat(_("{} to load additional filelists metadata"), arg));
             }
         }
@@ -1261,13 +1262,59 @@ int main(int argc, char * argv[]) try {
                     context.print_error(libdnf5::utils::sformat(
                         _("{}. Add \"--help\" for more information about the arguments."), ex.what()));
                 }
-                // If the error is an unknown top-level command, suggest
-                // installing a package that provides the command
+
                 if (auto * unknown_arg_ex = dynamic_cast<libdnf5::cli::ArgumentParserUnknownArgumentError *>(&ex)) {
                     if (unknown_arg_ex->get_command() == "dnf5" && unknown_arg_ex->get_argument()[0] != '-') {
+                        // If the error is an unknown top-level command, suggest
+                        // installing a package that provides the command
+
                         context.print_error(libdnf5::utils::sformat(
                             _("It could be a command provided by a plugin, try: dnf5 install 'dnf5-command({})'"),
                             unknown_arg_ex->get_argument()));
+
+                    } else if (unknown_arg_ex->get_argument()[0] == '-') {
+                        // If the error is an unknown option check if it is used by some other command and provide a hint
+
+                        std::unordered_set<std::string> commands_with_option;
+                        // Remove any values passed with the option
+                        std::string tmp =
+                            unknown_arg_ex->get_argument().substr(0, unknown_arg_ex->get_argument().find("="));
+                        // Both short and long options start with a '-', remove it
+                        tmp.erase(0, 1);
+                        std::function<bool(libdnf5::cli::ArgumentParser::NamedArg * arg, const std::string & tmp)>
+                            comparator;
+                        if (tmp[0] == '-') {
+                            // Long option, erase the second '-'
+                            tmp.erase(0, 1);
+                            comparator = [](libdnf5::cli::ArgumentParser::NamedArg * arg,
+                                            const std::string & tmp) -> bool { return (arg->get_long_name() == tmp); };
+                        } else {
+                            // Short option
+                            comparator = [](libdnf5::cli::ArgumentParser::NamedArg * arg,
+                                            const std::string & tmp) -> bool {
+                                return (arg->get_short_name() == tmp[0]);
+                            };
+                        }
+
+                        for (const auto & cmd : arg_parser.get_commands()) {
+                            for (const auto & arg : cmd->get_named_args()) {
+                                if (comparator(arg, tmp)) {
+                                    if (!dynamic_cast<libdnf5::cli::ArgumentParser::CommandAlias *>(cmd.get())) {
+                                        auto invoc = cmd->get_invocation();
+                                        // Erase first element which is the root command (dnf)
+                                        invoc.erase(invoc.begin());
+                                        commands_with_option.insert(libdnf5::utils::string::join(invoc, " "));
+                                    }
+                                }
+                            }
+                        }
+
+                        if (!commands_with_option.empty()) {
+                            context.print_error(libdnf5::utils::sformat(
+                                _("The argument is available for commands: {}. (It has to be placed after the "
+                                  "command.)"),
+                                libdnf5::utils::string::join(commands_with_option, _(", "))));
+                        }
                     }
                 }
                 return static_cast<int>(libdnf5::cli::ExitCode::ARGPARSER_ERROR);
@@ -1412,9 +1459,9 @@ int main(int argc, char * argv[]) try {
                 } else {
                     for (const auto & tsflag : base.get_config().get_tsflags_option().get_value()) {
                         if (tsflag == "test") {
-                            context.print_error(
-                                _("Test mode enabled: Only package downloads, PGP key installations and transaction "
-                                  "checks will be performed."));
+                            context.print_error(_(
+                                "Test mode enabled: Only package downloads, OpenPGP key installations and transaction "
+                                "checks will be performed."));
                         }
                     }
                 }

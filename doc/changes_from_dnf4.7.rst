@@ -154,7 +154,7 @@ Changes to individual commands
   * Specific variants of the command, ``autoremove-n``, ``autoremove-na``, and ``autoremove-nevra``, are not supported anymore.
 
 ``builddep``
-  * Dropped ``--spec`` and ``--srpm`` arguments as automatic detection from file extensions is implemented now.
+  * The ``--spec`` and ``--srpm`` options only apply to arguments that follow them. This allows for use cases that combine spec files and source RPMs (e.g., ``dnf5 builddep --spec pkg1.spec.in --srpm pkg2.src.rpm``). However, the previously supported syntax ``dnf builddep pkg1.spec.in --spec`` no longer has any effect.
 
 ``config-manager``
   * New behavior introduced.
@@ -214,6 +214,7 @@ Changes to individual commands
 ``list``
   * Dropped ``--all`` option since this behavior is the default one.
   * Changed the behavior of the ``--available`` option.
+
     * In DNF4, only packages not installed or with higher versions were listed. This behavior remains unchanged when the option is not used, reducing duplications in the "Installed Packages" section.
     * When using the ``--available`` option, DNF5 considers all versions available in enabled repositories, irrespective of the installed version.
 
@@ -250,6 +251,9 @@ Changes to individual commands
 
 ``repoclosure``
   * Dropped ``--pkg`` option. Positional arguments can now be used to specify packages to check closure for.
+
+``reposync``
+  * Dropped ``--downloadcomps`` option. Consider using ``--download-metadata`` option which downloads all available repository metadata, not only comps groups.
 
 ``repolist``
   * The ``repolist`` and ``repoinfo`` commands are now subcommands of the ``repo`` command: ``repo list`` and ``repo info``.
