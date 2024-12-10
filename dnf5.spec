@@ -6,7 +6,7 @@
 %bcond dnf5_obsoletes_dnf %[0%{?fedora} > 40 || 0%{?rhel} > 10]
 
 Name:           dnf5
-Version:        %{project_version_prime}.%{project_version_major}.%{project_version_minor}.%{project_version_micro}
+Version:        5.2.8.1
 Release:        1%{?dist}
 Summary:        Command-line package manager
 License:        GPL-2.0-or-later
@@ -901,6 +901,77 @@ popd
 %ldconfig_scriptlets
 
 %changelog
+* Tue Dec 10 2024 Thomas <temp.mail@hispeed.ch> 5.2.8.1-1
+- Release 5.2.8.1 (evan-goode@users.noreply.github.com)
+- Update translations from weblate (github-actions@github.com)
+- doc: Replace another instance of "PGP" with "OpenPGP" (mail@evangoo.de)
+- doc: Use OpenPGP instead of PGP (ppisar@redhat.com)
+- Python API: Method DownloadCallbacks.add_new_download can return None
+  (jrohel@redhat.com)
+- changes_from_dnf4: fix formatting of indented `list` points
+  (amatej@redhat.com)
+- test: add progressbar tests for interactive mode (amatej@redhat.com)
+- test: enhance progressbar tests for non interactive mode (amatej@redhat.com)
+- test: add `ASSERT_MATCHES` for convenient fnmatch pattern matching
+  (amatej@redhat.com)
+- When determining interactivity add `DNF5_FORCE_INTERACTIVE` override
+  (amatej@redhat.com)
+- Fix overwriting of old output from `MultiProgressBar` (amatej@redhat.com)
+- Add `cursor_down` TTY_COMMAND (amatej@redhat.com)
+- Fix new line printing for unfinished Total progress bar (amatej@redhat.com)
+- Remove new line printing fix in non-interactive mode (amatej@redhat.com)
+- reposync: Do not allow --safe-write-path with multiple repos.
+  (mblaha@redhat.com)
+- reposync: Optimization of internal structures (mblaha@redhat.com)
+- reposync: Rename --source to --srpm (mblaha@redhat.com)
+- Implement reposync plugin (mblaha@redhat.com)
+- builddep: Fix changes_from_dnf4 documentation (mblaha@redhat.com)
+- builddep: Use enum to determine argument type (mblaha@redhat.com)
+- builddep: Add support for --spec and --srpm options (mblaha@redhat.com)
+- Fix libdnf5 actions plugin sign conversion compilation err
+  (jrohel@redhat.com)
+- Release 5.2.8.0 (evan-goode@users.noreply.github.com)
+- Update translations from weblate (github-actions@github.com)
+- doc: Use PGP instead of GPG (ppisar@redhat.com)
+- Install defs.h for /usr/include/dnf5/context.hpp (ppisar@redhat.com)
+- Download cmd: Require at leats one argument/package to download
+  (jrohel@redhat.com)
+- Fix copr chroot specification: replace faulty regex with simpler split
+  (amatej@redhat.com)
+- Add packit job to run ABI check plan on testing farm (amatej@redhat.com)
+- changelog_plugin: Limit required metadata to "other" (mblaha@redhat.com)
+- doc: Document new `all` optional_metadata_types value (mblaha@redhat.com)
+- Accept also "all" whenever optional metadata are checked (mblaha@redhat.com)
+- repo: Add option to download all repository metadata (mblaha@redhat.com)
+- rpm: New API to check PGP signature of RPM file (mblaha@redhat.com)
+- spec: toggle dnf5_obsoletes_dnf for RHEL 11 (yselkowi@redhat.com)
+- repo: While cloning root metadata copy also metalink (mblaha@redhat.com)
+- repo: Make Repo::download_metadata() method public (mblaha@redhat.com)
+- I18N: Mark <unknown> message in dnf list --installed output for a translation
+  (sunwire+git@gmail.com)
+- package_downloader: Ensure creation of intermediate directories
+  (mblaha@redhat.com)
+- Make `test_multi_progress_bar` test more resilient (amatej@redhat.com)
+- I18N: Mark "Total" message in MultiProgressBar() for a translation
+  (sunwire+git@gmail.com)
+- builddep: add support for remote arguments (amatej@redhat.com)
+- Hint when an unknown option is available on different commands
+  (amatej@redhat.com)
+- reformatting to meet clang-format requirements (sunwire+git@gmail.com)
+- add missing include (sunwire+git@gmail.com)
+- I18N: Mark messages in "dnf search" output for a translation
+  (sunwire+git@gmail.com)
+- Extend unit tests with `user_cb_data` in `repo::DownloadCallbacks`
+  (jrohel@redhat.com)
+- SWIG bindings for `user_cb_data` in `repo::DownloadCallbacks`
+  (jrohel@redhat.com)
+- Basic Perl unit tests for DownloadCallbacks and RepoCallbacks
+  (jrohel@redhat.com)
+- Perl unit tests: Clean package_query tests, use BaseTestCase
+  (jrohel@redhat.com)
+- Make `BaseTestCase` for Perl unit test (jrohel@redhat.com)
+- rpm: Reset RPM log callback upon RpmLogGuard destruction (mblaha@redhat.com)
+
 * Thu Dec 05 2024 Packit Team <hello@packit.dev> - 5.2.8.1-1
 - New upstream release 5.2.8.1
 
