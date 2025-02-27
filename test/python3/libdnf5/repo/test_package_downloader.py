@@ -35,12 +35,14 @@ class TestPackageDownloader(base_test_case.BaseTestCase):
                 self.progress_cnt = 0
                 self.mirror_failure_cnt = 0
                 self.end_cnt = 0
+                self.user_data_array = []
                 self.user_cb_data_array = []
                 self.end_status = []
                 self.end_msg = []
 
             def add_new_download(self, user_data, description, total_to_download):
                 self.start_cnt += 1
+                self.user_data_array.append(user_data)
                 user_cb_data_reference = "Package: " + description
                 self.user_cb_data_container.append(user_cb_data_reference)
                 return len(self.user_cb_data_container) - 1
@@ -78,8 +80,10 @@ class TestPackageDownloader(base_test_case.BaseTestCase):
         self.base.set_download_callbacks(
             libdnf5.repo.DownloadCallbacksUniquePtr(cbs))
 
+        user_data = 2
         for package in query:
-            downloader.add(package)
+            downloader.add(package, user_data)
+            user_data *= 5
 
         downloader.download()
 
@@ -96,9 +100,41 @@ class TestPackageDownloader(base_test_case.BaseTestCase):
         self.assertEqual(cbs.mirror_failure_cnt, 0)
         self.assertEqual(cbs.end_cnt, 2)
 
+        self.assertEqual(cbs.user_data_array, [2, 10])
+
         cbs.user_cb_data_array.sort()
         self.assertEqual(cbs.user_cb_data_array, [0, 1])
         self.assertEqual(
             cbs.end_status,
             [PackageDownloadCallbacks.TransferStatus_SUCCESSFUL, PackageDownloadCallbacks.TransferStatus_SUCCESSFUL])
         self.assertEqual(cbs.end_msg, [None, None])
+
+
+class TestPackageDownloaderReturnNone(base_test_case.BaseTestCase):
+    # Previously, add_new_download could only return None. This test adds a
+    # check to ensure backwards-compatibility with that API.
+    def test_package_downloader_return_none(self):
+        class PackageDownloadCallbacks(libdnf5.repo.DownloadCallbacks):
+            def __init__(self):
+                super(PackageDownloadCallbacks, self).__init__()
+
+            def add_new_download(self, user_data, description, total_to_download):
+                return None
+
+        repo = self.add_repo_rpm("rpm-repo1")
+
+        query = libdnf5.rpm.PackageQuery(self.base)
+        query.filter_name(["one"])
+        query.filter_arch(["noarch"])
+        self.assertEqual(query.size(), 2)
+
+        downloader = libdnf5.repo.PackageDownloader(self.base)
+
+        cbs = PackageDownloadCallbacks()
+        self.base.set_download_callbacks(
+            libdnf5.repo.DownloadCallbacksUniquePtr(cbs))
+
+        for package in query:
+            downloader.add(package)
+
+        downloader.download()

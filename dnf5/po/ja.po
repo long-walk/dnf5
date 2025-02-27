@@ -2,14 +2,15 @@
 # Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
 # This file is distributed under the same license as the PACKAGE package.
 # Gnuey56 <gnuey56@proton.me>, 2024.
-# Inci sakura <incisakura@icloud.com>, 2024.
+# Inci sakura <incisakura@icloud.com>, 2024, 2025.
 # Weblate Translation Memory <noreply-mt-weblate-translation-memory@weblate.org>, 2024.
+# caffiendo c <1728778012@qq.com>, 2024.
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-11-06 03:02+0000\n"
-"PO-Revision-Date: 2024-11-18 19:16+0000\n"
+"POT-Creation-Date: 2025-02-06 03:02+0000\n"
+"PO-Revision-Date: 2025-01-25 03:44+0000\n"
 "Last-Translator: Inci sakura <incisakura@icloud.com>\n"
 "Language-Team: Japanese <https://translate.fedoraproject.org/projects/dnf5/"
 "dnf5/ja/>\n"
@@ -18,13 +19,13 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
-"X-Generator: Weblate 5.8.2\n"
+"X-Generator: Weblate 5.9.2\n"
 
 #: commands/advisory/advisory.cpp:36
 msgid "Manage advisories"
 msgstr "勧告を管理"
 
-#: commands/advisory/advisory_info.hpp:33
+#: commands/advisory/advisory_info.hpp:35
 msgid "Print details about advisories"
 msgstr "勧告に関する詳細を表示"
 
@@ -83,7 +84,7 @@ msgid ""
 "supports globs."
 msgstr "指定名前のパッケージに含む勧告のみを表示。リスト、glob 利用可能。"
 
-#: commands/advisory/arguments.hpp:83
+#: commands/advisory/arguments.hpp:83 commands/history/arguments.hpp:81
 msgid "PACKAGE_NAME,..."
 msgstr "PACKAGE_NAME,..."
 
@@ -314,9 +315,24 @@ msgstr ""
 "トランザクションに入れられた追加パッケージをエラーとして扱わないようにしま"
 "す。"
 
+#: commands/history/arguments.hpp:80
+msgid ""
+"Show only transactions containing packages with specified names. List "
+"option, supports globs."
+msgstr ""
+"指定名前のパッケージに含むトランザクションを表示。リスト、glob 利用可能。"
+
 #: commands/history/history.cpp:41
 msgid "Manage transaction history"
 msgstr "トランザクション履歴を管理"
+
+#: commands/history/history_info.cpp:70
+msgid ""
+"No match found, history info defaults to considering only the last "
+"transaction, specify \"1..last\" range to search all transactions."
+msgstr ""
+"結果を見つかりませんでした。履歴情報はデフォルトで最後のトランザクションのみ"
+"を検索します。すべでを検索には、\"1..last\"を指定してください。"
 
 #: commands/history/history_redo.cpp:53
 #: commands/history/history_rollback.cpp:57
@@ -762,11 +778,11 @@ msgstr "versionlock を追加するパッケージのリスト"
 msgid "No package found for \"{}\"."
 msgstr "パッケージ \"{}\" を見つかりませんでした。"
 
-#: commands/versionlock/versionlock_add.cpp:124
+#: commands/versionlock/versionlock_add.cpp:133
 msgid "Adding versionlock on \"{0} = {1}\"."
 msgstr "\"{0} = {1}\" で versionlock を追加しています。"
 
-#: commands/versionlock/versionlock_add.cpp:127
+#: commands/versionlock/versionlock_add.cpp:136
 msgid "Package \"{}\" is already locked."
 msgstr "パッケージ \"{}\" はすでにロックされています。"
 
@@ -804,10 +820,10 @@ msgid "Package \"{}\" is already excluded."
 msgstr "パッケージ \"{}\" はすでに除外されました。"
 
 #: context.cpp:73
-msgid "Importing PGP key 0x{}:\n"
-msgstr "PGP キー 0x{} をインポート中:\n"
+msgid "Importing OpenPGP key 0x{}:\n"
+msgstr "OpenPGP キー 0x{} をインポート中:\n"
 
-#: context.cpp:75
+#: context.cpp:75 context.cpp:100
 msgid " UserID     : \"{}\"\n"
 msgstr " UserID: \"{}\"\n"
 
@@ -823,15 +839,58 @@ msgstr ""
 msgid "The key was successfully imported."
 msgstr "キーが正常にインポートされました。"
 
-#: context.cpp:262
+#: context.cpp:96
+msgid "The following PGP key (0x{}) is about to be removed:"
+msgstr ""
+
+#: context.cpp:98
+#, fuzzy
+#| msgid " UserID     : \"{}\"\n"
+msgid " Reason     : {}\n"
+msgstr " UserID: \"{}\"\n"
+
+#: context.cpp:102
+#, fuzzy
+#| msgid ""
+#| " Fingerprint: {}\n"
+#| " From       : {}\n"
+msgid " From       : {}\n"
+msgstr ""
+" 識別子: {}\n"
+" 提供元: {}\n"
+
+#: context.cpp:104
+msgid "As a result, installing packages signed with this key will fail."
+msgstr ""
+
+#: context.cpp:105
+msgid "It is recommended to remove the expired key to allow importing"
+msgstr ""
+
+#: context.cpp:106
+msgid ""
+"an updated key. This might leave already installed packages unverifiable."
+msgstr ""
+
+#: context.cpp:109
+msgid "The system will now proceed with removing the key."
+msgstr ""
+
+#: context.cpp:115
+#, fuzzy
+#| msgid "The key was successfully imported."
+msgid "The key was successfully removed."
+msgstr "キーが正常にインポートされました。"
+
+#: context.cpp:290
 msgid "setopt: \"{}.{}\": {}"
 msgstr "setopt: \"{}.{}\": {}"
 
-#: context.cpp:268
+#: context.cpp:296 main.cpp:1317
 msgid ", "
 msgstr ", "
 
-#: context.cpp:272
+#: context.cpp:300
 msgid ""
 "No matching repositories for {}. To use repositories from a host system, "
 "pass --use-host-config option"
@@ -839,38 +898,38 @@ msgstr ""
 "{} に一致するリポジトリがありません。ホストシステムのリポジトリを使用するに"
 "は、--use-host-config オプションを指定してください"
 
-#: context.cpp:276
+#: context.cpp:304
 msgid "No matching repositories for {}"
 msgstr "{} に一致するリポジトリがありません"
 
-#: context.cpp:322
+#: context.cpp:350
 msgid "Updating and loading repositories:"
 msgstr "リポジトリの更新を読み込み中:"
 
-#: context.cpp:332
+#: context.cpp:360
 msgid "Repositories loaded."
 msgstr "リポジトリを読み込みました。"
 
-#: context.cpp:338
+#: context.cpp:366
 msgid "Testing offline transaction"
 msgstr "オフライン トランザクションを検証中"
 
-#: context.cpp:342 context.cpp:497
+#: context.cpp:370 context.cpp:525
 msgid "Transaction failed: {}"
 msgstr "トランザクションが失敗しました: {}"
 
-#: context.cpp:347 context.cpp:502
+#: context.cpp:375 context.cpp:530
 msgid "  - {}"
 msgstr "  - {}"
 
-#: context.cpp:414
+#: context.cpp:442
 msgid ""
 "Location \"{}\" already contains a stored transaction, it will be "
 "overwritten."
 msgstr ""
 "\"{}\" にはすでに保存されたトランザクションがあったため、上書きされます。"
 
-#: context.cpp:443
+#: context.cpp:471
 msgid ""
 "There is already an offline transaction queued, initiated by the following "
 "command:"
@@ -878,7 +937,7 @@ msgstr ""
 "すでに待機中に以下のコマンドによって開始されたオフライン トランザクションがあ"
 "ります:"
 
-#: context.cpp:445
+#: context.cpp:473
 msgid ""
 "Continuing will cancel the old offline transaction and replace it with this "
 "one."
@@ -886,7 +945,7 @@ msgstr ""
 "続行すると、古いオフライン トランザクションがキャンセルされ、これに置き換えら"
 "れます。"
 
-#: context.cpp:463
+#: context.cpp:491
 msgid ""
 "Transaction stored to be performed offline. Run `dnf5 offline reboot` to "
 "reboot and run the transaction. To cancel the transaction and delete the "
@@ -897,71 +956,71 @@ msgstr ""
 "キャンセルし、ダウンロードしたファイルを削除するには、`dnf5 offline clean` を"
 "実行してください。"
 
-#: context.cpp:469
+#: context.cpp:497
 msgid "Running transaction"
 msgstr "トランザクションを実行中"
 
-#: context.cpp:786
+#: context.cpp:814
 msgid "Upgrading {}"
 msgstr "更新中 {}"
 
-#: context.cpp:789
+#: context.cpp:817
 msgid "Downgrading {}"
 msgstr "ダウングレード中 {}"
 
-#: context.cpp:792
+#: context.cpp:820
 msgid "Reinstalling {}"
 msgstr "再インストール中 {}"
 
-#: context.cpp:805
+#: context.cpp:833
 msgid "Unexpected action in TransactionPackage: {}"
 msgstr "トランザクション パッケージに予期しないアクション: {}"
 
-#: context.cpp:811
+#: context.cpp:839
 msgid "Installing {}"
 msgstr "インストール中 {}"
 
-#: context.cpp:832
+#: context.cpp:860
 msgid "Prepare transaction"
 msgstr "トランザクションの準備"
 
-#: context.cpp:852
+#: context.cpp:880
 msgid "Removing {}"
 msgstr "削除中 {}"
 
-#: context.cpp:855
+#: context.cpp:883
 msgid "Cleanup {}"
 msgstr "クリーンアップ {}"
 
-#: context.cpp:873
+#: context.cpp:901
 msgid "Unpack error: {}"
 msgstr "解凍エラー: {}"
 
-#: context.cpp:881
+#: context.cpp:909
 msgid "Cpio error: {}"
 msgstr "cpio エラー: {}"
 
-#: context.cpp:891
+#: context.cpp:919
 msgid "Scriptlet output:"
 msgstr "scriptlet 出力:"
 
-#: context.cpp:913
+#: context.cpp:941
 msgid "Running {} scriptlet: {}"
 msgstr "{} scriptlet を実行中: {}"
 
-#: context.cpp:928
+#: context.cpp:956
 msgid "Finished {} scriptlet: {}"
 msgstr "{} scriptlet を実行完了: {}"
 
-#: context.cpp:934
+#: context.cpp:962
 msgid "Non-critical error in {} scriptlet: {}"
 msgstr "{} scriptlet で非致命エラー: {}"
 
-#: context.cpp:943
+#: context.cpp:971
 msgid "Error in {} scriptlet: {}"
 msgstr "{} scriptlet でエラー: {}"
 
-#: context.cpp:973
+#: context.cpp:1001
 msgid "Verify package files"
 msgstr "パッケージ ファイルを検証"
 
@@ -1120,8 +1179,8 @@ msgid ""
 msgstr "指定リポジトリを有効にします。リスト、glob は複数回指定可能。"
 
 #: main.cpp:417
-msgid "disable gpg signature checking (if RPM policy allows)"
-msgstr "GPG 署名の確認を無効にします (RPM ポリシーが許容する場合)"
+msgid "disable OpenPGP signature checking (if RPM policy allows)"
+msgstr "OpenPGP 署名の確認を無効にします (RPM ポリシーが許容する限り)"
 
 #: main.cpp:433
 msgid "Disable all libdnf5 plugins"
@@ -1253,53 +1312,55 @@ msgid ""
 "Total size of inbound packages is {:.0f} {:s}. Need to download {:.0f} {:s}."
 msgstr "パッケージサイズ {:.0f} {:s} 、ダウンロードサイズ {:.0f} {:s} 。"
 
-#: main.cpp:828
+#: main.cpp:827
 msgid ""
 "After this operation, {:.0f} {:s} extra will be used (install {:.0f} {:s}, "
 "remove {:.0f} {:s})."
-msgstr "完了後、{:.0f} {:s} のサイズが利用されます（インストール {:.0f} {:s}、削除 {:"
-".0f} {:s}）。"
+msgstr ""
+"完了後、{:.0f} {:s} のサイズが利用されます（インストール {:.0f} {:s}、削除 "
+"{:.0f} {:s}）。"
 
-#: main.cpp:837
+#: main.cpp:838
 msgid ""
 "After this operation, {:.0f} {:s} will be freed (install {:.0f} {:s}, remove "
 "{:.0f} {:s})."
-msgstr "完了後、 {:.0f} {:s} のサイズが解放されます（インストール {:.0f} {:s}、削除 "
+msgstr ""
+"完了後、 {:.0f} {:s} のサイズが解放されます（インストール {:.0f} {:s}、削除 "
 "{:.0f} {:s}）。"
 
-#: main.cpp:849
+#: main.cpp:850
 msgid "======== Main configuration: ========"
 msgstr "======== メイン設定: ========"
 
-#: main.cpp:886
+#: main.cpp:887
 msgid "No matching repo to dump configuration: \"{}\""
 msgstr "設定をダンプするために一致するリポジトリがありません: \"{}\""
 
-#: main.cpp:891
+#: main.cpp:892
 msgid "======== \"{}\" repository configuration: ========"
 msgstr "======== \"{}\" リポジトリ設定: ========"
 
-#: main.cpp:911
+#: main.cpp:912
 msgid "======== Variables: ========"
 msgstr "======== 変数: ========"
 
-#: main.cpp:951
+#: main.cpp:952
 msgid "New leaves:"
 msgstr "新規リーフ:"
 
-#: main.cpp:953
+#: main.cpp:954
 msgid " {}"
 msgstr " {}"
 
-#: main.cpp:997
+#: main.cpp:998
 msgid "{} to skip unavailable packages"
 msgstr "{} で利用できないパッケージをスキップします"
 
-#: main.cpp:1005
+#: main.cpp:1006
 msgid "{} to allow extra packages in the transaction"
 msgstr "{} でトランザクション内での追加パッケージを許可します"
 
-#: main.cpp:1018
+#: main.cpp:1019
 msgid ""
 "{} to allow mismatches between installed and stored transaction packages. "
 "This can result in an empty transaction because among other things the "
@@ -1309,27 +1370,27 @@ msgstr ""
 "許可します。これにより、失敗した削除アクションを無視することがあるため、空の"
 "トランザクションになる可能性があります。"
 
-#: main.cpp:1065
+#: main.cpp:1066
 msgid "{} to not limit the transaction to the best candidates"
 msgstr "{} でトランザクションを最適候補に制限しないようにします"
 
-#: main.cpp:1072
+#: main.cpp:1073
 msgid "{} to allow removing of installed packages to resolve problems"
 msgstr "{} で問題解決のためにインストール済みパッケージの削除を許可します"
 
-#: main.cpp:1080
+#: main.cpp:1082
 msgid "{} to load additional filelists metadata"
 msgstr "{} で追加ファイル リスト メタデータを読み込みます"
 
-#: main.cpp:1087
+#: main.cpp:1089
 msgid "{} to skip uninstallable packages"
 msgstr "{} でアンインストールできないパッケージをスキップします"
 
-#: main.cpp:1093
+#: main.cpp:1095
 msgid "You can try to add to command line:"
 msgstr "コマンド ラインに追加してみてください:"
 
-#: main.cpp:1111
+#: main.cpp:1113
 msgid ""
 "No matches were found for the following plugin name patterns while enabling "
 "libdnf plugins: {}"
@@ -1337,7 +1398,7 @@ msgstr ""
 "libdnf プラグインを有効にする際、次のプラグイン名パターンに一致するものを見つ"
 "かりませんでした: {}"
 
-#: main.cpp:1112
+#: main.cpp:1114
 msgid ""
 "No matches were found for the following plugin name patterns while disabling "
 "libdnf plugins: {}"
@@ -1345,19 +1406,19 @@ msgstr ""
 "libdnf プラグインを無効にする際、次のプラグイン名パターンに一致するものを見つ"
 "かりませんでした: {}"
 
-#: main.cpp:1208
+#: main.cpp:1210
 msgid "--- DNF5 launched with arguments: \"{}\" ---"
 msgstr "--- DNF5 起動引数: \"{}\" ---"
 
-#: main.cpp:1259
+#: main.cpp:1261
 msgid "{}."
 msgstr "{}。"
 
-#: main.cpp:1262 main.cpp:1445
+#: main.cpp:1264 main.cpp:1493
 msgid "{}. Add \"--help\" for more information about the arguments."
 msgstr "{}。 引数に関する詳細を表示するには \"--help\" を追加してください。"
 
-#: main.cpp:1269
+#: main.cpp:1273
 msgid ""
 "It could be a command provided by a plugin, try: dnf5 install 'dnf5-"
 "command({})'"
@@ -1365,11 +1426,18 @@ msgstr ""
 "これはプラグインによって提供されるコマンドの可能性があります。次を試してくだ"
 "さい: dnf5 install 'dnf5-command({})'"
 
-#: main.cpp:1311
+#: main.cpp:1315
+msgid ""
+"The argument is available for commands: {}. (It has to be placed after the "
+"command.)"
+msgstr ""
+"引数は以下のコマンドで利用可能: {}. (コマンドの後で指定する必要があります)"
+
+#: main.cpp:1359
 msgid "No read/execute access in current directory, moving to /"
 msgstr "現在のディレクトリに読み取り/実行権限がないため、/ に移動します"
 
-#: main.cpp:1368
+#: main.cpp:1416
 msgid ""
 "The requested operation requires superuser privileges. Please log in as a "
 "user with elevated rights, or use the \"--assumeno\" or \"--downloadonly\" "
@@ -1379,25 +1447,25 @@ msgstr ""
 "ンするか、システム状態を変更せずにコマンドを実行するには \"--assumeno\" また"
 "は \"--downloadonly\" オプションを使用してください。"
 
-#: main.cpp:1409
+#: main.cpp:1457
 msgid "The operation will only store the transaction in {}"
 msgstr "この操作では、トランザクションを {} への保存のみがされます"
 
-#: main.cpp:1411
+#: main.cpp:1459
 msgid "The operation will only download packages for the transaction."
 msgstr ""
 "この操作では、トランザクションのためのパッケージのダウンロードのみがされま"
 "す。"
 
-#: main.cpp:1416
+#: main.cpp:1464
 msgid ""
-"Test mode enabled: Only package downloads, PGP key installations and "
+"Test mode enabled: Only package downloads, OpenPGP key installations and "
 "transaction checks will be performed."
 msgstr ""
-"テスト モードが有効です: パッケージのダウンロード、PGP キーのインストール、お"
-"よびトランザクションのチェックのみが行われます。"
+"テスト モードが有効です: パッケージのダウンロード、OpenPGP キーのインストー"
+"ル、およびトランザクションのチェックのみが行われます。"
 
-#: main.cpp:1433
+#: main.cpp:1481
 msgid ""
 "No repositories were loaded from the installroot. To use the configuration "
 "and repositories of the host system, pass --use-host-config."
@@ -1405,15 +1473,15 @@ msgstr ""
 "installroot からリポジトリを読み込みませんでした。ホスト システムの設定とリポ"
 "ジトリを利用するには、--use-host-config を渡してください。"
 
-#: main.cpp:1455
+#: main.cpp:1503
 msgid "Command returned error: {}"
 msgstr "コマンドがエラーを返しました: {}"
 
-#: main.cpp:1463
+#: main.cpp:1511
 msgid "DNF5 finished"
 msgstr "DNF5 が終了しました"
 
-#: main.cpp:1467
+#: main.cpp:1515
 msgid "Complete!"
 msgstr "完了しました！"
 

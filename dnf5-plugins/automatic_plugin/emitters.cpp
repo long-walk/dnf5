@@ -117,8 +117,9 @@ std::string quote(std::string_view str) {
 
 void EmitterCommand::notify() {
     std::string command_format = config_automatic.config_command.command_format.get_value();
+    std::string command = libdnf5::utils::sformat(command_format, fmt::arg("body", quote(output_stream.str())));
 
-    FILE * command_pipe = popen(command_format.c_str(), "w");
+    FILE * command_pipe = popen(command.c_str(), "w");
     if (command_pipe) {
         std::string stdin_format = config_automatic.config_command.stdin_format.get_value();
         fputs(libdnf5::utils::sformat(stdin_format, fmt::arg("body", output_stream.str())).c_str(), command_pipe);
@@ -166,7 +167,7 @@ void EmitterEmail::notify() {
     message.set_to(to);
     message.set_from(from);
     message.set_subject(subject);
-    message.set_body(output_stream.str());
+    message.set_body(output_stream);
 
     {
         // use curl to send the message

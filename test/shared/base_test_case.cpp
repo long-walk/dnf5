@@ -20,24 +20,19 @@ along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "base_test_case.hpp"
 
-#include "base/base_impl.hpp"
-#include "private_accessor.hpp"
+#include "logger_redirector.hpp"
+#include "test_logger.hpp"
 #include "utils.hpp"
-#include "utils/string.hpp"
 
-#include <libdnf5/comps/environment/environment.hpp>
+#include "libdnf5/utils/fs/temp.hpp"
+
 #include <libdnf5/comps/environment/query.hpp>
-#include <libdnf5/comps/group/group.hpp>
 #include <libdnf5/comps/group/query.hpp>
 #include <libdnf5/conf/const.hpp>
-#include <libdnf5/rpm/nevra.hpp>
 #include <libdnf5/rpm/package_query.hpp>
 
 #include <filesystem>
-#include <map>
-
-
-using fmt::format;
+#include <set>
 
 
 libdnf5::repo::RepoWeakPtr BaseTestCase::add_repo(
@@ -176,30 +171,6 @@ libdnf5::rpm::Package BaseTestCase::get_pkg_i(const std::string & nevra, size_t 
     return *it;
 }
 
-namespace {
-
-// Accessor of private Base::p_impl, see private_accessor.hpp
-create_private_getter_template;
-create_getter(priv_impl, &libdnf5::Base::p_impl);
-create_getter(add_rpm_package, &libdnf5::repo::Repo::add_rpm_package);
-
-}  // namespace
-
-libdnf5::rpm::Package BaseTestCase::add_system_pkg(
-    const std::string & relative_path, libdnf5::transaction::TransactionItemReason reason) {
-    // parse out the NA from the package path to set the reason for the installed package
-    auto filename_toks = libdnf5::utils::string::split(relative_path, "/");
-    auto basename_toks = libdnf5::utils::string::rsplit(filename_toks.back(), ".", 2);
-    auto nevras = libdnf5::rpm::Nevra::parse(basename_toks.front());
-    CPPUNIT_ASSERT_MESSAGE("Couldn't parse NEVRA from package path: \"" + relative_path + "\"", !nevras.empty());
-    auto na = nevras[0].get_name() + "." + nevras[0].get_arch();
-
-    (base.*get(priv_impl()))->get_system_state().set_package_reason(na, reason);
-
-    return (*(repo_sack->get_system_repo()).*get(add_rpm_package{}))(
-        PROJECT_BINARY_DIR "/test/data/" + relative_path, false);
-}
-
 
 libdnf5::rpm::Package BaseTestCase::add_cmdline_pkg(const std::string & relative_path) {
     std::string path = PROJECT_BINARY_DIR "/test/data/" + relative_path;
@@ -222,13 +193,15 @@ libdnf5::rpm::Package BaseTestCase::first_query_pkg(libdnf5::rpm::PackageQuery &
 void BaseTestCase::setUp() {
     TestCaseFixture::setUp();
 
+    base.get_logger()->add_logger(std::make_unique<LoggerRedirector>(test_logger));
+
     // TODO we could use get_preconfigured_base() for this now, but that would
     // need changing the `base` member to a unique_ptr
-    temp = std::make_unique<libdnf5::utils::fs::TempDir>("libdnf5_unittest");
-    std::filesystem::create_directory(temp->get_path() / "installroot");
+    temp_dir = std::make_unique<libdnf5::utils::fs::TempDir>("libdnf5_unittest");
+    std::filesystem::create_directory(temp_dir->get_path() / "installroot");
 
-    base.get_config().get_installroot_option().set(temp->get_path() / "installroot");
-    base.get_config().get_cachedir_option().set(temp->get_path() / "cache");
+    base.get_config().get_installroot_option().set(temp_dir->get_path() / "installroot");
+    base.get_config().get_cachedir_option().set(temp_dir->get_path() / "cache");
     base.get_config().get_optional_metadata_types_option().set(libdnf5::OPTIONAL_METADATA_TYPES);
 
     // Prevent loading libdnf5 plugins

@@ -8,8 +8,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-11-06 03:02+0000\n"
-"PO-Revision-Date: 2024-11-21 09:12+0000\n"
+"POT-Creation-Date: 2025-02-06 03:02+0000\n"
+"PO-Revision-Date: 2024-12-10 09:38+0000\n"
 "Last-Translator: ButterflyOfFire <butterflyoffire@users.noreply.translate."
 "fedoraproject.org>\n"
 "Language-Team: Kabyle <https://translate.fedoraproject.org/projects/dnf5/"
@@ -19,13 +19,13 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n > 1;\n"
-"X-Generator: Weblate 5.8.2\n"
+"X-Generator: Weblate 5.8.4\n"
 
 #: commands/advisory/advisory.cpp:36
 msgid "Manage advisories"
 msgstr ""
 
-#: commands/advisory/advisory_info.hpp:33
+#: commands/advisory/advisory_info.hpp:35
 msgid "Print details about advisories"
 msgstr ""
 
@@ -80,7 +80,7 @@ msgid ""
 "supports globs."
 msgstr ""
 
-#: commands/advisory/arguments.hpp:83
+#: commands/advisory/arguments.hpp:83 commands/history/arguments.hpp:81
 msgid "PACKAGE_NAME,..."
 msgstr ""
 
@@ -289,8 +289,20 @@ msgstr ""
 msgid "Don't consider extra packages pulled into the transaction as errors."
 msgstr ""
 
+#: commands/history/arguments.hpp:80
+msgid ""
+"Show only transactions containing packages with specified names. List "
+"option, supports globs."
+msgstr ""
+
 #: commands/history/history.cpp:41
 msgid "Manage transaction history"
+msgstr ""
+
+#: commands/history/history_info.cpp:70
+msgid ""
+"No match found, history info defaults to considering only the last "
+"transaction, specify \"1..last\" range to search all transactions."
 msgstr ""
 
 #: commands/history/history_redo.cpp:53
@@ -602,10 +614,8 @@ msgid "Pattern matching repo IDs."
 msgstr ""
 
 #: commands/repo/repo.cpp:38
-#, fuzzy
-#| msgid "Show disabled repositories."
 msgid "Manage repositories"
-msgstr "Sken ikufiyen irurmiden."
+msgstr "Sefrek ikufiyen"
 
 #: commands/repoquery/repoquery.cpp:80
 msgid "Search for packages matching various criteria"
@@ -699,11 +709,11 @@ msgstr ""
 msgid "No package found for \"{}\"."
 msgstr ""
 
-#: commands/versionlock/versionlock_add.cpp:124
+#: commands/versionlock/versionlock_add.cpp:133
 msgid "Adding versionlock on \"{0} = {1}\"."
 msgstr ""
 
-#: commands/versionlock/versionlock_add.cpp:127
+#: commands/versionlock/versionlock_add.cpp:136
 msgid "Package \"{}\" is already locked."
 msgstr ""
 
@@ -741,10 +751,10 @@ msgid "Package \"{}\" is already excluded."
 msgstr ""
 
 #: context.cpp:73
-msgid "Importing PGP key 0x{}:\n"
+msgid "Importing OpenPGP key 0x{}:\n"
 msgstr ""
 
-#: context.cpp:75
+#: context.cpp:75 context.cpp:100
 msgid " UserID     : \"{}\"\n"
 msgstr " UserID     : \"{}\"\n"
 
@@ -758,134 +768,171 @@ msgstr ""
 msgid "The key was successfully imported."
 msgstr ""
 
-#: context.cpp:262
+#: context.cpp:96
+msgid "The following PGP key (0x{}) is about to be removed:"
+msgstr ""
+
+#: context.cpp:98
+#, fuzzy
+#| msgid " UserID     : \"{}\"\n"
+msgid " Reason     : {}\n"
+msgstr " UserID     : \"{}\"\n"
+
+#: context.cpp:102
+#, fuzzy
+#| msgid " UserID     : \"{}\"\n"
+msgid " From       : {}\n"
+msgstr " UserID     : \"{}\"\n"
+
+#: context.cpp:104
+msgid "As a result, installing packages signed with this key will fail."
+msgstr ""
+
+#: context.cpp:105
+msgid "It is recommended to remove the expired key to allow importing"
+msgstr ""
+
+#: context.cpp:106
+msgid ""
+"an updated key. This might leave already installed packages unverifiable."
+msgstr ""
+
+#: context.cpp:109
+msgid "The system will now proceed with removing the key."
+msgstr ""
+
+#: context.cpp:115
+msgid "The key was successfully removed."
+msgstr ""
+
+#: context.cpp:290
 msgid "setopt: \"{}.{}\": {}"
 msgstr "setopt: \"{}.{}\": {}"
 
-#: context.cpp:268
+#: context.cpp:296 main.cpp:1317
 msgid ", "
 msgstr ""
 
-#: context.cpp:272
+#: context.cpp:300
 msgid ""
 "No matching repositories for {}. To use repositories from a host system, "
 "pass --use-host-config option"
 msgstr ""
 
-#: context.cpp:276
+#: context.cpp:304
 msgid "No matching repositories for {}"
 msgstr ""
 
-#: context.cpp:322
+#: context.cpp:350
 msgid "Updating and loading repositories:"
 msgstr "Aleqqem d uɛebbi n yikufan:"
 
-#: context.cpp:332
+#: context.cpp:360
 msgid "Repositories loaded."
 msgstr "Ttuɛebban-d yikufan."
 
-#: context.cpp:338
+#: context.cpp:366
 msgid "Testing offline transaction"
 msgstr ""
 
-#: context.cpp:342 context.cpp:497
+#: context.cpp:370 context.cpp:525
 msgid "Transaction failed: {}"
 msgstr ""
 
-#: context.cpp:347 context.cpp:502
+#: context.cpp:375 context.cpp:530
 msgid "  - {}"
 msgstr "  - {}"
 
-#: context.cpp:414
+#: context.cpp:442
 msgid ""
 "Location \"{}\" already contains a stored transaction, it will be "
 "overwritten."
 msgstr ""
 
-#: context.cpp:443
+#: context.cpp:471
 msgid ""
 "There is already an offline transaction queued, initiated by the following "
 "command:"
 msgstr ""
 
-#: context.cpp:445
+#: context.cpp:473
 msgid ""
 "Continuing will cancel the old offline transaction and replace it with this "
 "one."
 msgstr ""
 
-#: context.cpp:463
+#: context.cpp:491
 msgid ""
 "Transaction stored to be performed offline. Run `dnf5 offline reboot` to "
 "reboot and run the transaction. To cancel the transaction and delete the "
 "downloaded files, use `dnf5 offline clean`."
 msgstr ""
 
-#: context.cpp:469
+#: context.cpp:497
 msgid "Running transaction"
 msgstr ""
 
-#: context.cpp:786
+#: context.cpp:814
 msgid "Upgrading {}"
 msgstr "Aleqqem n {}"
 
-#: context.cpp:789
+#: context.cpp:817
 msgid "Downgrading {}"
 msgstr ""
 
-#: context.cpp:792
+#: context.cpp:820
 msgid "Reinstalling {}"
 msgstr ""
 
-#: context.cpp:805
+#: context.cpp:833
 msgid "Unexpected action in TransactionPackage: {}"
 msgstr ""
 
-#: context.cpp:811
+#: context.cpp:839
 msgid "Installing {}"
 msgstr "Asbeddi n {}"
 
-#: context.cpp:832
+#: context.cpp:860
 msgid "Prepare transaction"
 msgstr ""
 
-#: context.cpp:852
+#: context.cpp:880
 msgid "Removing {}"
 msgstr "Tukksa n {}"
 
-#: context.cpp:855
+#: context.cpp:883
 msgid "Cleanup {}"
 msgstr ""
 
-#: context.cpp:873
+#: context.cpp:901
 msgid "Unpack error: {}"
 msgstr ""
 
-#: context.cpp:881
+#: context.cpp:909
 msgid "Cpio error: {}"
 msgstr "Tuccḍa Cpio: {}"
 
-#: context.cpp:891
+#: context.cpp:919
 msgid "Scriptlet output:"
 msgstr ""
 
-#: context.cpp:913
+#: context.cpp:941
 msgid "Running {} scriptlet: {}"
 msgstr ""
 
-#: context.cpp:928
+#: context.cpp:956
 msgid "Finished {} scriptlet: {}"
 msgstr ""
 
-#: context.cpp:934
+#: context.cpp:962
 msgid "Non-critical error in {} scriptlet: {}"
 msgstr ""
 
-#: context.cpp:943
+#: context.cpp:971
 msgid "Error in {} scriptlet: {}"
 msgstr ""
 
-#: context.cpp:973
+#: context.cpp:1001
 msgid "Verify package files"
 msgstr "Asenqed n yifuyla n ikemmusen"
 
@@ -1031,7 +1078,7 @@ msgid ""
 msgstr ""
 
 #: main.cpp:417
-msgid "disable gpg signature checking (if RPM policy allows)"
+msgid "disable OpenPGP signature checking (if RPM policy allows)"
 msgstr ""
 
 #: main.cpp:433
@@ -1158,149 +1205,155 @@ msgstr ""
 "Teɣzi tuɣridt n ikemmusen i d-iteddun tesɛa azal n {:.0f} {:s}. Ilaq-asen "
 "wezḍam n {:.0f} {:s}."
 
-#: main.cpp:828
+#: main.cpp:827
 msgid ""
 "After this operation, {:.0f} {:s} extra will be used (install {:.0f} {:s}, "
 "remove {:.0f} {:s})."
 msgstr ""
-"Seld tamhelt-a, ad ttwasqedcen {:.0f} {:s} nniḍen (sbedd {:.0f} {:s}, kkes {:"
-".0f} {:s})."
+"Seld tamhelt-a, ad ttwasqedcen {:.0f} {:s} nniḍen (sbedd {:.0f} {:s}, kkes "
+"{:.0f} {:s})."
 
-#: main.cpp:837
+#: main.cpp:838
 msgid ""
 "After this operation, {:.0f} {:s} will be freed (install {:.0f} {:s}, remove "
 "{:.0f} {:s})."
 msgstr ""
 
-#: main.cpp:849
+#: main.cpp:850
 msgid "======== Main configuration: ========"
 msgstr ""
 
-#: main.cpp:886
+#: main.cpp:887
 msgid "No matching repo to dump configuration: \"{}\""
 msgstr ""
 
-#: main.cpp:891
+#: main.cpp:892
 msgid "======== \"{}\" repository configuration: ========"
 msgstr ""
 
-#: main.cpp:911
+#: main.cpp:912
 msgid "======== Variables: ========"
 msgstr ""
 
-#: main.cpp:951
+#: main.cpp:952
 msgid "New leaves:"
 msgstr ""
 
-#: main.cpp:953
+#: main.cpp:954
 msgid " {}"
 msgstr ""
 
-#: main.cpp:997
+#: main.cpp:998
 msgid "{} to skip unavailable packages"
 msgstr ""
 
-#: main.cpp:1005
+#: main.cpp:1006
 msgid "{} to allow extra packages in the transaction"
 msgstr ""
 
-#: main.cpp:1018
+#: main.cpp:1019
 msgid ""
 "{} to allow mismatches between installed and stored transaction packages. "
 "This can result in an empty transaction because among other things the "
 "option can ignore failing Remove actions."
 msgstr ""
 
-#: main.cpp:1065
+#: main.cpp:1066
 msgid "{} to not limit the transaction to the best candidates"
 msgstr ""
 
-#: main.cpp:1072
+#: main.cpp:1073
 msgid "{} to allow removing of installed packages to resolve problems"
 msgstr ""
 
-#: main.cpp:1080
+#: main.cpp:1082
 msgid "{} to load additional filelists metadata"
 msgstr ""
 
-#: main.cpp:1087
+#: main.cpp:1089
 msgid "{} to skip uninstallable packages"
 msgstr ""
 
-#: main.cpp:1093
+#: main.cpp:1095
 msgid "You can try to add to command line:"
 msgstr ""
 
-#: main.cpp:1111
+#: main.cpp:1113
 msgid ""
 "No matches were found for the following plugin name patterns while enabling "
 "libdnf plugins: {}"
 msgstr ""
 
-#: main.cpp:1112
+#: main.cpp:1114
 msgid ""
 "No matches were found for the following plugin name patterns while disabling "
 "libdnf plugins: {}"
 msgstr ""
 
-#: main.cpp:1208
+#: main.cpp:1210
 msgid "--- DNF5 launched with arguments: \"{}\" ---"
 msgstr ""
 
-#: main.cpp:1259
+#: main.cpp:1261
 msgid "{}."
 msgstr ""
 
-#: main.cpp:1262 main.cpp:1445
+#: main.cpp:1264 main.cpp:1493
 msgid "{}. Add \"--help\" for more information about the arguments."
 msgstr ""
 
-#: main.cpp:1269
+#: main.cpp:1273
 msgid ""
 "It could be a command provided by a plugin, try: dnf5 install 'dnf5-"
 "command({})'"
 msgstr ""
 
-#: main.cpp:1311
+#: main.cpp:1315
+msgid ""
+"The argument is available for commands: {}. (It has to be placed after the "
+"command.)"
+msgstr ""
+
+#: main.cpp:1359
 msgid "No read/execute access in current directory, moving to /"
 msgstr ""
 
-#: main.cpp:1368
+#: main.cpp:1416
 msgid ""
 "The requested operation requires superuser privileges. Please log in as a "
 "user with elevated rights, or use the \"--assumeno\" or \"--downloadonly\" "
 "options to run the command without modifying the system state."
 msgstr ""
 
-#: main.cpp:1409
+#: main.cpp:1457
 msgid "The operation will only store the transaction in {}"
 msgstr ""
 
-#: main.cpp:1411
+#: main.cpp:1459
 msgid "The operation will only download packages for the transaction."
 msgstr ""
 
-#: main.cpp:1416
+#: main.cpp:1464
 msgid ""
-"Test mode enabled: Only package downloads, PGP key installations and "
+"Test mode enabled: Only package downloads, OpenPGP key installations and "
 "transaction checks will be performed."
 msgstr ""
 
-#: main.cpp:1433
+#: main.cpp:1481
 msgid ""
 "No repositories were loaded from the installroot. To use the configuration "
 "and repositories of the host system, pass --use-host-config."
 msgstr ""
 
-#: main.cpp:1455
+#: main.cpp:1503
 msgid "Command returned error: {}"
 msgstr ""
 
-#: main.cpp:1463
+#: main.cpp:1511
 msgid "DNF5 finished"
 msgstr ""
 
-#: main.cpp:1467
+#: main.cpp:1515
 msgid "Complete!"
 msgstr ""
 

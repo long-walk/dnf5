@@ -1,12 +1,12 @@
 %global project_version_prime 5
 %global project_version_major 2
-%global project_version_minor 8
-%global project_version_micro 1
+%global project_version_minor 10
+%global project_version_micro 0
 
 %bcond dnf5_obsoletes_dnf %[0%{?fedora} > 40 || 0%{?rhel} > 10]
 
 Name:           dnf5
-Version:        5.2.8.1
+Version:        5.2.10.0
 Release:        1%{?dist}
 Summary:        Command-line package manager
 License:        GPL-2.0-or-later
@@ -77,6 +77,8 @@ Provides:       dnf5-command(versionlock)
 %bcond_without dnf5
 %bcond_without dnf5_plugins
 %bcond_without plugin_actions
+%bcond_without plugin_appstream
+%bcond_without plugin_expired_pgp_keys
 %bcond_without plugin_rhsm
 %bcond_without python_plugins_loader
 
@@ -393,6 +395,7 @@ Package management library.
 %{_libdir}/libdnf5.so.2*
 %license lgpl-2.1.txt
 %ghost %attr(0755, root, root) %dir %{_var}/cache/libdnf5
+%ghost %attr(0755, root, root) %dir %{_sharedstatedir}/dnf
 
 # ========== libdnf5-cli ==========
 
@@ -511,8 +514,7 @@ Perl 5 bindings for the libdnf5-cli library.
 
 %if %{with python3}
 %package -n python3-libdnf5
-%{?python_provide:%python_provide python3-libdnf}
-Summary:        Python 3 bindings for the libdnf library
+Summary:        Python 3 bindings for the libdnf5 library
 License:        LGPL-2.1-or-later
 Requires:       libdnf5%{?_isa} = %{version}-%{release}
 
@@ -531,7 +533,6 @@ Python 3 bindings for the libdnf library.
 
 %if %{with python3} && %{with libdnf_cli}
 %package -n python3-libdnf5-cli
-%{?python_provide:%python_provide python3-libdnf5-cli}
 Summary:        Python 3 bindings for the libdnf5-cli library
 License:        LGPL-2.1-or-later
 Requires:       libdnf5-cli%{?_isa} = %{version}-%{release}
@@ -605,6 +606,41 @@ Libdnf5 plugin that allows to run actions (external executables) on hooks.
 %{_mandir}/man8/libdnf5-actions.8.*
 %endif
 
+# ========== libdnf5-plugin-appstream ==========
+
+%if %{with plugin_appstream}
+
+%package -n libdnf5-plugin-appstream
+Summary:        Libdnf5 plugin to install repo Appstream data
+License:        LGPL-2.1-or-later
+Requires:       libdnf5%{?_isa} = %{version}-%{release}
+BuildRequires:  pkgconfig(appstream) >= 0.16
+
+%description -n libdnf5-plugin-appstream
+Libdnf5 plugin that installs repository's Appstream data, for repositories which provide them.
+
+%files -n libdnf5-plugin-appstream
+%{_libdir}/libdnf5/plugins/appstream.so
+%config %{_sysconfdir}/dnf/libdnf5-plugins/appstream.conf
+
+%endif
+
+# ========== libdnf5-plugin-expired-pgp-keys ==========
+
+%if %{with plugin_expired_pgp_keys}
+%package -n libdnf5-plugin-expired-pgp-keys
+Summary:        Libdnf5 plugin for detecting and removing expired PGP keys
+License:        LGPL-2.1-or-later
+Requires:       libdnf5%{?_isa} = %{version}-%{release}
+
+%description -n libdnf5-plugin-expired-pgp-keys
+Libdnf5 plugin for detecting and removing expired PGP keys.
+
+%files -n libdnf5-plugin-expired-pgp-keys -f libdnf5-plugin-expired-pgp-keys.lang
+%{_libdir}/libdnf5/plugins/expired-pgp-keys.*
+%config %{_sysconfdir}/dnf/libdnf5-plugins/expired-pgp-keys.conf
+%{_mandir}/man8/libdnf5-expired-pgp-keys.8.*
+%endif
 
 # ========== libdnf5-plugin-plugin_rhsm ==========
 
@@ -806,6 +842,8 @@ automatically and regularly from systemd timers, cron jobs or similar.
     -DWITH_LIBDNF5_CLI=%{?with_libdnf_cli:ON}%{!?with_libdnf_cli:OFF} \
     -DWITH_DNF5=%{?with_dnf5:ON}%{!?with_dnf5:OFF} \
     -DWITH_PLUGIN_ACTIONS=%{?with_plugin_actions:ON}%{!?with_plugin_actions:OFF} \
+    -DWITH_PLUGIN_APPSTREAM=%{?with_plugin_appstream:ON}%{!?with_plugin_appstream:OFF} \
+    -DWITH_PLUGIN_EXPIRED_PGP_KEYS=%{?with_plugin_expired_pgp_keys:ON}%{!?with_plugin_expired_pgp_keys:OFF} \
     -DWITH_PLUGIN_RHSM=%{?with_plugin_rhsm:ON}%{!?with_plugin_rhsm:OFF} \
     -DWITH_PYTHON_PLUGINS_LOADER=%{?with_python_plugins_loader:ON}%{!?with_python_plugins_loader:OFF} \
     \
@@ -896,81 +934,17 @@ popd
 %find_lang libdnf5
 %find_lang libdnf5-cli
 %find_lang libdnf5-plugin-actions
+%find_lang libdnf5-plugin-expired-pgp-keys
 %find_lang libdnf5-plugin-rhsm
 
 %ldconfig_scriptlets
 
 %changelog
-* Tue Dec 10 2024 Thomas <temp.mail@hispeed.ch> 5.2.8.1-1
-- Release 5.2.8.1 (evan-goode@users.noreply.github.com)
-- Update translations from weblate (github-actions@github.com)
-- doc: Replace another instance of "PGP" with "OpenPGP" (mail@evangoo.de)
-- doc: Use OpenPGP instead of PGP (ppisar@redhat.com)
-- Python API: Method DownloadCallbacks.add_new_download can return None
-  (jrohel@redhat.com)
-- changes_from_dnf4: fix formatting of indented `list` points
-  (amatej@redhat.com)
-- test: add progressbar tests for interactive mode (amatej@redhat.com)
-- test: enhance progressbar tests for non interactive mode (amatej@redhat.com)
-- test: add `ASSERT_MATCHES` for convenient fnmatch pattern matching
-  (amatej@redhat.com)
-- When determining interactivity add `DNF5_FORCE_INTERACTIVE` override
-  (amatej@redhat.com)
-- Fix overwriting of old output from `MultiProgressBar` (amatej@redhat.com)
-- Add `cursor_down` TTY_COMMAND (amatej@redhat.com)
-- Fix new line printing for unfinished Total progress bar (amatej@redhat.com)
-- Remove new line printing fix in non-interactive mode (amatej@redhat.com)
-- reposync: Do not allow --safe-write-path with multiple repos.
-  (mblaha@redhat.com)
-- reposync: Optimization of internal structures (mblaha@redhat.com)
-- reposync: Rename --source to --srpm (mblaha@redhat.com)
-- Implement reposync plugin (mblaha@redhat.com)
-- builddep: Fix changes_from_dnf4 documentation (mblaha@redhat.com)
-- builddep: Use enum to determine argument type (mblaha@redhat.com)
-- builddep: Add support for --spec and --srpm options (mblaha@redhat.com)
-- Fix libdnf5 actions plugin sign conversion compilation err
-  (jrohel@redhat.com)
-- Release 5.2.8.0 (evan-goode@users.noreply.github.com)
-- Update translations from weblate (github-actions@github.com)
-- doc: Use PGP instead of GPG (ppisar@redhat.com)
-- Install defs.h for /usr/include/dnf5/context.hpp (ppisar@redhat.com)
-- Download cmd: Require at leats one argument/package to download
-  (jrohel@redhat.com)
-- Fix copr chroot specification: replace faulty regex with simpler split
-  (amatej@redhat.com)
-- Add packit job to run ABI check plan on testing farm (amatej@redhat.com)
-- changelog_plugin: Limit required metadata to "other" (mblaha@redhat.com)
-- doc: Document new `all` optional_metadata_types value (mblaha@redhat.com)
-- Accept also "all" whenever optional metadata are checked (mblaha@redhat.com)
-- repo: Add option to download all repository metadata (mblaha@redhat.com)
-- rpm: New API to check PGP signature of RPM file (mblaha@redhat.com)
-- spec: toggle dnf5_obsoletes_dnf for RHEL 11 (yselkowi@redhat.com)
-- repo: While cloning root metadata copy also metalink (mblaha@redhat.com)
-- repo: Make Repo::download_metadata() method public (mblaha@redhat.com)
-- I18N: Mark <unknown> message in dnf list --installed output for a translation
-  (sunwire+git@gmail.com)
-- package_downloader: Ensure creation of intermediate directories
-  (mblaha@redhat.com)
-- Make `test_multi_progress_bar` test more resilient (amatej@redhat.com)
-- I18N: Mark "Total" message in MultiProgressBar() for a translation
-  (sunwire+git@gmail.com)
-- builddep: add support for remote arguments (amatej@redhat.com)
-- Hint when an unknown option is available on different commands
-  (amatej@redhat.com)
-- reformatting to meet clang-format requirements (sunwire+git@gmail.com)
-- add missing include (sunwire+git@gmail.com)
-- I18N: Mark messages in "dnf search" output for a translation
-  (sunwire+git@gmail.com)
-- Extend unit tests with `user_cb_data` in `repo::DownloadCallbacks`
-  (jrohel@redhat.com)
-- SWIG bindings for `user_cb_data` in `repo::DownloadCallbacks`
-  (jrohel@redhat.com)
-- Basic Perl unit tests for DownloadCallbacks and RepoCallbacks
-  (jrohel@redhat.com)
-- Perl unit tests: Clean package_query tests, use BaseTestCase
-  (jrohel@redhat.com)
-- Make `BaseTestCase` for Perl unit test (jrohel@redhat.com)
-- rpm: Reset RPM log callback upon RpmLogGuard destruction (mblaha@redhat.com)
+* Thu Feb 06 2025 Packit Team <hello@packit.dev> - 5.2.10.0-1
+- New upstream release 5.2.10.0
+
+* Tue Feb 04 2025 Packit Team <hello@packit.dev> - 5.2.9.0-1
+- New upstream release 5.2.9.0
 
 * Thu Dec 05 2024 Packit Team <hello@packit.dev> - 5.2.8.1-1
 - New upstream release 5.2.8.1

@@ -1,5 +1,5 @@
 message("Running CMake on dnf5...")
-cmake_minimum_required(VERSION 3.6)
+cmake_minimum_required(VERSION 3.21)
 
 
 include(VERSION.cmake)
@@ -26,6 +26,8 @@ option(WITH_LIBDNF5_CLI "Build library for working with a terminal in a command-
 option(WITH_DNF5 "Build dnf5 command-line package manager" ON)
 option(WITH_DNF5_PLUGINS "Build plugins for dnf5 command-line package manager" ON)
 option(WITH_PLUGIN_ACTIONS "Build a dnf5 actions plugin" ON)
+option(WITH_PLUGIN_APPSTREAM "Build with plugin to install repo's Appstream metadata" ON)
+option(WITH_PLUGIN_EXPIRED_PGP_KEYS "Build a libdnf5 expired pgp keys plugin" ON)
 option(WITH_PLUGIN_RHSM "Build a libdnf5 rhsm (Red Hat Subscription Manager) plugin" OFF)
 option(WITH_PYTHON_PLUGINS_LOADER "Build a special dnf5 plugin that loads Python plugins. Requires WITH_PYTHON3=ON." ON)
 
