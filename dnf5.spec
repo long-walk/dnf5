@@ -940,6 +940,127 @@ popd
 %ldconfig_scriptlets
 
 %changelog
+* Thu Feb 27 2025 Thomas <temp.mail@hispeed.ch> 5.2.10.0-1
+- Release 5.2.10.0 (jan-kolarik@users.noreply.github.com)
+- Update translations from weblate (github-actions@github.com)
+- plugins: Provide the actual API version used (jkolarik@redhat.com)
+- plugins: Check only major version of API for incompatibility
+  (jkolarik@redhat.com)
+- expired-pgp-keys: New plugin for detecting expired PGP keys
+  (jkolarik@redhat.com)
+- rpm_signature: Fix rpmdb_lookup comparison case mismatch
+  (jkolarik@redhat.com)
+- actions: Update with resolved hook (jkolarik@redhat.com)
+- libdnf plugins: Add resolved hook (jkolarik@redhat.com)
+- SWIG bindings for common::Message and common::EmptyMessage
+  (jrohel@redhat.com)
+- EmptyMessage: class for passing an empty message (jrohel@redhat.com)
+- Message: base class for passing a message for formatting in the destination
+  (jrohel@redhat.com)
+- utils::format: Support for user defined locale (jrohel@redhat.com)
+- SWIG bindings for utils::Locale (jrohel@redhat.com)
+- utils::Locale: class for passing C and CPP locale (jrohel@redhat.com)
+- utils::format: Support for formatting args according to BgettextMessage
+  (jrohel@redhat.com)
+- bgettext: Add function b_gettextmsg_get_plural_id (jrohel@redhat.com)
+- Release 5.2.9.0 (m-blaha@users.noreply.github.com)
+- Update translations from weblate (github-actions@github.com)
+- Unit test: ImplPtr is nonthrow constructible from pointer (jrohel@redhat.com)
+- ImplPtr: Unit tests for empty source object (jrohel@redhat.com)
+- ImplPtr: Support for empty source in copy assignment operator
+  (jrohel@redhat.com)
+- automatic: Translate end-of-lines in email emitter by DNF (ppisar@redhat.com)
+- ruby: Fix swig namespacing in Ruby. (jprokop@redhat.com)
+- Correct Ruby %%module definition in swig files. (jprokop@redhat.com)
+- doc: Versionlock name specification supports globs (mblaha@redhat.com)
+- doc: `history info` no longer merges transactions (amatej@redhat.com)
+- Docs: Explain template.cpp in more detail (ferdnyc@gmail.com)
+- Docs: Disable clang-format in template.cpp (ferdnyc@gmail.com)
+- Docs: Formatting fixes (ferdnyc@gmail.com)
+- Docs: Shorten template command variable names (ferdnyc@gmail.com)
+- Docs: Template command formatting fixes (ferdnyc@gmail.com)
+- Docs: Fix sample output of template command (ferdnyc@gmail.com)
+- Docs: Correct sample output of template command (ferdnyc@gmail.com)
+- Docs: Update command template page (ferdnyc@gmail.com)
+- Docs: Update command template code (ferdnyc@gmail.com)
+- docs: Don't exclude lines from template code (ferdnyc@gmail.com)
+- doc: Enhance history documentation (amatej@redhat.com)
+- Add a hint to `history info` without trans IDs when no match found
+  (amatej@redhat.com)
+- Add docs for history `--contains-pkgs=..` option (amatej@redhat.com)
+- Add `--contains-pkgs=..` option to `history` `list` and `info`
+  (amatej@redhat.com)
+- During package download setup first add all downloads then handle local
+  (amatej@redhat.com)
+- Test MultiProgressBar with already finished downloads (amatej@redhat.com)
+- Enhance `perform_control_sequences()` to handle colors (amatej@redhat.com)
+- Add couple explaining comments to `MultiProgressBar::operator<<`
+  (amatej@redhat.com)
+- automatic: fix documentation on automatic.conf location in sample config
+  (me@exploide.net)
+- versionlock: Fix wildcards handling in `add` command (mblaha@redhat.com)
+- ruby: Implement Enumerable for libdnf5::advisory::AdvisorySet.
+  (jprokop@redhat.com)
+- ruby: Implement Enumerable for libdnf5::rpm::ReldepList. (jprokop@redhat.com)
+- ruby: Implement Enumerable for libdnf5::rpm::PackageSet. (jprokop@redhat.com)
+- Implement each() for iterating over collection in ruby. (jprokop@redhat.com)
+- Increase CMake minimum required version to 3.21 (jrohel@redhat.com)
+- Optimize build process: No libdnf5_static.a object files archive
+  (jrohel@redhat.com)
+- CMakeLists.txt: common is object library -> rename to common_obj
+  (jrohel@redhat.com)
+- Add --json output to advisory info (trawets@amazon.com)
+- I18N: Annotate indentation of the transaction summary (ppisar@redhat.com)
+- Unit tests: Fix One Definition Rule violation caused by overlinking
+  (jrohel@redhat.com)
+- libdnf5: Load plugins with RTLD_NODELETE flag set (mcrha@redhat.com)
+- libdnf5: Add a plugin to download and install repo's Appstream data
+  (mcrha@redhat.com)
+- automatic: Fix end-of-lines in messages sent by email emitter
+  (ppisar@redhat.com)
+- libdnf5-cli unit tests: Use only public API methods (jrohel@redhat.com)
+- Fix bash completion if colon is in the word to complete (jrohel@redhat.com)
+- Remove and rename global variables in bash completion (jrohel@redhat.com)
+- DNF5 bash completion: Offer package NAMEs in all cases (jrohel@redhat.com)
+- Bash completion: always offer NEVRAs for packages (jrohel@redhat.com)
+- repo: Fix logging metadata download errors handling (mblaha@redhat.com)
+- Copr plugin: Fix resource leak in load_all_configuration (jrohel@redhat.com)
+- Own /var/lib/dnf by libdnf5 (ppisar@redhat.com)
+- Unit tests: MemStream class for open_memstream, optimization
+  (jrohel@redhat.com)
+- Unit test: Fix res leak, missing fclose in output/test_repoquery
+  (jrohel@redhat.com)
+- doc: "dnf history userinstalled" replaced with "dnf repoquery
+  --userinstalled" (ppisar@redhat.com)
+- Display remaining time as nonnegative number (mail@evangoo.de)
+- automatic: Substitute variables in command_format (mail@evangoo.de)
+- Bumb readthedocs ubuntu image version to fix the docs generation
+  (amatej@redhat.com)
+- automatic: add a default setting to not emit boring messages
+  (awilliam@redhat.com)
+- Incorrect library name in libdnf5-cli.pc (mblaha@redhat.com)
+- Fix reporting disk space to be freed on a pure package removal
+  (ppisar@redhat.com)
+- Unit tests: Fix problematic nasty hack in run_tests (jrohel@redhat.com)
+- Python API: add_new_download return None regression test (mail@evangoo.de)
+- Support ProgressBar messages with wide characters (mail@evangoo.de)
+- Add padding to ProgressBar messages to avoid overlapping (amatej@redhat.com)
+- Fix plural typo (2255715+buttonfly1000@users.noreply.github.com)
+- test_transaction: Move PackageDownloadCallbacks to anonymous namespace
+  (jrohel@redhat.com)
+- Unit tests for repo::FileDownloader (jrohel@redhat.com)
+- Unit tests: repo::DownloadCallbacks "user_data" (jrohel@redhat.com)
+- Perl unit tests: Define "constants" as package vars in BaseTestCase
+  (jrohel@redhat.com)
+- Unit tests: Unification, use name "temp_dir" for all languages
+  (jrohel@redhat.com)
+- SWIG: support repo::DownloadCallbacks user_data (jrohel@redhat.com)
+- Remove redundant %%python_provide statements (miro@hroncok.cz)
+- python3-libdnf5: Remove superfluous provides for python-libdnf
+  (miro@hroncok.cz)
+- clang-format (mail@evangoo.de)
+- Update pre-commit hooks to latest versions in F41 (mail@evangoo.de)
+
 * Thu Feb 06 2025 Packit Team <hello@packit.dev> - 5.2.10.0-1
 - New upstream release 5.2.10.0
 
