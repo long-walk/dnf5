@@ -21,6 +21,7 @@ along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "config.h"
 #include "config_utils.hpp"
+#include "utils/deprecate.hpp"
 #include "utils/system.hpp"
 
 #include "libdnf5/common/xdg.hpp"
@@ -475,9 +476,11 @@ const OptionNumber<std::int32_t> & ConfigMain::get_debuglevel_option() const {
 }
 
 OptionNumber<std::int32_t> & ConfigMain::get_errorlevel_option() {
+    LIBDNF5_DEPRECATED("The option does nothing");
     return p_impl->errorlevel;
 }
 const OptionNumber<std::int32_t> & ConfigMain::get_errorlevel_option() const {
+    LIBDNF5_DEPRECATED("The option does nothing");
     return p_impl->errorlevel;
 }
 
@@ -744,9 +747,11 @@ const OptionBool & ConfigMain::get_allow_vendor_change_option() const {
 }
 
 OptionSeconds & ConfigMain::get_metadata_timer_sync_option() {
+    LIBDNF5_DEPRECATED("The metadata_timer_sync option does nothing");
     return p_impl->metadata_timer_sync;
 }
 const OptionSeconds & ConfigMain::get_metadata_timer_sync_option() const {
+    LIBDNF5_DEPRECATED("The metadata_timer_sync option does nothing");
     return p_impl->metadata_timer_sync;
 }
 
@@ -912,9 +917,11 @@ const OptionString & ConfigMain::get_rpmverbosity_option() const {
 }
 
 OptionBool & ConfigMain::get_strict_option() {
+    LIBDNF5_DEPRECATED("Use get_skip_broken_option() and get_skip_unavailable_option()");
     return p_impl->strict;
 }
 const OptionBool & ConfigMain::get_strict_option() const {
+    LIBDNF5_DEPRECATED("Use get_skip_broken_option() const and get_skip_unavailable_option() const");
     return p_impl->strict;
 }
 
@@ -1142,9 +1149,11 @@ const OptionString & ConfigMain::get_password_option() const {
 }
 
 OptionBool & ConfigMain::get_gpgcheck_option() {
+    LIBDNF5_DEPRECATED("Use get_pkg_gpgcheck_option()");
     return p_impl->pkg_gpgcheck;
 }
 const OptionBool & ConfigMain::get_gpgcheck_option() const {
+    LIBDNF5_DEPRECATED("Use get_pkg_gpgcheck_option() const");
     return p_impl->pkg_gpgcheck;
 }
 

@@ -92,17 +92,6 @@ private:
     int64_t expiration_timestamp;
 };
 
-/// Check that GPG is installed to enable querying expired keys later.
-static bool is_gpg_installed() {
-    auto ts = rpmtsCreate();
-    rpmdbMatchIterator mi;
-    mi = rpmtsInitIterator(ts, RPMDBI_PROVIDENAME, "gpg", 0);
-    bool found = rpmdbNextIterator(mi) != NULL;
-    rpmdbFreeIterator(mi);
-    rpmtsFree(ts);
-    return found;
-}
-
 /// Check if the transaction contains any inbound actions.
 /// This determines if new software is to be installed, which might require downloading a new PGP signing key.
 static bool any_inbound_action(const libdnf5::base::Transaction & transaction) {
@@ -171,12 +160,7 @@ void ExpiredPgpKeys::process_expired_pgp_keys(const libdnf5::base::Transaction &
     auto & logger = *get_base().get_logger();
     const auto & config = get_base().get_config();
 
-    if (!config.get_gpgcheck_option().get_value()) {
-        return;
-    }
-
-    if (!is_gpg_installed()) {
-        logger.error("Expired PGP Keys Plugin: GPG is not installed on the system. Aborting...");
+    if (!config.get_pkg_gpgcheck_option().get_value()) {
         return;
     }
 
@@ -223,6 +207,9 @@ void ExpiredPgpKeys::process_expired_pgp_keys(const libdnf5::base::Transaction &
     }
 }
 
+
+std::exception_ptr last_exception;
+
 }  // namespace
 
 PluginAPIVersion libdnf_plugin_get_api_version(void) {
@@ -243,9 +230,14 @@ plugin::IPlugin * libdnf_plugin_new_instance(
     libdnf5::ConfigParser & parser) try {
     return new ExpiredPgpKeys(data, parser);
 } catch (...) {
+    last_exception = std::current_exception();
     return nullptr;
 }
 
 void libdnf_plugin_delete_instance(plugin::IPlugin * plugin_object) {
     delete plugin_object;
+}
+
+std::exception_ptr * libdnf_plugin_get_last_exception(void) {
+    return &last_exception;
 }

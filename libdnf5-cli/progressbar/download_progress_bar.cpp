@@ -71,6 +71,12 @@ std::ostream & operator<<(std::ostream & stream, DownloadProgressBar & bar) {
 void DownloadProgressBar::to_stream(std::ostream & stream) {
     update();
 
+    if (!is_finished() && !tty::is_interactive()) {
+        // don't spam non-interactive terminal with progressbar's progress
+        // only print the final form
+        return;
+    }
+
     // set the default delimiters
     number_widget.set_delimiter_before("");
     description_widget.set_delimiter_before(" ");
@@ -110,42 +116,37 @@ void DownloadProgressBar::to_stream(std::ostream & stream) {
     std::size_t bar_width = get_bar_width(widgets);
     if (bar_width > terminal_width) {
         widgets.erase(std::remove(widgets.begin(), widgets.end(), &progress_widget), widgets.end());
+        bar_width = get_bar_width(widgets);
     }
 
     // if bar doesn't fit terminal width, hide speed widget
-    bar_width = get_bar_width(widgets);
     if (bar_width > terminal_width) {
         widgets.erase(std::remove(widgets.begin(), widgets.end(), &speed_widget), widgets.end());
         speed_widget.set_delimiter_before(" ");
+        bar_width = get_bar_width(widgets);
     }
 
     // if bar doesn't fit terminal width, hide time widget
-    bar_width = get_bar_width(widgets);
     if (bar_width > terminal_width) {
         widgets.erase(std::remove(widgets.begin(), widgets.end(), &time_widget), widgets.end());
+        bar_width = get_bar_width(widgets);
     }
 
     // if bar is finished, hide the progress widget
     if (get_state() != ProgressBarState::STARTED) {
         widgets.erase(std::remove(widgets.begin(), widgets.end(), &progress_widget), widgets.end());
+        bar_width = get_bar_width(widgets);
     }
 
     // if bar doesn't fit terminal width, reduce description width
-    bar_width = get_bar_width(widgets);
     if (bar_width > terminal_width) {
         description_widget.set_total_width(description_widget.get_total_width() + terminal_width - bar_width);
+        bar_width = get_bar_width(widgets);
     }
 
-    if (get_state() == ProgressBarState::STARTED && !tty::is_interactive()) {
-        // don't spam non-interactive terminal with progressbar's progress
-        // only print the final form
-        return;
-        // stream;
-    }
-
-    bar_width = get_bar_width(widgets);
     if (bar_width < terminal_width) {
         description_widget.set_total_width(description_widget.get_total_width() + terminal_width - bar_width);
+        bar_width = get_bar_width(widgets);
     }
 
     bool color_used = false;
@@ -184,45 +185,50 @@ void DownloadProgressBar::to_stream(std::ostream & stream) {
         auto message = msg.second;
 
         const auto & prefix = ">>> ";
+        const auto prefix_width = libdnf5::cli::utils::utf8::width(prefix);
 
         stream << std::endl;
-        stream << prefix;
+        // print only part of the prefix that fits the terminal width
+        stream << libdnf5::cli::utils::utf8::substr_width(prefix, 0, terminal_width);
 
-        color_used = false;
-        if (tty::is_interactive()) {
-            // color the message in interactive terminal
-            switch (message_type) {
-                case MessageType::INFO:
-                    break;
-                case MessageType::SUCCESS:
-                    stream << tty::green;
-                    color_used = true;
-                    break;
-                case MessageType::WARNING:
-                    stream << tty::yellow;
-                    color_used = true;
-                    break;
-                case MessageType::ERROR:
-                    stream << tty::red;
-                    color_used = true;
-                    break;
+        if (prefix_width < terminal_width) {
+            // only proceed if there is at least some space for the message
+            color_used = false;
+            if (tty::is_interactive()) {
+                // color the message in interactive terminal
+                switch (message_type) {
+                    case MessageType::INFO:
+                        break;
+                    case MessageType::SUCCESS:
+                        stream << tty::green;
+                        color_used = true;
+                        break;
+                    case MessageType::WARNING:
+                        stream << tty::yellow;
+                        color_used = true;
+                        break;
+                    case MessageType::ERROR:
+                        stream << tty::red;
+                        color_used = true;
+                        break;
+                }
             }
-        }
 
-        // Add padding to fully fill the terminal_width, this is because MultiProgressBar
-        // overrides its own messages, it doesn't clear the lines.
-        // If the message is short some leftover characters could be still present after it.
-        const auto prefix_width = libdnf5::cli::utils::utf8::width(prefix);
-        const auto message_width = libdnf5::cli::utils::utf8::width(message);
-        if (message_width < terminal_width - prefix_width) {
-            message.append(terminal_width - message_width - prefix_width, ' ');
-        }
+            // Add padding to fully fill the terminal_width, this is because MultiProgressBar
+            // overrides its own messages, it doesn't clear the lines.
+            // If the message is short some leftover characters could be still present after it.
+            const auto message_width = libdnf5::cli::utils::utf8::width(message);
+            const auto space_available = terminal_width - prefix_width;
+            if (message_width < space_available) {
+                message.append(space_available - message_width, ' ');
+            }
 
-        // print only part of the message that fits the terminal width
-        stream << libdnf5::cli::utils::utf8::substr_width(message, 0, terminal_width - prefix_width);
+            // print only part of the message that fits the terminal width
+            stream << libdnf5::cli::utils::utf8::substr_width(message, 0, space_available);
 
-        if (color_used) {
-            stream << tty::reset;
+            if (color_used) {
+                stream << tty::reset;
+            }
         }
     }
 }

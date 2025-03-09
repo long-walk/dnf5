@@ -26,6 +26,7 @@ along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 #include "libdnf5/defs.h"
 #include "libdnf5/version.hpp"
 
+#include <exception>
 #include <string>
 #include <vector>
 
@@ -43,6 +44,22 @@ class Transaction;
 namespace libdnf5::plugin {
 
 class IPluginData;
+
+
+/// The `StopRequest` class is used to mark a plugin-generated exception as a stop request.
+/// The stop request is not caused by an error in the plugin runtime, but is a plugin request.
+/// The exception is marked by inheriting from the `StopRequest` class (using multiple inheritance).
+class LIBDNF_PLUGIN_API StopRequest {
+public:
+    StopRequest() noexcept;
+    StopRequest(const StopRequest & other) noexcept;
+    StopRequest(StopRequest && other) noexcept;
+    ~StopRequest();
+
+    StopRequest & operator=(const StopRequest & other) noexcept;
+    StopRequest & operator=(StopRequest && other) noexcept;
+};
+
 
 /// @brief A base class for implementing LIBDNF5 plugins that introduce additional logic into the library using hooks.
 class LIBDNF_PLUGIN_API IPlugin {
@@ -142,24 +159,44 @@ public:
 
 extern "C" {
 
-/// Returns the version of the API supported by the plugin.
+/// Returns the version of the API implemented by the plugin.
 /// Same result as IPlugin::get_api_version(), but can be called without creating an IPlugin instance.
+///
+/// @return API version implemented by the plugin.
 LIBDNF_PLUGIN_API libdnf5::PluginAPIVersion libdnf_plugin_get_api_version(void);
 
-/// Returns the name of the plugin. It can be called at any time.
+/// Returns the name of the plugin.
 /// Same result as IPlugin::get_name(), but can be called without creating an IPlugin instance.
+///
+/// @return Plugin name
 LIBDNF_PLUGIN_API const char * libdnf_plugin_get_name(void);
 
-/// Returns the version of the plugin. It can be called at any time.
+/// Returns the version of the plugin.
 /// Same result as IPlugin::get_version(), but can be called without creating an IPlugin instance.
+///
+/// @return Plugin version
 LIBDNF_PLUGIN_API libdnf5::plugin::Version libdnf_plugin_get_version(void);
 
-/// Creates a new plugin instance. Passes the API version to the plugin.
+/// Creates a new plugin instance.
+/// On failure, returns `nullptr` and saves the exception.
+///
+/// @param library_version Version of libdnf library.
+/// @param data            Private libdnf data passed to the plugin.
+/// @param parser          Parser with loaded plugin configuration file.
+/// @return Pointer to the new plugin instance or `nullptr`.
 LIBDNF_PLUGIN_API libdnf5::plugin::IPlugin * libdnf_plugin_new_instance(
     libdnf5::LibraryVersion library_version, libdnf5::plugin::IPluginData & data, libdnf5::ConfigParser & parser);
 
 /// Deletes plugin instance.
+///
+/// @param plugin_instance Plugin instance to delete.
 LIBDNF_PLUGIN_API void libdnf_plugin_delete_instance(libdnf5::plugin::IPlugin * plugin_instance);
+
+/// Returns a pointer to `std::exception_ptr` containing the last caught exception.
+/// If no exception has occurred yet, returns a pointer to an empty `std::exception_ptr`.
+///
+/// @return Pointer to the `std::exception_ptr` containing the last caught exception.
+LIBDNF_PLUGIN_API std::exception_ptr * libdnf_plugin_get_last_exception(void);
 }
 
 #endif

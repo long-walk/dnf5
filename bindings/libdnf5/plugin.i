@@ -30,12 +30,14 @@
     }
 }
 
+%ignore libdnf5::plugin::StopRequest;
 %ignore PluginError;
 %ignore libdnf_plugin_get_api_version;
 %ignore libdnf_plugin_get_name;
 %ignore libdnf_plugin_get_version;
 %ignore libdnf_plugin_new_instance;
 %ignore libdnf_plugin_delete_instance;
+%ignore libdnf_plugin_get_last_exception;
 %feature("director") IPlugin;
 %include "libdnf5/plugin/iplugin.hpp"
 

@@ -40,6 +40,13 @@ Strict behavior
   * The ``strict`` configuration option is no longer considered, see the :ref:`strict option deprecation <strict_option_conf_changes_ref-label>` for more information.
 
 
+No value separator after short options
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Short options do not have a separator between the option name and the option
+value. E.g. ``dnf -x package`` is equivalent to ``dnf --exclude package`` and
+``dnf --exclude=package`` long forms. But ``dnf -x=package`` means
+``dnf --exclude =package``.
+
 Changes to individual options
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 ``-4/-6``
@@ -147,6 +154,7 @@ Changes to individual commands
 ``automatic``
   * Now a DNF5 plugin.
   * The specific systemd units, ``dnf-automatic-download``, ``dnf-automatic-install``, and ``dnf-automatic-notifyonly``, have been dropped. Only one ``dnf5-automatic`` timer is shipped.
+  * The ``emitters.send_error_messages`` config option has been dropped. DNF5 automatic always informs the user about failed operations using configured emitters.
   * See the :ref:`Automatic command <automatic_plugin_ref-label>` for more information.
 
 ``autoremove``
@@ -215,6 +223,9 @@ Changes to individual commands
   * Dropped ``--all`` option since this behavior is the default one.
   * Dropped ``--updates`` option, only ``--upgrades`` is available now.
 
+``install``
+  * Dropped ``install-n``, ``install-na`` and ``install-nevra`` command variants.
+
 ``list``
   * Dropped ``--all`` option since this behavior is the default one.
   * Changed the behavior of the ``--available`` option.
@@ -222,8 +233,11 @@ Changes to individual commands
     * In DNF4, only packages not installed or with higher versions were listed. This behavior remains unchanged when the option is not used, reducing duplications in the "Installed Packages" section.
     * When using the ``--available`` option, DNF5 considers all versions available in enabled repositories, irrespective of the installed version.
 
+  * For installed packages print from which repository was the package installed and if the information is not available print ``<unknown>``. This differs to DNF4 which if the information wasn't available printed ``@System``.
+
 ``makecache``
   * Metadata is now stored in different directories, see the ``cachedir`` configuration option :ref:`changes <cachedir_option_conf_changes_ref-label>` for more details.
+  * The ``--timer`` option has been dropped in favor of the systemd ``OnUnitInactiveSec`` setting in ``dnf5-makecache.timer`` and the ``ConditionACPower`` setting in ``dnf5-makecache.service``.
 
 ``mark``
   * Renaming subcommands to be more intuitive: ``install`` -> ``user``, ``remove`` -> ``dependency``.
@@ -270,6 +284,7 @@ Changes to individual commands
 ``repoquery``
   * Dropped: ``-a/--all``, ``--alldeps``, ``--nevra`` options. Their behavior is and has been the default for both DNF4 and DNF5, so the options are no longer needed.
   * Dropped: ``--envra``, ``--nvr``, ``--unsatisfied`` options. They are no longer supported.
+  * Dropped: ``repoquery-n``, ``repoquery-na`` and ``repoquery-nevra`` command variants.
   * Dropped: ``--archlist`` alias for ``--arch``.
   * Dropped: ``-f`` alias for ``--file``. Also, the arguments to ``--file`` are separated by commas instead of spaces.
   * Moved ``--groupmember`` option to the ``info`` and ``list`` subcommands of the ``group`` and ``advisory`` commands, renaming it to ``--contains-pkgs``.
@@ -380,6 +395,9 @@ To address this, the functionality has been split into two configuration options
 
 Additionally, corresponding command-line options ``--skip-broken`` and ``--skip-unavailable`` have been introduced for commands where applicable.
 
+Deprecation of the ``metadata_timer_sync`` option
+-------------------------------------------------
+The ``metadata_timer_sync`` configuration option is now obsoleted by the ``dnf5-makecache.timer`` systemd timer settings.
 
 Changes to individual options
 -----------------------------

@@ -2,5 +2,6 @@ libdnf5::cli
 ============
 
 
-.. toctree::
-    libdnf5_cli_argument_parser
+.. doxygennamespace:: libdnf5::cli
+    :members:
+    :content-only:

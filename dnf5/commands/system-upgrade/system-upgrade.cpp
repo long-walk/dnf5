@@ -21,6 +21,8 @@ along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "../offline/offline.hpp"
 
+#include "libdnf5/comps/environment/query.hpp"
+#include "libdnf5/comps/group/query.hpp"
 #include "libdnf5/utils/bgettext/bgettext-lib.h"
 
 #include <libdnf5-cli/output/transaction_table.hpp>
@@ -79,6 +81,8 @@ void SystemUpgradeDownloadCommand::set_argument_parser() {
     no_downgrade_arg->set_const_value("true");
     no_downgrade_arg->link_value(no_downgrade);
     cmd.register_named_arg(no_downgrade_arg);
+
+    allow_erasing = std::make_unique<AllowErasingOption>(*this);
 }
 
 void SystemUpgradeDownloadCommand::configure() {
@@ -100,17 +104,32 @@ void SystemUpgradeDownloadCommand::configure() {
 
     ctx.set_load_system_repo(true);
     ctx.set_load_available_repos(Context::LoadAvailableRepos::ENABLED);
+    ctx.get_base().get_config().get_optional_metadata_types_option().add_item(
+        libdnf5::Option::Priority::RUNTIME, libdnf5::METADATA_TYPE_COMPS);
 }
 
 void SystemUpgradeDownloadCommand::run() {
     auto & ctx = get_context();
 
     const auto & goal = ctx.get_goal();
+    goal->set_allow_erasing(allow_erasing->get_value());
 
     if (no_downgrade->get_value()) {
         goal->add_rpm_upgrade();
     } else {
         goal->add_rpm_distro_sync();
+    }
+
+    libdnf5::comps::GroupQuery q_groups(ctx.get_base());
+    q_groups.filter_installed(true);
+    for (const auto & grp : q_groups) {
+        goal->add_group_upgrade(grp.get_groupid());
+    }
+
+    libdnf5::comps::EnvironmentQuery q_environments(ctx.get_base());
+    q_environments.filter_installed(true);
+    for (const auto & env : q_environments) {
+        goal->add_group_upgrade(env.get_environmentid());
     }
 
     ctx.set_should_store_offline(true);

@@ -29,6 +29,8 @@ along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 #include <libdnf5/base/goal.hpp>
 #include <libdnf5/conf/const.hpp>
 #include <libdnf5/conf/option_path.hpp>
+#include <libdnf5/rpm/nevra.hpp>
+#include <libdnf5/sdbus_compat.hpp>
 #include <libdnf5/transaction/offline.hpp>
 #include <libdnf5/utils/bgettext/bgettext-lib.h>
 #include <libdnf5/utils/bgettext/bgettext-mark-domain.h>
@@ -48,10 +50,10 @@ using namespace libdnf5::cli;
 
 const std::string & ID_TO_IDENTIFY_BOOTS = libdnf5::offline::OFFLINE_STARTED_ID;
 
-const std::string SYSTEMD_DESTINATION_NAME{"org.freedesktop.systemd1"};
-const std::string SYSTEMD_OBJECT_PATH{"/org/freedesktop/systemd1"};
-const std::string SYSTEMD_MANAGER_INTERFACE{"org.freedesktop.systemd1.Manager"};
-const std::string SYSTEMD_UNIT_INTERFACE{"org.freedesktop.systemd1.Unit"};
+const SDBUS_SERVICE_NAME_TYPE SYSTEMD_DESTINATION_NAME{"org.freedesktop.systemd1"};
+const sdbus::ObjectPath SYSTEMD_OBJECT_PATH{"/org/freedesktop/systemd1"};
+const SDBUS_INTERFACE_NAME_TYPE SYSTEMD_MANAGER_INTERFACE{"org.freedesktop.systemd1.Manager"};
+const SDBUS_INTERFACE_NAME_TYPE SYSTEMD_UNIT_INTERFACE{"org.freedesktop.systemd1.Unit"};
 const std::string SYSTEMD_SERVICE_NAME{"dnf5-offline-transaction.service"};
 
 int call(const std::string & command, const std::vector<std::string> & args) {
@@ -94,8 +96,8 @@ namespace dnf5 {
 /// contact it.
 class PlymouthOutput {
 public:
-    bool ping() { return plymouth({"ping"}); }
-    bool set_mode() { return plymouth({"change-mode", "--system-upgrade"}); }
+    bool ping() { return plymouth({"--ping"}); }
+    bool set_mode(const std::string & mode) { return plymouth({"change-mode", "--" + mode}); }
     bool message(const std::string & message) {
         if (last_message.has_value() && message == last_message) {
             plymouth({"hide-message", "--text", last_message.value()});
@@ -128,13 +130,13 @@ private:
 class PlymouthTransCB : public RpmTransCB {
 public:
     PlymouthTransCB(Context & context, PlymouthOutput plymouth) : RpmTransCB(context), plymouth(std::move(plymouth)) {}
-    void elem_progress(
-        [[maybe_unused]] const libdnf5::base::TransactionPackage & item,
-        [[maybe_unused]] uint64_t amount,
-        [[maybe_unused]] uint64_t total) override {
+    void elem_progress(const libdnf5::base::TransactionPackage & item, uint64_t amount, uint64_t total) override {
         RpmTransCB::elem_progress(item, amount, total);
 
-        plymouth.progress(static_cast<int>(100 * static_cast<double>(amount) / static_cast<double>(total)));
+        if (total != 0) {
+            // Reserve the last 5% of the progress bar for post-transaction callbacks.
+            plymouth.progress(static_cast<int>(95 * static_cast<double>(amount) / static_cast<double>(total)));
+        }
 
         std::string action;
         switch (item.get_action()) {
@@ -167,7 +169,26 @@ public:
                         item.get_action())));
                 break;
         }
-        const auto & message = fmt::format("[{}/{}] {} {}...", amount, total, action, item.get_package().get_name());
+        const auto & message =
+            fmt::format("[{}/{}] {} {}...", amount + 1, total, action, item.get_package().get_name());
+        plymouth.message(message);
+    }
+
+    void script_start(
+        const libdnf5::base::TransactionPackage * item,
+        libdnf5::rpm::Nevra nevra,
+        libdnf5::rpm::TransactionCallbacks::ScriptType type) override {
+        RpmTransCB::script_start(item, nevra, type);
+
+        // Report only pre/post transaction scriptlets. With all scriptlets
+        // being reported the output flickers way too much to be usable.
+        using ScriptType = libdnf5::rpm::TransactionCallbacks::ScriptType;
+        if (type != ScriptType::PRE_TRANSACTION && type != ScriptType::POST_TRANSACTION) {
+            return;
+        }
+
+        const auto message = fmt::format(
+            "Running {} scriptlet: {}...", script_type_to_string(type), to_full_nevra_string(nevra).c_str());
         plymouth.message(message);
     }
 
@@ -244,11 +265,13 @@ void reboot(bool poweroff = false) {
         const std::string error_message{ex.what()};
         throw libdnf5::cli::CommandExitError(1, M_("Couldn't connect to D-Bus: {}"), error_message);
     }
-    auto proxy = sdbus::createProxy(SYSTEMD_DESTINATION_NAME, SYSTEMD_OBJECT_PATH);
-    if (poweroff) {
-        proxy->callMethod("PowerOff").onInterface(SYSTEMD_MANAGER_INTERFACE);
-    } else {
-        proxy->callMethod("Reboot").onInterface(SYSTEMD_MANAGER_INTERFACE);
+    if (connection != nullptr) {
+        auto proxy = sdbus::createProxy(*connection, SYSTEMD_DESTINATION_NAME, SYSTEMD_OBJECT_PATH);
+        if (poweroff) {
+            proxy->callMethod("PowerOff").onInterface(SYSTEMD_MANAGER_INTERFACE);
+        } else {
+            proxy->callMethod("Reboot").onInterface(SYSTEMD_MANAGER_INTERFACE);
+        }
     }
 #else
     std::cerr << "Can't connect to D-Bus; this build of DNF 5 does not support D-Bus." << std::endl;
@@ -312,7 +335,7 @@ void OfflineRebootCommand::run() {
         std::cerr << "Warning: couldn't connect to D-Bus: " << ex.what() << std::endl;
     }
     if (connection != nullptr) {
-        auto systemd_proxy = sdbus::createProxy(SYSTEMD_DESTINATION_NAME, SYSTEMD_OBJECT_PATH);
+        auto systemd_proxy = sdbus::createProxy(*connection, SYSTEMD_DESTINATION_NAME, SYSTEMD_OBJECT_PATH);
 
         sdbus::ObjectPath unit_object_path;
         systemd_proxy->callMethod("LoadUnit")
@@ -320,8 +343,9 @@ void OfflineRebootCommand::run() {
             .withArguments("system-update.target")
             .storeResultsTo(unit_object_path);
 
-        auto unit_proxy = sdbus::createProxy(SYSTEMD_DESTINATION_NAME, unit_object_path);
-        const std::vector<std::string> & wants = unit_proxy->getProperty("Wants").onInterface(SYSTEMD_UNIT_INTERFACE);
+        auto unit_proxy = sdbus::createProxy(*connection, SYSTEMD_DESTINATION_NAME, unit_object_path);
+        const auto wants =
+            std::vector<std::string>(unit_proxy->getProperty("Wants").onInterface(SYSTEMD_UNIT_INTERFACE));
         if (std::find(wants.begin(), wants.end(), SYSTEMD_SERVICE_NAME) == wants.end()) {
             throw libdnf5::cli::CommandExitError(
                 1, M_("{} is not wanted by system-update.target."), SYSTEMD_SERVICE_NAME);
@@ -388,6 +412,13 @@ void OfflineExecuteCommand::pre_configure() {
     // checked when the transaction was prepared and serialized. This way, we
     // don't need to keep track of which packages need to be gpgchecked.
     ctx.get_base().get_config().get_pkg_gpgcheck_option().set(false);
+
+    // Do not create repositories from the system configuration.
+    // They would be created as the AVAILABLE type, which is not suitable for
+    // adding packages from local RPM files. Libdnf5 will instead create
+    // COMMANDLINE-type repositories as needed based on the packages from the
+    // stored offline transaction.
+    ctx.set_create_repos(false);
 }
 
 void OfflineExecuteCommand::configure() {
@@ -426,12 +457,18 @@ void OfflineExecuteCommand::run() {
     const auto & system_releasever = offline_data.get_system_releasever();
     const auto & target_releasever = offline_data.get_target_releasever();
 
-    dnf5::offline::log_status(
-        ctx,
-        "Starting offline transaction. This will take a while.",
-        libdnf5::offline::OFFLINE_STARTED_ID,
-        system_releasever,
-        target_releasever);
+    std::string message = _("Starting offline transaction. This will take a while.");
+    std::string mode{"updates"};
+    if (offline_data.get_verb() == "system-upgrade download") {
+        mode = "system-upgrade";
+        message = _("Starting system upgrade. This will take a while.");
+    }
+
+    dnf5::offline::log_status(ctx, message, libdnf5::offline::OFFLINE_STARTED_ID, system_releasever, target_releasever);
+
+    PlymouthOutput plymouth;
+    plymouth.progress(0);
+    plymouth.message(message.c_str());
 
     std::cout
         << _("Warning: the `_execute` command is for internal use only and is not intended to be run directly by "
@@ -469,22 +506,20 @@ void OfflineExecuteCommand::run() {
     libdnf5::cli::output::TransactionAdapter cli_output_transaction(transaction);
     libdnf5::cli::output::print_transaction_table(cli_output_transaction);
 
-    PlymouthOutput plymouth;
+    // Postponing switching the plymouth mode after transaction is resolved
+    // enables us to show the "Starting transaction..." message to the user.
+    // Once the mode is switched to updates/system-upgrade, all the messages
+    // are suppressed (in the default plymouth theme - currently bgrt in Fedora).
+    plymouth.set_mode(mode);
+
     auto callbacks = std::make_unique<PlymouthTransCB>(ctx, plymouth);
 
     // Adapted from Context::Impl::download_and_run:
     // Compute the total number of transaction actions (number of bars)
     // Total number of actions = number of packages in the transaction +
-    //                           action of verifying package files if new package files are present in the transaction +
     //                           action of preparing transaction
     const auto & trans_packages = transaction.get_transaction_packages();
     auto num_of_actions = trans_packages.size() + 1;
-    for (auto & trans_pkg : trans_packages) {
-        if (libdnf5::transaction::transaction_item_action_is_inbound(trans_pkg.get_action())) {
-            ++num_of_actions;
-            break;
-        }
-    }
 
     callbacks->get_multi_progress_bar()->set_total_num_of_bars(num_of_actions);
     transaction.set_callbacks(std::move(callbacks));
@@ -516,6 +551,7 @@ void OfflineExecuteCommand::run() {
         transaction_complete_message = "Transaction complete! Cleaning up and rebooting...";
     }
 
+    plymouth.progress(100);
     plymouth.message(_(transaction_complete_message.c_str()));
     dnf5::offline::log_status(
         ctx, transaction_complete_message, libdnf5::offline::OFFLINE_FINISHED_ID, system_releasever, target_releasever);

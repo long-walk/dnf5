@@ -2,5 +2,5 @@ libdnf5.conf
 ============
 
 
-.. toctree::
-    libdnf5_conf_vars
+.. automodule:: libdnf5.conf
+    :members:

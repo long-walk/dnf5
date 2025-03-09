@@ -42,11 +42,13 @@ private:
     using TGetVersionFunc = decltype(&dnf5_plugin_get_version);
     using TNewInstanceFunc = decltype(&dnf5_plugin_new_instance);
     using TDeleteInstanceFunc = decltype(&dnf5_plugin_delete_instance);
+    using TGetLastException = decltype(&dnf5_plugin_get_last_exception);
     TGetApiVersionFunc get_api_version{nullptr};
     TGetNameFunc get_name{nullptr};
     TGetVersionFunc get_version{nullptr};
     TNewInstanceFunc new_instance{nullptr};
     TDeleteInstanceFunc delete_instance{nullptr};
+    TGetLastException get_last_exception{nullptr};
     utils::Library library;
 };
 
@@ -73,7 +75,35 @@ PluginLibrary::PluginLibrary(Context & context, const std::string & library_path
     new_instance = reinterpret_cast<TNewInstanceFunc>(library.get_address("dnf5_plugin_new_instance"));
     delete_instance = reinterpret_cast<TDeleteInstanceFunc>(library.get_address("dnf5_plugin_delete_instance"));
 
+    try {
+        get_last_exception = reinterpret_cast<TGetLastException>(library.get_address("dnf5_plugin_get_last_exception"));
+    } catch (const std::runtime_error &) {
+        // The original plugin API did not have the "dnf5_plugin_get_last_exception" function.
+        // To maintain compatibility with older plugins, the "dnf5_plugin_get_last_exception" function is optional.
+    }
+
     iplugin_instance = new_instance(dnf5::get_application_version(), context);
+    if (!iplugin_instance) {
+        auto & logger = *context.get_base().get_logger();
+        std::runtime_error plugin_exception("Failed to create a dnf plugin instance");
+        if (get_last_exception) {
+            if (auto * last_exception = get_last_exception()) {
+                try {
+                    if (*last_exception) {
+                        std::rethrow_exception(*last_exception);
+                    }
+                } catch (const std::exception & ex) {
+                    *last_exception = nullptr;  // We no longer need to save the exception in the plugin.
+                    logger.error("dnf5_plugin_new_instance: {}", ex.what());
+                    std::throw_with_nested(std::move(plugin_exception));
+                } catch (...) {
+                    *last_exception = nullptr;  // We no longer need to save the exception in the plugin.
+                    std::throw_with_nested(std::move(plugin_exception));
+                }
+            }
+        }
+        throw std::move(plugin_exception);
+    }
 }
 
 PluginLibrary::~PluginLibrary() {
@@ -131,20 +161,13 @@ void Plugins::load_plugins(const std::string & dir_path) {
     }
     std::sort(lib_paths.begin(), lib_paths.end());
 
-    std::string failed_filenames;
     for (const auto & path : lib_paths) {
         try {
             load_plugin(path);
         } catch (const std::exception & ex) {
             logger->error("Cannot load dnf5 plugin \"{}\": {}", path.string(), ex.what());
-            if (!failed_filenames.empty()) {
-                failed_filenames += ", ";
-            }
-            failed_filenames += path.filename();
+            std::throw_with_nested(std::runtime_error("Cannot load dnf5 plugin: " + path.string()));
         }
-    }
-    if (!failed_filenames.empty()) {
-        throw std::runtime_error("Cannot load dnf5 plugins: " + failed_filenames);
     }
 }
 
