@@ -6,7 +6,7 @@
 %bcond dnf5_obsoletes_dnf %[0%{?fedora} > 40 || 0%{?rhel} > 10]
 
 Name:           dnf5
-Version:        %{project_version_prime}.%{project_version_major}.%{project_version_minor}.%{project_version_micro}
+Version:        5.2.11.0
 Release:        1%{?dist}
 Summary:        Command-line package manager
 License:        GPL-2.0-or-later
@@ -945,6 +945,117 @@ popd
 %ldconfig_scriptlets
 
 %changelog
+* Sun Mar 09 2025 Thomas <temp.mail@hispeed.ch> 5.2.11.0-1
+- Release 5.2.11.0 (evan-goode@users.noreply.github.com)
+- Update translations from weblate (github-actions@github.com)
+- offline: Reserve last 5%% of progress bar for scriptlets (mblaha@redhat.com)
+- offline: Set correct plymouth mode (mblaha@redhat.com)
+- offline: Inform user about scriptlets execution (mblaha@redhat.com)
+- offline: Correct item number to plymouth message (mblaha@redhat.com)
+- offline: Add initial settings of the plymouth (mblaha@redhat.com)
+- offline: Fix plymouth ping command (mblaha@redhat.com)
+- offline: Remove superfluous [[maybe_unused]] attributes (mblaha@redhat.com)
+- Revert "Packit: use GH's release notes for downstream changelog"
+  (mail@evangoo.de)
+- Replace in-tree crc32() with a call to zlib (dcantrell@redhat.com)
+- doc: fix typo (liebundartig@freenet.de)
+- Goal: Fix handling duplicit group actions (pkratoch@redhat.com)
+- progressbar: Messages printing on narrow terminal (mblaha@redhat.com)
+- progressbar: Small optimizations (mblaha@redhat.com)
+- Goal: Handle INSTALL and INSTALL_BY_COMPS group actions as INSTALL
+  (pkratoch@redhat.com)
+- Use actual repository ID in stored transactions (mblaha@redhat.com)
+- dnf5: Make creating repositories optional (mblaha@redhat.com)
+- repo: Invalidate provides after adding a comps xml (mblaha@redhat.com)
+- doc: Document dropping of makecache --timer option (mblaha@redhat.com)
+- conf: Deprecate metadata_timer_sync option (mblaha@redhat.com)
+- system-upgrade: Add --allowerasing switch (mblaha@redhat.com)
+- repo: ignore key download errors if skip_if_unavailable (mail@evangoo.de)
+- doc: No value separator after short options (ppisar@redhat.com)
+- Don't remove packages/groups during group/environment upgrade
+  (amatej@redhat.com)
+- Goal: handle duplicate group actions (amatej@redhat.com)
+- Remove duplicit clear of `group_specs` (amatej@redhat.com)
+- Update groups and environments during system upgrade (amatej@redhat.com)
+- Group package type can be present but empty (amatej@redhat.com)
+- FindRuby no longer provides upper-case RUBY_* variables. (amatej@redhat.com)
+- doc: Removal of send_error_messages in automatic (mblaha@redhat.com)
+- offline: Use connection for creating D-Bus proxies (mblaha@redhat.com)
+- offline: Fix constructing vector from D-Bus value (mblaha@redhat.com)
+- Enable automatic PR reviews (jkolarik@redhat.com)
+- expired-pgp-keys: Drop checking for gpg command (jkolarik@redhat.com)
+- l10n: Rename zh_Hans to zh_CN (ppisar@redhat.com)
+- Actions plugin doc: Use inline literals in Output line format section
+  (jrohel@redhat.com)
+- Actions plugin documentation: extension in version 1.4.0 (jrohel@redhat.com)
+- Fix total number of transaction progress bars (jrohel@redhat.com)
+- Create progress bar in script callback if one doesn't already exist
+  (i.mcinerney17@imperial.ac.uk)
+- Create a pipe and open files with the close-on-exec flag (jrohel@redhat.com)
+- Document Python API by module (amatej@redhat.com)
+- Document cpp API by namespace (amatej@redhat.com)
+- Actions plugin: Increase version to 1.4 (jrohel@redhat.com)
+- Actions plugin: Support for "log" command in output line in plain mode
+  (jrohel@redhat.com)
+- Actions plugin: Action can send stop request or error msg in JSON mode
+  (jrohel@redhat.com)
+- Actions plugin: Action can send stop request or error msg in plain mode
+  (jrohel@redhat.com)
+- libdnf5 plugin API: Add `StopRequest` class (jrohel@redhat.com)
+- Actions plugin: Unify exceptions and log messages (jrohel@redhat.com)
+- Actions plugin: Introduce `raise_error` option (jrohel@redhat.com)
+- Actions plugin: Move logging code out of child process (jrohel@redhat.com)
+- Actions plugin: Create pipes with close-on-exec flag (jrohel@redhat.com)
+- expired-pgp-keys: Recommend the plugin only if gpg is already installed
+  (jkolarik@redhat.com)
+- Fix RepoCache::Impl::remove_recursive: Do not follow symlinks
+  (jrohel@redhat.com)
+- Update `expired-pgp-keys` plugin to not use deprecated API
+  (amatej@redhat.com)
+- doc: Add page dedicated to deprecations (amatej@redhat.com)
+- Add runtime warning to `stderr` when calling deprecated API
+  (amatej@redhat.com)
+- Disable deprecation warning for test of deprecated getters
+  (amatej@redhat.com)
+- doc: Add `ConfigMain` to both cpp and python API docs (amatej@redhat.com)
+- Unify marking of depraceted API (amatej@redhat.com)
+- Document `list` command changed handling of installed packages repos
+  (amatej@redhat.com)
+- Fix default value of `pluginpath` (amatej@redhat.com)
+- CMake: Use list(APPEND FOO) over set(FOO ${FOO} ...) (ferdnyc@gmail.com)
+- load_plugins: Preserve original exception with failure information
+  (jrohel@redhat.com)
+- Implement *_plugin_get_last_exception in all plugins (jrohel@redhat.com)
+- Plugin API: *_plugin_get_last_exception: Return pointer to last exception
+  (jrohel@redhat.com)
+- expired-pgp-keys: Install the plugin by default on Fedora 42+
+  (jkolarik@redhat.com)
+- RepoSack::update_and_load_repos: Properly thread_sack_loader termination
+  (jrohel@redhat.com)
+- system::State: remove unnecessary permissions check (amatej@redhat.com)
+- dnf4convert: exit when the database doesn't exist (amatej@redhat.com)
+- Load `libdnf5::system::State` only when required (amatej@redhat.com)
+- Doc: document dropped repoquery and install command variants
+  (amatej@redhat.com)
+- Mark 'Already downloaded' for translations (amatej@redhat.com)
+- plugins: Check if the plugin instantiation was successful (jrohel@redhat.com)
+- Library::get_address: Always throw exception if address is NULL
+  (jrohel@redhat.com)
+- DNF5 bash completion: "menu completion" support (jrohel@redhat.com)
+- DNF5: Support for suggesting command line args without description
+  (jrohel@redhat.com)
+- cli::ArgumentParser: Support for suggesting args without description
+  (jrohel@redhat.com)
+- daemon-client: Separate context and callbacks (mblaha@redhat.com)
+- dnfdaemon: Properly leave event loop (mblaha@redhat.com)
+- dnfdaemon-client: Use correct data type for callbacks (mblaha@redhat.com)
+- dnfdaemon: Register interface methods for sdbus-cpp-2 (mblaha@redhat.com)
+- dnfdaemon: Make signal handlers compatible (mblaha@redhat.com)
+- dnfdaemon: Explicit sdbus::Variant conversion (mblaha@redhat.com)
+- dnfdaemon: sdbus::Variant constructor is explicit (mblaha@redhat.com)
+- dnfdaemon: sdbus-cpp v. 2 requires strong types (mblaha@redhat.com)
+- cmake: Move sdbus-c++ check to one place (mblaha@redhat.com)
+
 * Fri Mar 07 2025 Packit Team <hello@packit.dev> - 5.2.11.0-1
 - New upstream release 5.2.11.0
 
