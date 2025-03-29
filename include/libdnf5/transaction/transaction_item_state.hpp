@@ -20,7 +20,8 @@ along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 #ifndef LIBDNF5_TRANSACTION_TRANSACTION_ITEM_STATE_HPP
 #define LIBDNF5_TRANSACTION_TRANSACTION_ITEM_STATE_HPP
 
-#include "libdnf5/common/exception.hpp"
+#include "transaction_item_errors.hpp"
+
 #include "libdnf5/defs.h"
 
 #include <string>
@@ -29,15 +30,6 @@ along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 namespace libdnf5::transaction {
 
 enum class TransactionItemState : int { STARTED = 1, OK = 2, ERROR = 3 };
-
-
-class LIBDNF_API InvalidTransactionItemState : public libdnf5::Error {
-public:
-    InvalidTransactionItemState(const std::string & state);
-
-    const char * get_domain_name() const noexcept override { return "libdnf5::transaction"; }
-    const char * get_name() const noexcept override { return "InvalidTransactionItemState"; }
-};
 
 
 LIBDNF_API std::string transaction_item_state_to_string(TransactionItemState state);

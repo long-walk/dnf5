@@ -1,12 +1,12 @@
 %global project_version_prime 5
 %global project_version_major 2
-%global project_version_minor 11
+%global project_version_minor 12
 %global project_version_micro 0
 
 %bcond dnf5_obsoletes_dnf %[0%{?fedora} > 40 || 0%{?rhel} > 10]
 
 Name:           dnf5
-Version:        5.2.11.0
+Version:        %{project_version_prime}.%{project_version_major}.%{project_version_minor}.%{project_version_micro}
 Release:        1%{?dist}
 Summary:        Command-line package manager
 License:        GPL-2.0-or-later
@@ -145,7 +145,7 @@ BuildRequires:  bash-completion-devel
 %else
 BuildRequires:  bash-completion
 %endif
-BuildRequires:  cmake
+BuildRequires:  cmake >= 3.21
 BuildRequires:  doxygen
 BuildRequires:  gettext
 BuildRequires:  pkgconfig(check)
@@ -271,13 +271,25 @@ upgrading, configuring, and removing computer programs in a consistent manner.
 It supports RPM packages, modulemd modules, and comps groups & environments.
 
 %post
+%if %{with dnf5_obsoletes_dnf}
+%systemd_post dnf-makecache.timer
+%else
 %systemd_post dnf5-makecache.timer
+%endif
 
 %preun
+%if %{with dnf5_obsoletes_dnf}
+%systemd_preun dnf-makecache.timer
+%else
 %systemd_preun dnf5-makecache.timer
+%endif
 
 %postun
+%if %{with dnf5_obsoletes_dnf}
+%systemd_postun_with_restart dnf-makecache.timer
+%else
 %systemd_postun_with_restart dnf5-makecache.timer
+%endif
 
 %files -f dnf5.lang
 %{_bindir}/dnf5
@@ -285,8 +297,8 @@ It supports RPM packages, modulemd modules, and comps groups & environments.
 %{_bindir}/dnf
 %{_bindir}/yum
 %endif
-%{_unitdir}/dnf5-makecache.service
-%{_unitdir}/dnf5-makecache.timer
+%{_unitdir}/dnf*-makecache.service
+%{_unitdir}/dnf*-makecache.timer
 
 %if 0%{?fedora} || 0%{?rhel} > 10
 %{_bindir}/microdnf
@@ -306,8 +318,6 @@ It supports RPM packages, modulemd modules, and comps groups & environments.
 %dir %{_datadir}/bash-completion/
 %dir %{_datadir}/bash-completion/completions/
 %{_datadir}/bash-completion/completions/dnf*
-%dir %{_prefix}/lib/sysimage/libdnf5
-%verify(not md5 size mtime) %ghost %{_prefix}/lib/sysimage/libdnf5/*
 %license COPYING.md
 %license gpl-2.0.txt
 %{_mandir}/man8/dnf5.8.*
@@ -397,6 +407,8 @@ Package management library.
 %dir %{_datadir}/dnf5/vars.d
 %dir %{_libdir}/libdnf5
 %{_libdir}/libdnf5.so.2*
+%dir %{_prefix}/lib/sysimage/libdnf5
+%verify(not md5 size mtime) %ghost %{_prefix}/lib/sysimage/libdnf5/*
 %license lgpl-2.1.txt
 %ghost %attr(0755, root, root) %dir %{_var}/cache/libdnf5
 %ghost %attr(0755, root, root) %dir %{_sharedstatedir}/dnf
@@ -846,6 +858,7 @@ automatically and regularly from systemd timers, cron jobs or similar.
     -DWITH_DNF5DAEMON_SERVER=%{?with_dnf5daemon_server:ON}%{!?with_dnf5daemon_server:OFF} \
     -DWITH_LIBDNF5_CLI=%{?with_libdnf_cli:ON}%{!?with_libdnf_cli:OFF} \
     -DWITH_DNF5=%{?with_dnf5:ON}%{!?with_dnf5:OFF} \
+    -DWITH_DNF5_OBSOLETES_DNF=%{?with_dnf5_obsoletes_dnf:ON}%{!?with_dnf5_obsoletes_dnf:OFF} \
     -DWITH_PLUGIN_ACTIONS=%{?with_plugin_actions:ON}%{!?with_plugin_actions:OFF} \
     -DWITH_PLUGIN_APPSTREAM=%{?with_plugin_appstream:ON}%{!?with_plugin_appstream:OFF} \
     -DWITH_PLUGIN_EXPIRED_PGP_KEYS=%{?with_plugin_expired_pgp_keys:ON}%{!?with_plugin_expired_pgp_keys:OFF} \
@@ -898,6 +911,11 @@ for file in %{buildroot}%{_mandir}/man[578]/dnf5[-.]*; do
     filename=$(basename $file)
     ln -sr $file $dir/${filename/dnf5/dnf}
 done
+# Make "dnf-makecache" the "real" unit name, but keep compatibility for playbooks that refer to dnf5-makecache
+mv %{buildroot}%{_unitdir}/dnf5-makecache.service %{buildroot}%{_unitdir}/dnf-makecache.service
+mv %{buildroot}%{_unitdir}/dnf5-makecache.timer %{buildroot}%{_unitdir}/dnf-makecache.timer
+ln -s dnf-makecache.service %{buildroot}%{_unitdir}/dnf5-makecache.service
+ln -s dnf-makecache.timer %{buildroot}%{_unitdir}/dnf5-makecache.timer
 %endif
 
 # own dirs and files that dnf5 creates on runtime
@@ -945,116 +963,8 @@ popd
 %ldconfig_scriptlets
 
 %changelog
-* Sun Mar 09 2025 Thomas <temp.mail@hispeed.ch> 5.2.11.0-1
-- Release 5.2.11.0 (evan-goode@users.noreply.github.com)
-- Update translations from weblate (github-actions@github.com)
-- offline: Reserve last 5%% of progress bar for scriptlets (mblaha@redhat.com)
-- offline: Set correct plymouth mode (mblaha@redhat.com)
-- offline: Inform user about scriptlets execution (mblaha@redhat.com)
-- offline: Correct item number to plymouth message (mblaha@redhat.com)
-- offline: Add initial settings of the plymouth (mblaha@redhat.com)
-- offline: Fix plymouth ping command (mblaha@redhat.com)
-- offline: Remove superfluous [[maybe_unused]] attributes (mblaha@redhat.com)
-- Revert "Packit: use GH's release notes for downstream changelog"
-  (mail@evangoo.de)
-- Replace in-tree crc32() with a call to zlib (dcantrell@redhat.com)
-- doc: fix typo (liebundartig@freenet.de)
-- Goal: Fix handling duplicit group actions (pkratoch@redhat.com)
-- progressbar: Messages printing on narrow terminal (mblaha@redhat.com)
-- progressbar: Small optimizations (mblaha@redhat.com)
-- Goal: Handle INSTALL and INSTALL_BY_COMPS group actions as INSTALL
-  (pkratoch@redhat.com)
-- Use actual repository ID in stored transactions (mblaha@redhat.com)
-- dnf5: Make creating repositories optional (mblaha@redhat.com)
-- repo: Invalidate provides after adding a comps xml (mblaha@redhat.com)
-- doc: Document dropping of makecache --timer option (mblaha@redhat.com)
-- conf: Deprecate metadata_timer_sync option (mblaha@redhat.com)
-- system-upgrade: Add --allowerasing switch (mblaha@redhat.com)
-- repo: ignore key download errors if skip_if_unavailable (mail@evangoo.de)
-- doc: No value separator after short options (ppisar@redhat.com)
-- Don't remove packages/groups during group/environment upgrade
-  (amatej@redhat.com)
-- Goal: handle duplicate group actions (amatej@redhat.com)
-- Remove duplicit clear of `group_specs` (amatej@redhat.com)
-- Update groups and environments during system upgrade (amatej@redhat.com)
-- Group package type can be present but empty (amatej@redhat.com)
-- FindRuby no longer provides upper-case RUBY_* variables. (amatej@redhat.com)
-- doc: Removal of send_error_messages in automatic (mblaha@redhat.com)
-- offline: Use connection for creating D-Bus proxies (mblaha@redhat.com)
-- offline: Fix constructing vector from D-Bus value (mblaha@redhat.com)
-- Enable automatic PR reviews (jkolarik@redhat.com)
-- expired-pgp-keys: Drop checking for gpg command (jkolarik@redhat.com)
-- l10n: Rename zh_Hans to zh_CN (ppisar@redhat.com)
-- Actions plugin doc: Use inline literals in Output line format section
-  (jrohel@redhat.com)
-- Actions plugin documentation: extension in version 1.4.0 (jrohel@redhat.com)
-- Fix total number of transaction progress bars (jrohel@redhat.com)
-- Create progress bar in script callback if one doesn't already exist
-  (i.mcinerney17@imperial.ac.uk)
-- Create a pipe and open files with the close-on-exec flag (jrohel@redhat.com)
-- Document Python API by module (amatej@redhat.com)
-- Document cpp API by namespace (amatej@redhat.com)
-- Actions plugin: Increase version to 1.4 (jrohel@redhat.com)
-- Actions plugin: Support for "log" command in output line in plain mode
-  (jrohel@redhat.com)
-- Actions plugin: Action can send stop request or error msg in JSON mode
-  (jrohel@redhat.com)
-- Actions plugin: Action can send stop request or error msg in plain mode
-  (jrohel@redhat.com)
-- libdnf5 plugin API: Add `StopRequest` class (jrohel@redhat.com)
-- Actions plugin: Unify exceptions and log messages (jrohel@redhat.com)
-- Actions plugin: Introduce `raise_error` option (jrohel@redhat.com)
-- Actions plugin: Move logging code out of child process (jrohel@redhat.com)
-- Actions plugin: Create pipes with close-on-exec flag (jrohel@redhat.com)
-- expired-pgp-keys: Recommend the plugin only if gpg is already installed
-  (jkolarik@redhat.com)
-- Fix RepoCache::Impl::remove_recursive: Do not follow symlinks
-  (jrohel@redhat.com)
-- Update `expired-pgp-keys` plugin to not use deprecated API
-  (amatej@redhat.com)
-- doc: Add page dedicated to deprecations (amatej@redhat.com)
-- Add runtime warning to `stderr` when calling deprecated API
-  (amatej@redhat.com)
-- Disable deprecation warning for test of deprecated getters
-  (amatej@redhat.com)
-- doc: Add `ConfigMain` to both cpp and python API docs (amatej@redhat.com)
-- Unify marking of depraceted API (amatej@redhat.com)
-- Document `list` command changed handling of installed packages repos
-  (amatej@redhat.com)
-- Fix default value of `pluginpath` (amatej@redhat.com)
-- CMake: Use list(APPEND FOO) over set(FOO ${FOO} ...) (ferdnyc@gmail.com)
-- load_plugins: Preserve original exception with failure information
-  (jrohel@redhat.com)
-- Implement *_plugin_get_last_exception in all plugins (jrohel@redhat.com)
-- Plugin API: *_plugin_get_last_exception: Return pointer to last exception
-  (jrohel@redhat.com)
-- expired-pgp-keys: Install the plugin by default on Fedora 42+
-  (jkolarik@redhat.com)
-- RepoSack::update_and_load_repos: Properly thread_sack_loader termination
-  (jrohel@redhat.com)
-- system::State: remove unnecessary permissions check (amatej@redhat.com)
-- dnf4convert: exit when the database doesn't exist (amatej@redhat.com)
-- Load `libdnf5::system::State` only when required (amatej@redhat.com)
-- Doc: document dropped repoquery and install command variants
-  (amatej@redhat.com)
-- Mark 'Already downloaded' for translations (amatej@redhat.com)
-- plugins: Check if the plugin instantiation was successful (jrohel@redhat.com)
-- Library::get_address: Always throw exception if address is NULL
-  (jrohel@redhat.com)
-- DNF5 bash completion: "menu completion" support (jrohel@redhat.com)
-- DNF5: Support for suggesting command line args without description
-  (jrohel@redhat.com)
-- cli::ArgumentParser: Support for suggesting args without description
-  (jrohel@redhat.com)
-- daemon-client: Separate context and callbacks (mblaha@redhat.com)
-- dnfdaemon: Properly leave event loop (mblaha@redhat.com)
-- dnfdaemon-client: Use correct data type for callbacks (mblaha@redhat.com)
-- dnfdaemon: Register interface methods for sdbus-cpp-2 (mblaha@redhat.com)
-- dnfdaemon: Make signal handlers compatible (mblaha@redhat.com)
-- dnfdaemon: Explicit sdbus::Variant conversion (mblaha@redhat.com)
-- dnfdaemon: sdbus::Variant constructor is explicit (mblaha@redhat.com)
-- dnfdaemon: sdbus-cpp v. 2 requires strong types (mblaha@redhat.com)
-- cmake: Move sdbus-c++ check to one place (mblaha@redhat.com)
+* Tue Mar 18 2025 Packit Team <hello@packit.dev> - 5.2.12.0-1
+- New upstream release 5.2.12.0
 
 * Fri Mar 07 2025 Packit Team <hello@packit.dev> - 5.2.11.0-1
 - New upstream release 5.2.11.0
