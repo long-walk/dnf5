@@ -6,7 +6,7 @@
 %bcond dnf5_obsoletes_dnf %[0%{?fedora} > 40 || 0%{?rhel} > 10]
 
 Name:           dnf5
-Version:        %{project_version_prime}.%{project_version_major}.%{project_version_minor}.%{project_version_micro}
+Version:        5.2.12.0
 Release:        1%{?dist}
 Summary:        Command-line package manager
 License:        GPL-2.0-or-later
@@ -963,6 +963,43 @@ popd
 %ldconfig_scriptlets
 
 %changelog
+* Sun Mar 30 2025 Thomas <temp.mail@hispeed.ch> 5.2.12.0-1
+- Release 5.2.12.0 (evan-goode@users.noreply.github.com)
+- Update translations from weblate (github-actions@github.com)
+- expired-pgp-keys: Fix checking expiration of keys in RPM database
+  (ppisar@redhat.com)
+- repo: handle bad signature errors when no key could be imported
+  (mail@evangoo.de)
+- repo: fix bad GPG error handling (mail@evangoo.de)
+- ci: Automatically backport labeled PRs to stable branches (mail@evangoo.de)
+- packit: remove unnecessary references to main branch (mail@evangoo.de)
+- actions: support releasing from non-main branches (mail@evangoo.de)
+- Implement libdnf5::throw_with_nested: throws our nested exception type
+  (jrohel@redhat.com)
+- spec: Move /usr/lib/sysimage/libdnf5 from dnf5 to libdnf5 (ppisar@redhat.com)
+- libdnf5: OptionBindsError and NevraIncorrectInputError: struct to class
+  (jrohel@redhat.com)
+- libdnf5 and libdnf5-cli: Move exception declarations to own header files
+  (jrohel@redhat.com)
+- Fix: let copr plugin to respect the installroot option
+  (j1.kyjovsky@gmail.com)
+- Throw error when bootc system is read-only (mail@evangoo.de)
+- Add bootc utility functions (mail@evangoo.de)
+- Bump version to 5.2.12.0 (mail@evangoo.de)
+- doc: Templatize dnf-makecache.{timer,service} names (mail@evangoo.de)
+- doc: dnf5-makecache.{timer,service} renamed to dnf-makecache
+  (mail@evangoo.de)
+- Rename dnf5-makecache timer to dnf-makecache when dnf5_obsoletes_dnf
+  (gordon.messmer@gmail.com)
+- Fix a memory leak when looking up for an OpenPGP key in RPM database
+  (ppisar@redhat.com)
+- Fix dnf5 copr_plugin: always set `base` in `CoprRepo` (jrohel@redhat.com)
+- offline: only define systemd constants when building with systemd
+  (katexochen0@gmail.com)
+- spec: Set cmake minimal version to 3.21 (ppisar@redhat.com)
+- Remove a warning from a code about an internal use of "dnf5 offline _execute"
+  (ppisar@redhat.com)
+
 * Tue Mar 18 2025 Packit Team <hello@packit.dev> - 5.2.12.0-1
 - New upstream release 5.2.12.0
 
