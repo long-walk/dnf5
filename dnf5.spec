@@ -6,7 +6,7 @@
 %bcond dnf5_obsoletes_dnf %[0%{?fedora} > 40 || 0%{?rhel} > 10]
 
 Name:           dnf5
-Version:        %{project_version_prime}.%{project_version_major}.%{project_version_minor}.%{project_version_micro}
+Version:        5.2.13.1
 Release:        1%{?dist}
 Summary:        Command-line package manager
 License:        GPL-2.0-or-later
@@ -1014,6 +1014,78 @@ mkdir -p %{buildroot}%{_libdir}/libdnf5/plugins
 %ldconfig_scriptlets
 
 %changelog
+* Sun May 04 2025 Thomas <temp.mail@hispeed.ch> 5.2.13.1-1
+- Release 5.2.13.1 (evan-goode@users.noreply.github.com)
+- bindings: Add Python cmp_nevra binding (nikita@linux.ibm.com)
+- Deprecate deltarpm support (mblaha@redhat.com)
+- Deprecate the "retries" configuration option (mblaha@redhat.com)
+- RepoCacheRemoveStatistics::get_bytes_removed return uintmax_t
+  (mail@evangoo.de)
+- ci: Use RSM_CI_APP_PRIVATE_KEY in do-release.yaml (mail@evangoo.de)
+- Release 5.2.13.0 (evan-goode@users.noreply.github.com)
+- Update translations from weblate (github-actions@github.com)
+- daemon: Add the configuration file for the daemon (mblaha@redhat.com)
+- repo: Allow system_cachedir copy for the root user (mblaha@redhat.com)
+- Fix conditional which assumed RHEL 10 could support SOLVER_FLAG_FOCUS_NEW
+  (jonathan@almalinux.org)
+- repo: Log correct path when loading system repo (mblaha@redhat.com)
+- Unify duplicated group attributes handling (amatej@redhat.com)
+- Add `order_int` support to dnf5 daemon (amatej@redhat.com)
+- Move comps ordering to libdnf5-cli (amatej@redhat.com)
+- Add new group/env API to its adapters and interfaces (amatej@redhat.com)
+- comps: Test merging environment grouplists and optionlists
+  (pkratoch@redhat.com)
+- comps: Create env grouplist by merging grouplists of all its solvables
+  (pkratoch@redhat.com)
+- comps: Create group packagelist by merging packagelists of all its solvables
+  (pkratoch@redhat.com)
+- nevra: Fix description of evrcmp and rpmvercmp functions
+  (nikita@linux.ibm.com)
+- SWIG: unit tests for exceptions (jrohel@redhat.com)
+- SWIG: Implement exception forwarding (jrohel@redhat.com)
+- libdnf5::FormatDetailLevel: Change to enum class and add doc strings
+  (jrohel@redhat.com)
+- Disallow `dnf download non-sense` without `--skip-unavailable`
+  (ali@mirjamali.com)
+- Show cleaned space bytes for `dnf clean` (ali@mirjamali.com)
+- spec: Remove a duplicate record for %%{_prefix}/lib/sysimage/libdnf5
+  (ppisar@redhat.com)
+- Fix `history list` with unknown terminal size (ali@mirjamali.com)
+- comps: Respect the display_order with listing groups and environments
+  (pkratoch@redhat.com)
+- comps: Add methods to get the integer value of the display_order
+  (pkratoch@redhat.com)
+- spec: Correct libdnf5-plugin-appstream description (ppisar@redhat.com)
+- dnfdaemon: Allow Base::clean("expire-cache") without admin privileges
+  (mcrha@redhat.com)
+- Fix invalid hint for unknown short argument (ali@mirjamali.com)
+- Add missing rpm scriptlet types: sysusers and pre/postuntrans
+  (pmatilai@redhat.com)
+- solv: Drop the size check from swap_considered_map (mblaha@redhat.com)
+- Improve missing `proxy_password` message (ali@mirjamali.com)
+- Ask for superuser privileges on `history <undo|redo|rollback>`
+  (ali@mirjamali.com)
+- RepoDownloader: remove unused code (amatej@redhat.com)
+- expired-pgp-keys: Drop braced initialization to fix clang build
+  (jkolarik@redhat.com)
+- spec: Fix building without any libdnf5 plugin (mblaha@redhat.com)
+- spec: Conditional find_lang calls (mblaha@redhat.com)
+- spec: Fix building without dnf5 plugins (mblaha@redhat.com)
+- spec: Fix building without man pages (mblaha@redhat.com)
+- doc: DNF_SYSTEM_UPGRADE_NO_REBOOT environment variable (ppisar@redhat.com)
+- doc: Environment variables for a terminal and temporary files
+  (ppisar@redhat.com)
+- Add `-i` and `-f` shoft options for repoquery (ali@mirjamali.com)
+- Reimplement `--color` flag (ali@mirjamali.com)
+- expired-pgp-keys: Respect install root (mblaha@redhat.com)
+- comps: Add configuration options for group and environment excludes
+  (pkratoch@redhat.com)
+- comps: Add group and environment excludes (pkratoch@redhat.com)
+- comps: Add comps sack to later store comps excludes (pkratoch@redhat.com)
+- spec: Package CHANGELOG and other project documentation files
+  (ppisar@redhat.com)
+- spec: Set mode to ghost files (ppisar@redhat.com)
+
 * Wed Apr 23 2025 Packit Team <hello@packit.dev> - 5.2.13.1-1
 - New upstream release 5.2.13.1
 
