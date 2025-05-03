@@ -40,13 +40,21 @@ void print_transaction_list(std::vector<libdnf5::transaction::Transaction> & ts_
 
     std::unique_ptr<libscols_table, decltype(&scols_unref_table)> table(scols_new_table(), &scols_unref_table);
 
+    if (!libdnf5::cli::tty::is_interactive()) {
+        // Do not hard-code 80 as non-interactive screen width. Let libdnf5::cli::tty to decide
+        auto screen_width = size_t(libdnf5::cli::tty::get_width());
+        scols_table_set_termwidth(table.get(), screen_width);
+        // The below is necessary to make the libsmartcols' truncation work with non-interactive terminal
+        scols_table_set_termforce(table.get(), SCOLS_TERMFORCE_ALWAYS);
+    }
+
     scols_table_new_column(table.get(), "ID", 0, SCOLS_FL_RIGHT);
     scols_table_new_column(table.get(), "Command line", 0.7, SCOLS_FL_TRUNC);
     scols_table_new_column(table.get(), "Date and time", 0, 0);
     scols_table_new_column(table.get(), "Action(s)", 0, 0);
     scols_table_new_column(table.get(), "Altered", 0, SCOLS_FL_RIGHT);
 
-    if (libdnf5::cli::tty::is_interactive()) {
+    if (libdnf5::cli::tty::is_coloring_enabled()) {
         scols_table_enable_colors(table.get(), 1);
     }
 

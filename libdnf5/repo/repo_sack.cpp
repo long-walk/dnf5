@@ -565,7 +565,7 @@ void RepoSack::Impl::update_and_load_repos(libdnf5::repo::RepoQuery & repos, boo
                     send_to_sack_loader(repo);
                 } else {
                     // Try reusing the root cache
-                    if (!root_cache_tried && !libdnf5::utils::am_i_root() && repo->clone_root_metadata()) {
+                    if (!root_cache_tried && repo->clone_root_metadata()) {
                         root_cache_tried = true;
                         continue;
                     }
@@ -644,6 +644,7 @@ void RepoSack::Impl::update_and_load_repos(libdnf5::repo::RepoQuery & repos, boo
     fix_group_missing_xml();
 
     base->get_rpm_package_sack()->load_config_excludes_includes();
+    base->get_comps_sack()->load_config_excludes();
 #ifdef WITH_MODULEMD
     base->get_module_sack()->p_impl->module_filtering();
 #endif

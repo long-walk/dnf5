@@ -218,6 +218,28 @@ repository configuration file should aside from repo ID consists of baseurl, met
 
     Defaults to true.
 
+.. _excludeenvs_options-label:
+
+``excludeenvs``
+    :ref:`list <list-label>`
+
+    Exclude environments, specified by an id or a glob and separated by a comma, from all operations.
+
+    Can be disabled using ``disable_excludes`` config option.
+
+    Default: ``[]``.
+
+.. _excludegroups_options-label:
+
+``excludegroups``
+    :ref:`list <list-label>`
+
+    Exclude groups, specified by an id or a glob and separated by a comma, from all operations.
+
+    Can be disabled using ``disable_excludes`` config option.
+
+    Default: ``[]``.
+
 .. _group_package_types_options-label:
 
 ``group_package_types``
@@ -913,34 +935,11 @@ configuration.
 
     Default: ``False``.
 
-.. _deltarpm_options-label:
-
-``deltarpm``
-    :ref:`boolean <boolean-label>`
-
-    If enabled, DNF5 will save bandwidth by downloading much smaller delta RPM
-    files, rebuilding them to RPM locally. However, this is quite CPU and I/O
-    intensive.
-
-    Default: ``False``.
-
-.. _deltarpm_percentage_options-label:
-
-``deltarpm_percentage``
-    :ref:`integer <integer-label>`
-
-    When the relative size of delta vs pkg is larger than this, delta is not used.
-    (Deltas must be at least 25% smaller than the pkg).
-    Use ``0`` to turn off delta rpm processing. Local repositories (with
-    file:// baseurl) have delta rpms turned off by default.
-
-    Default: ``75``
-
 .. _disable_excludes_options-label:
 ``disable_excludes``
     :ref:`list <list-label>`
 
-    Used to disable packages filtering. It can include a list of repository IDs (globs allowed) for which repository-specific excludes are ignored. If it contains the special value ``main``, excludes from the main configuration files are bypassed. If it contains the special value ``*``, no excludes filtering is applied at all.
+    Used to disable package, group and environment filtering. It can include a list of repository IDs (globs allowed) for which repository-specific package excludes are ignored. If it contains the special value ``main``, excludes from the main configuration files are bypassed. If it contains the special value ``*``, no excludes filtering is applied at all.
 
 .. _enablegroups_options-label:
 
@@ -1184,19 +1183,6 @@ configuration.
        to import it again for the repository.
 
     Default: ``False``.
-
-.. _retries_options-label:
-
-``retries``
-    :ref:`integer <integer-label>`
-
-    Set the number of total retries for downloading packages.
-    The number is cumulative, so e.g. for ``retries=10``, DNF5 will fail after any package
-    download fails for eleventh time.
-
-    Setting this to ``0`` makes DNF5 try forever.
-
-    Default: ``10``.
 
 .. _skip_if_unavailable_options-label:
 

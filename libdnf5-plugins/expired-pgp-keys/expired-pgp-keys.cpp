@@ -169,8 +169,13 @@ void ExpiredPgpKeys::process_expired_pgp_keys(const libdnf5::base::Transaction &
     }
 
     // Iterate over all installed OpenPGP keys.
-    // TODO: Respect install root.
     auto ts = rpmtsCreate();
+    auto root_dir = config.get_installroot_option().get_value();
+    if (rpmtsSetRootDir(ts, root_dir.c_str()) != 0) {
+        logger.error("Expired PGP Keys Plugin: Failed to set rpm transaction root dir \"{}\".", root_dir);
+        rpmtsFree(ts);
+        return;
+    }
     Header h;
     rpmdbMatchIterator mi = rpmtsInitIterator(ts, RPMDBI_NAME, "gpg-pubkey", 0);
     std::vector<libdnf5::rpm::KeyInfo> keys_to_remove;
@@ -195,7 +200,7 @@ void ExpiredPgpKeys::process_expired_pgp_keys(const libdnf5::base::Transaction &
         // a vector of at most one KeyInfo object. The vector is empty if the
         // primary key had no signing subkey.
         // XXX: That effectivelly ignores expiration time of other subkeys.
-        auto parsed_keys = rpm_signature.parse_key_file(std::string({"file://"}) + key_tfile.get_path().string());
+        auto parsed_keys = rpm_signature.parse_key_file("file://" + key_tfile.get_path().string());
         if (parsed_keys.empty())
             continue;
 

@@ -224,12 +224,18 @@ public:
     const OptionBool & get_build_cache_option() const;
 
     // Repo main config
-    OptionNumber<std::uint32_t> & get_retries_option();
-    const OptionNumber<std::uint32_t> & get_retries_option() const;
+    /// @deprecated The option does nothing
+    [[deprecated("The option does nothing")]] OptionNumber<std::uint32_t> & get_retries_option();
+    /// @deprecated The option does nothing
+    [[deprecated("The option does nothing")]] const OptionNumber<std::uint32_t> & get_retries_option() const;
     OptionPath & get_cachedir_option();
     const OptionPath & get_cachedir_option() const;
     OptionBool & get_fastestmirror_option();
     const OptionBool & get_fastestmirror_option() const;
+    OptionStringAppendList & get_excludeenvs_option();
+    const OptionStringAppendList & get_excludeenvs_option() const;
+    OptionStringAppendList & get_excludegroups_option();
+    const OptionStringAppendList & get_excludegroups_option() const;
     OptionStringAppendList & get_excludepkgs_option();
     const OptionStringAppendList & get_excludepkgs_option() const;
     OptionStringAppendList & get_includepkgs_option();
@@ -296,10 +302,15 @@ public:
     const OptionString & get_proxy_sslclientcert_option() const;
     OptionString & get_proxy_sslclientkey_option();
     const OptionString & get_proxy_sslclientkey_option() const;
-    OptionBool & get_deltarpm_option();
-    const OptionBool & get_deltarpm_option() const;
-    OptionNumber<std::uint32_t> & get_deltarpm_percentage_option();
-    const OptionNumber<std::uint32_t> & get_deltarpm_percentage_option() const;
+    /// @deprecated The option does nothing
+    [[deprecated("The option does nothing")]] OptionBool & get_deltarpm_option();
+    /// @deprecated The option does nothing
+    [[deprecated("The option does nothing")]] const OptionBool & get_deltarpm_option() const;
+    /// @deprecated The option does nothing
+    [[deprecated("The option does nothing")]] OptionNumber<std::uint32_t> & get_deltarpm_percentage_option();
+    /// @deprecated The option does nothing
+    [[deprecated("The option does nothing")]] const OptionNumber<std::uint32_t> & get_deltarpm_percentage_option()
+        const;
     OptionBool & get_skip_if_unavailable_option();
     const OptionBool & get_skip_if_unavailable_option() const;
 

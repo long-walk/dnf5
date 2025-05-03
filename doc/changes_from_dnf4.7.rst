@@ -52,9 +52,6 @@ Changes to individual options
 ``-4/-6``
   * Dropped. Now only the ``ip_resolve`` configuration option is available.
 
-``--color``
-  * Dropped. Now only the ``color`` configuration option is available.
-
 .. TODO(jkolarik): Not implemented yet
    ``-d, --debuglevel``
      * Dropped. Now only the ``debuglevel`` configuration option is available.
@@ -400,6 +397,15 @@ Deprecation of the ``metadata_timer_sync`` option
 -------------------------------------------------
 The ``metadata_timer_sync`` configuration option is now obsoleted by the |DNF_MAKECACHE_TIMER_NAME_INLINE_LITERAL| systemd timer settings.
 
+Deprecation of the ``retries`` option
+-------------------------------------
+The ``retries`` configuration option is now deprecated. In dnf4, despite being documented as the number of retries for downloading packages, it was only used to limit the number of package re-downloads due to deltarpm errors. Deltarpm support is currently not planned for DNF5.
+
+Deprecation of the ``deltarpm`` and ``deltarpm_percentage`` options
+-------------------------------------------------------------------
+Support for delta RPMs is not planned for DNF5.
+
+
 Changes to individual options
 -----------------------------
 ``best``
@@ -418,10 +424,6 @@ Changes to individual options
   * The option was changed from ``bool`` to ``enum`` with options ``all``, ``metadata`` and ``none``.
 
     * This enables users to specify whether to use the cache exclusively for metadata or for both metadata and packages.
-
-``deltarpm``
-  * Default value is changed to ``false``.
-  * The support for delta RPMs is not implemented for now.
 
 ``disable_excludes``
   * To disable all configuration file excludes, the ``*`` glob character is used now instead of the ``all`` to unify the behavior with query objects on the API.

@@ -62,7 +62,10 @@ class ConfigRepo::Impl {
     OptionChild<OptionBool> pkg_gpgcheck{main_config.get_pkg_gpgcheck_option()};
     OptionChild<OptionBool> repo_gpgcheck{main_config.get_repo_gpgcheck_option()};
     OptionChild<OptionBool> enablegroups{main_config.get_enablegroups_option()};
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
     OptionChild<OptionNumber<std::uint32_t>> retries{main_config.get_retries_option()};
+#pragma GCC diagnostic pop
     OptionChild<OptionNumber<std::uint32_t>> bandwidth{main_config.get_bandwidth_option()};
     OptionChild<OptionNumber<std::uint32_t>> minrate{main_config.get_minrate_option()};
     OptionChild<OptionEnum> ip_resolve{main_config.get_ip_resolve_option()};
@@ -81,8 +84,11 @@ class ConfigRepo::Impl {
     OptionChild<OptionBool> proxy_sslverify{main_config.get_proxy_sslverify_option()};
     OptionChild<OptionString> proxy_sslclientcert{main_config.get_proxy_sslclientcert_option()};
     OptionChild<OptionString> proxy_sslclientkey{main_config.get_proxy_sslclientkey_option()};
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
     OptionChild<OptionBool> deltarpm{main_config.get_deltarpm_option()};
     OptionChild<OptionNumber<std::uint32_t>> deltarpm_percentage{main_config.get_deltarpm_percentage_option()};
+#pragma GCC diagnostic pop
     OptionChild<OptionBool> skip_if_unavailable{main_config.get_skip_if_unavailable_option()};
     OptionString enabled_metadata{""};
     OptionChild<OptionString> user_agent{main_config.get_user_agent_option()};
@@ -355,9 +361,11 @@ const OptionChild<OptionBool> & ConfigRepo::get_enablegroups_option() const {
 }
 
 OptionChild<OptionNumber<std::uint32_t>> & ConfigRepo::get_retries_option() {
+    LIBDNF5_DEPRECATED("The option does nothing");
     return p_impl->retries;
 }
 const OptionChild<OptionNumber<std::uint32_t>> & ConfigRepo::get_retries_option() const {
+    LIBDNF5_DEPRECATED("The option does nothing");
     return p_impl->retries;
 }
 
@@ -492,16 +500,20 @@ const OptionChild<OptionString> & ConfigRepo::get_proxy_sslclientkey_option() co
 }
 
 OptionChild<OptionBool> & ConfigRepo::get_deltarpm_option() {
+    LIBDNF5_DEPRECATED("The option does nothing");
     return p_impl->deltarpm;
 }
 const OptionChild<OptionBool> & ConfigRepo::get_deltarpm_option() const {
+    LIBDNF5_DEPRECATED("The option does nothing");
     return p_impl->deltarpm;
 }
 
 OptionChild<OptionNumber<std::uint32_t>> & ConfigRepo::get_deltarpm_percentage_option() {
+    LIBDNF5_DEPRECATED("The option does nothing");
     return p_impl->deltarpm_percentage;
 }
 const OptionChild<OptionNumber<std::uint32_t>> & ConfigRepo::get_deltarpm_percentage_option() const {
+    LIBDNF5_DEPRECATED("The option does nothing");
     return p_impl->deltarpm_percentage;
 }
 

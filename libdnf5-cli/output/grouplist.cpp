@@ -33,7 +33,7 @@ enum { COL_GROUP_ID, COL_GROUP_NAME, COL_INSTALLED };
 
 struct libscols_table * create_grouplist_table() {
     struct libscols_table * table = scols_new_table();
-    if (libdnf5::cli::tty::is_interactive()) {
+    if (libdnf5::cli::tty::is_coloring_enabled()) {
         scols_table_enable_colors(table, 1);
     }
     struct libscols_column * cl = scols_table_new_column(table, "ID", 20, 0);
@@ -65,8 +65,6 @@ void print_grouplist_table(std::vector<std::unique_ptr<IGroup>> & group_list) {
         add_line_into_grouplist_table(
             table, group->get_groupid().c_str(), group->get_name().c_str(), group->get_installed());
     }
-    auto cl = scols_table_get_column(table, COL_GROUP_ID);
-    scols_sort_table(table, cl);
     scols_print_table(table);
     scols_unref_table(table);
 }
