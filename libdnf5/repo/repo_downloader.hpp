@@ -20,24 +20,21 @@ along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 #ifndef LIBDNF5_REPO_REPO_DOWNLOADER_HPP
 #define LIBDNF5_REPO_REPO_DOWNLOADER_HPP
 
-#include "librepo.hpp"
-#include "repo_pgp.hpp"
 
-#include "libdnf5/base/base_weak.hpp"
-#include "libdnf5/common/exception.hpp"
-#include "libdnf5/repo/config_repo.hpp"
-#include "libdnf5/repo/repo.hpp"
-#include "libdnf5/repo/repo_callbacks.hpp"
+#include "repo/download_data.hpp"
+#include "repo/librepo.hpp"
 
-#include <librepo/librepo.h>
+#include "libdnf5/repo/repo_weak.hpp"
+#include "libdnf5/utils/fs/temp.hpp"
 
-#include <map>
-#include <memory>
-#include <optional>
-#include <set>
-#include <string>
-#include <vector>
+namespace std {
 
+template <>
+struct default_delete<LrMetadataTarget> {
+    void operator()(LrMetadataTarget * ptr) noexcept { lr_metadatatarget_free(ptr); }
+};
+
+}  // namespace std
 
 namespace libdnf5::repo {
 
@@ -46,6 +43,8 @@ namespace libdnf5::repo {
 ///                                       under which a lower-level exception can often be nested.
 class RepoDownloader {
 public:
+    using repo_loading_func = void(libdnf5::repo::Repo * repo, bool reusing);
+
     // Names of metadata files in rpm repository
     // Final metadata file name is (hash-) + this constant + ".xml" [+ compression suffix]
     static constexpr const char * MD_FILENAME_PRIMARY = "primary";
@@ -58,79 +57,59 @@ public:
     static constexpr const char * MD_FILENAME_MODULES = "modules";
     static constexpr const char * MD_FILENAME_APPSTREAM = "appstream";
 
-    RepoDownloader(const libdnf5::BaseWeakPtr & base, const ConfigRepo & config, Repo::Type repo_type);
+    static bool is_metalink_in_sync(Repo & repo, LrMetalink * metalink);
+    static bool is_repomd_in_sync(Repo & repo, std::filesystem::path repomd);
 
-    ~RepoDownloader();
+    static void load_local(DownloadData & download_data);
+    static LibrepoHandle & get_cached_handle(Repo & repo);
 
-    void download_metadata(const std::string & destdir);
-    bool is_metalink_in_sync();
-    bool is_repomd_in_sync();
-    void load_local();
-    void reset_loaded();
+    /// Adds repos for which metadata will be downloaded in parallel
+    void add(libdnf5::repo::Repo & repo, const std::string & destdir, std::function<repo_loading_func> load_repo);
 
-    LibrepoHandle & get_cached_handle();
+    // For each repo downloads metalink (or repomd if no metalink) and
+    // checks with local files if the repo needs to be downloaded.
+    // If the repo is determined to be in sync it won't be downloaded
+    // during the download() call.
+    // It returns a map with errors and a single bool signifying if
+    // all the added repos are in sync or not.
+    // NOTE(amatej): If the API should become public we might
+    // want to change it so that its possible to tell which
+    // repos will be donwloaded in the following download() call.
+    std::tuple<std::unordered_map<Repo *, std::vector<std::string>>, bool> download_repos_descriptions();
 
-    void set_callbacks(std::unique_ptr<libdnf5::repo::RepoCallbacks> && callbacks) noexcept;
-    void set_user_data(void * user_data) noexcept;
-    void * get_user_data() const noexcept;
-
-    const std::string & get_metadata_path(const std::string & metadata_type) const;
-    std::vector<std::pair<std::string, std::string>> get_appstream_metadata() const;
-
+    // Download the previously added repos.
+    std::unordered_map<Repo *, std::vector<std::string>> download();
 
 private:
-    friend class Repo;
-    friend class RepoSack;
+    struct CallbackData {
+        std::function<repo_loading_func> load_repo;
+        std::string destination;
+        std::optional<libdnf5::utils::fs::TempDir> temp_download_target;
+        void * user_cb_data{nullptr};
+        double prev_total_to_download;
+        double prev_downloaded;
+        double sum_prev_downloaded;
+        RepoWeakPtr repo;
+        std::unique_ptr<LrMetadataTarget> lr_target;
+        bool is_in_sync;
+    };
 
-    LibrepoHandle init_local_handle();
-    LibrepoHandle init_remote_handle(const char * destdir, bool mirror_setup = true, bool set_callbacks = true);
-    void common_handle_setup(LibrepoHandle & h);
+    static LibrepoHandle init_local_handle(const DownloadData & download_data);
+    static LibrepoHandle init_remote_handle(Repo & repo, const char * destdir, bool mirror_setup = true);
+    static void common_handle_setup(LibrepoHandle & h, const DownloadData & download_data);
+    static void apply_http_headers(DownloadData & download_data, LibrepoHandle & handle);
+    static void add_countme_flag(DownloadData & download_data, LibrepoHandle & handle);
+    static time_t get_system_epoch();
+    static void configure_handle_dlist(LibrepoHandle & handle, std::set<std::string> && optional_metadata);
 
-    void apply_http_headers(LibrepoHandle & handle);
-
-    LibrepoResult perform(LibrepoHandle & handle, bool set_gpg_home_dir);
-
-    std::pair<std::string, std::string> get_source_info() const;
-
-    void add_countme_flag(LibrepoHandle & handle);
-    time_t get_system_epoch() const;
-
-    std::set<std::string> get_optional_metadata() const;
-    bool is_appstream_metadata_type(const std::string & type) const;
-
-    libdnf5::BaseWeakPtr base;
-    const ConfigRepo & config;
-    Repo::Type repo_type;
-    RepoPgp pgp;
-
-    std::unique_ptr<RepoCallbacks> callbacks;
-    void * user_data{nullptr};
-    void * user_cb_data{nullptr};
-    double prev_total_to_download;
-    double prev_downloaded;
-    double sum_prev_downloaded;
-
+    static int end_cb_full_download(void * data, LrTransferStatus status, const char * msg);
+    static int end_cb_sync_check(void * data, LrTransferStatus status, const char * msg);
     static int progress_cb(void * data, double total_to_download, double downloaded);
     static void fastest_mirror_cb(void * data, LrFastestMirrorStages stage, void * ptr);
+    static int mirror_failure_cb(void * data, const char * msg, const char * url);
     static int mirror_failure_cb(void * data, const char * msg, const char * url, const char * metadata);
 
-    // download input
-    bool preserve_remote_time = false;
-    int max_mirror_tries = 0;  // try all mirrors
-    std::map<std::string, std::string> substitutions;
-    std::vector<std::string> http_headers;
-
-    // download output
-    std::string repomd_filename;
-    std::vector<std::string> mirrors;
-    std::string revision;
-    int max_timestamp{0};
-    std::vector<std::string> content_tags;
-    std::vector<std::pair<std::string, std::string>> distro_tags;
-    std::vector<std::pair<std::string, std::string>> metadata_locations;
-    std::map<std::string, std::string> metadata_paths;
-
-    std::optional<LibrepoHandle> handle;
+    std::vector<CallbackData> callback_data;
 };
 
 }  // namespace libdnf5::repo

@@ -171,6 +171,12 @@ Changes to individual commands
       * Before: ``--save --setopt`` Now: ``setopt``
 
   * Existing repository files are not modified; drop-in override files are created instead.
+  * Dropped the ``--dump`` option:
+
+        * To dump main configuration options use ``dnf5 --dump-main-config`` command.
+        * To dump a repository configuration use ``dnf5 --dump-repo-config=REPO_ID`` command.
+
+  * Dropped the ``--dump-variables`` option, use ``dnf5 --dump-variables`` command instead.
   * See the :ref:`config-manager documentation <config_manager_plugin_ref-label>` for more information.
 
 ``debuginfo-install``
@@ -237,6 +243,8 @@ Changes to individual commands
 
   * The ``--timer`` option has been dropped in favor of the systemd ``OnUnitInactiveSec`` setting in |DNF_MAKECACHE_TIMER_NAME_INLINE_LITERAL| and the ``ConditionACPower`` setting in |DNF_MAKECACHE_SERVICE_NAME_INLINE_LITERAL|.
 
+  * Now tries to avoid downloading whenever possible (e.g. when the local metadata hasn't expired yet or when the metadata timestamp hasn't changed). Pass ``--refresh`` to force refreshing of metadata. This was the intended behavior in DNF4 also, but ``dnf4 makecache`` always refreshed repositories due to a `bug <https://github.com/rpm-software-management/dnf/issues/2242>`_.
+
 ``mark``
   * Renaming subcommands to be more intuitive: ``install`` -> ``user``, ``remove`` -> ``dependency``.
   * New ``weak`` subcommand to mark a package as a weak dependency.
@@ -286,7 +294,7 @@ Changes to individual commands
   * Dropped: ``--archlist`` alias for ``--arch``.
   * Dropped: ``-f`` alias for ``--file``. Also, the arguments to ``--file`` are separated by commas instead of spaces.
   * Moved ``--groupmember`` option to the ``info`` and ``list`` subcommands of the ``group`` and ``advisory`` commands, renaming it to ``--contains-pkgs``.
-  * ``--queryformat, --qf`` no longer prints an additional newline at the end of each formatted string, bringing it closer to the behavior of ``rpm --query``.
+  * ``--queryformat, --qf`` no longer prints an additional newline at the end of each formatted string, bringing it closer to the behavior of ``rpm --query``. To get the newline, use an explicit ``\n`` sequence in the formatting string.
   * ``--queryformat`` no longer supports ``size`` tag because it was printing install size for installed packages and download size for not-installed packages, which could be confusing.
   * Option ``--source`` was renamed to ``--sourcerpm``, and it now matches queryformat's ``sourcerpm`` tag.
   * Option ``--resolve`` was changed to ``--providers-of=PACKAGE_ATTRIBUTE``. It no longer interacts with the formatting options such as ``--requires``, ``--provides``, ``--suggests``, etc. Instead, it takes the PACKAGE_ATTRIBUTE value directly.

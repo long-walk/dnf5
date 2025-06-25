@@ -19,6 +19,8 @@ along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "upgrade.hpp"
 
+#include "../from_repo.hpp"
+
 #include <dnf5/shared_options.hpp>
 #include <libdnf5/conf/const.hpp>
 
@@ -67,6 +69,7 @@ void UpgradeCommand::set_argument_parser() {
     allow_erasing = std::make_unique<AllowErasingOption>(*this);
     auto skip_unavailable = std::make_unique<SkipUnavailableOption>(*this);
     create_allow_downgrade_options(*this);
+    create_from_repo_option(*this, from_repos, true);
     create_destdir_option(*this);
     create_downloadonly_option(*this);
     auto & destdir = parser.get_named_arg("upgrade.destdir", false);
@@ -123,6 +126,8 @@ void UpgradeCommand::run() {
         }
     }
 
+    settings.set_to_repo_ids(from_repos);
+
     auto advisories = advisory_query_from_cli_input(
         ctx.get_base(),
         advisory_name->get_value(),
@@ -132,7 +137,8 @@ void UpgradeCommand::run() {
         advisory_newpackage->get_value(),
         advisory_severity->get_value(),
         advisory_bz->get_value(),
-        advisory_cve->get_value());
+        advisory_cve->get_value(),
+        !ctx.get_base().get_config().get_skip_unavailable_option().get_value());
     if (advisories.has_value()) {
         settings.set_advisory_filter(std::move(advisories.value()));
     }

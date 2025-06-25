@@ -99,6 +99,7 @@ pkg_check_modules(RPM REQUIRED rpm>=4.17.0)
 list(APPEND LIBDNF5_PC_REQUIRES "${RPM_MODULE_NAME}")
 target_link_libraries(libdnf5 PRIVATE ${RPM_LIBRARIES})
 target_link_libraries(libdnf5_iface INTERFACE ${RPM_LIBRARIES})
+check_library_exists(rpm rpmteSetVfyLevel "" HAVE_RPMTE_SETVFYLEVEL)
 
 if(WITH_COMPS)
     pkg_check_modules(LIBXML2 REQUIRED libxml-2.0)
@@ -108,17 +109,12 @@ if(WITH_COMPS)
     target_link_libraries(libdnf5_iface INTERFACE ${LIBXML2_LIBRARIES})
 endif()
 
-if (WITH_ZCHUNK)
-    pkg_check_modules(ZCHUNKLIB zck>=0.9.11 REQUIRED)
-    add_definitions(-DWITH_ZCHUNK)
-endif()
-
 # GLIB librepo and libmodulemd uses glib2 in API :(
 pkg_check_modules (GLIB2 glib-2.0>=2.46.0)
 include_directories(${GLIB2_INCLUDE_DIRS})
 target_link_libraries(libdnf5 PRIVATE ${GLIB2_LIBRARIES})
 
-pkg_check_modules(LIBREPO REQUIRED librepo>=1.18.0)
+pkg_check_modules(LIBREPO REQUIRED librepo>=1.20.0)
 list(APPEND LIBDNF5_PC_REQUIRES "${LIBREPO_MODULE_NAME}")
 target_include_directories(libdnf5 PUBLIC PRIVATE ${LIBREPO_INCLUDE_DIRS})
 target_link_libraries(libdnf5 PRIVATE ${LIBREPO_LDFLAGS})

@@ -19,6 +19,8 @@ along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "install.hpp"
 
+#include "../from_repo.hpp"
+
 #include <dnf5/shared_options.hpp>
 #include <libdnf5/conf/const.hpp>
 
@@ -56,6 +58,7 @@ void InstallCommand::set_argument_parser() {
     auto skip_broken = std::make_unique<SkipBrokenOption>(*this);
     auto skip_unavailable = std::make_unique<SkipUnavailableOption>(*this);
     create_allow_downgrade_options(*this);
+    create_from_repo_option(*this, from_repos, true);
     create_downloadonly_option(*this);
     create_offline_option(*this);
 
@@ -92,6 +95,7 @@ void InstallCommand::run() {
     auto goal = get_context().get_goal();
     goal->set_allow_erasing(allow_erasing->get_value());
     auto settings = libdnf5::GoalJobSettings();
+    settings.set_to_repo_ids(from_repos);
     auto advisories = advisory_query_from_cli_input(
         ctx.get_base(),
         advisory_name->get_value(),
@@ -101,7 +105,8 @@ void InstallCommand::run() {
         advisory_newpackage->get_value(),
         advisory_severity->get_value(),
         advisory_bz->get_value(),
-        advisory_cve->get_value());
+        advisory_cve->get_value(),
+        !ctx.get_base().get_config().get_skip_unavailable_option().get_value());
     if (advisories.has_value()) {
         settings.set_advisory_filter(std::move(advisories.value()));
     }

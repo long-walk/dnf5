@@ -1,12 +1,12 @@
 %global project_version_prime 5
 %global project_version_major 2
-%global project_version_minor 13
-%global project_version_micro 1
+%global project_version_minor 14
+%global project_version_micro 0
 
 %bcond dnf5_obsoletes_dnf %[0%{?fedora} > 40 || 0%{?rhel} > 10]
 
 Name:           dnf5
-Version:        5.2.13.1
+Version:        %{project_version_prime}.%{project_version_major}.%{project_version_minor}.%{project_version_micro}
 Release:        1%{?dist}
 Summary:        Command-line package manager
 License:        GPL-2.0-or-later
@@ -87,11 +87,6 @@ Provides:       dnf5-command(versionlock)
 
 %bcond_without comps
 %bcond_without modulemd
-%if 0%{?rhel}
-%bcond_with    zchunk
-%else
-%bcond_without zchunk
-%endif
 %bcond_without systemd
 
 %bcond_with    html
@@ -127,7 +122,7 @@ Provides:       dnf5-command(versionlock)
 # ========== versions of dependencies ==========
 
 %global libmodulemd_version 2.5.0
-%global librepo_version 1.18.0
+%global librepo_version 1.20.0
 %if %{with focus_new}
     %global libsolv_version 0.7.30
 %else
@@ -135,7 +130,6 @@ Provides:       dnf5-command(versionlock)
 %endif
 %global sqlite_version 3.35.0
 %global swig_version 4
-%global zchunk_version 0.9.11
 
 
 # ========== build requires ==========
@@ -178,10 +172,6 @@ BuildRequires:  pkgconfig(libcomps)
 
 %if %{with modulemd}
 BuildRequires:  pkgconfig(modulemd-2.0) >= %{libmodulemd_version}
-%endif
-
-%if %{with zchunk}
-BuildRequires:  pkgconfig(zck) >= %{zchunk_version}
 %endif
 
 %if %{with systemd}
@@ -670,6 +660,9 @@ Summary:        Libdnf5 plugin for detecting and removing expired PGP keys
 License:        LGPL-2.1-or-later
 Requires:       libdnf5%{?_isa} = %{version}-%{release}
 Requires:       gnupg2
+%if 0%{?fedora} >= 43 || 0%{?rhel} >= 11
+Requires:       rpm-libs%{?_isa} >= 5.99.90
+%endif
 
 %description -n libdnf5-plugin-expired-pgp-keys
 Libdnf5 plugin for detecting and removing expired PGP keys.
@@ -784,6 +777,22 @@ Package management service with a DBus interface.
 %{_mandir}/man8/dnf5daemon-server.8.*
 %{_mandir}/man8/dnf5daemon-dbus-api.8.*
 %endif
+
+
+# ========== dnf5daemon-server-polkit ==========
+
+%package -n dnf5daemon-server-polkit
+Summary:        Polkit rule to allow wheel group members install trusted packages
+License:        GPL-2.0-or-later
+Requires:       polkit
+BuildArch:      noarch
+
+%description -n dnf5daemon-server-polkit
+Polkit rule to allow active local wheel group members install packages from
+trusted repositories using dnf5daemon-server.
+
+%files -n dnf5daemon-server-polkit
+%{_datadir}/polkit-1/rules.d/org.rpm.dnf.v0.rules
 %endif
 
 
@@ -900,7 +909,6 @@ automatically and regularly from systemd timers, cron jobs or similar.
     \
     -DWITH_COMPS=%{?with_comps:ON}%{!?with_comps:OFF} \
     -DWITH_MODULEMD=%{?with_modulemd:ON}%{!?with_modulemd:OFF} \
-    -DWITH_ZCHUNK=%{?with_zchunk:ON}%{!?with_zchunk:OFF} \
     -DWITH_SYSTEMD=%{?with_systemd:ON}%{!?with_systemd:OFF} \
     \
     -DWITH_HTML=%{?with_html:ON}%{!?with_html:OFF} \
@@ -1014,77 +1022,8 @@ mkdir -p %{buildroot}%{_libdir}/libdnf5/plugins
 %ldconfig_scriptlets
 
 %changelog
-* Sun May 04 2025 Thomas <temp.mail@hispeed.ch> 5.2.13.1-1
-- Release 5.2.13.1 (evan-goode@users.noreply.github.com)
-- bindings: Add Python cmp_nevra binding (nikita@linux.ibm.com)
-- Deprecate deltarpm support (mblaha@redhat.com)
-- Deprecate the "retries" configuration option (mblaha@redhat.com)
-- RepoCacheRemoveStatistics::get_bytes_removed return uintmax_t
-  (mail@evangoo.de)
-- ci: Use RSM_CI_APP_PRIVATE_KEY in do-release.yaml (mail@evangoo.de)
-- Release 5.2.13.0 (evan-goode@users.noreply.github.com)
-- Update translations from weblate (github-actions@github.com)
-- daemon: Add the configuration file for the daemon (mblaha@redhat.com)
-- repo: Allow system_cachedir copy for the root user (mblaha@redhat.com)
-- Fix conditional which assumed RHEL 10 could support SOLVER_FLAG_FOCUS_NEW
-  (jonathan@almalinux.org)
-- repo: Log correct path when loading system repo (mblaha@redhat.com)
-- Unify duplicated group attributes handling (amatej@redhat.com)
-- Add `order_int` support to dnf5 daemon (amatej@redhat.com)
-- Move comps ordering to libdnf5-cli (amatej@redhat.com)
-- Add new group/env API to its adapters and interfaces (amatej@redhat.com)
-- comps: Test merging environment grouplists and optionlists
-  (pkratoch@redhat.com)
-- comps: Create env grouplist by merging grouplists of all its solvables
-  (pkratoch@redhat.com)
-- comps: Create group packagelist by merging packagelists of all its solvables
-  (pkratoch@redhat.com)
-- nevra: Fix description of evrcmp and rpmvercmp functions
-  (nikita@linux.ibm.com)
-- SWIG: unit tests for exceptions (jrohel@redhat.com)
-- SWIG: Implement exception forwarding (jrohel@redhat.com)
-- libdnf5::FormatDetailLevel: Change to enum class and add doc strings
-  (jrohel@redhat.com)
-- Disallow `dnf download non-sense` without `--skip-unavailable`
-  (ali@mirjamali.com)
-- Show cleaned space bytes for `dnf clean` (ali@mirjamali.com)
-- spec: Remove a duplicate record for %%{_prefix}/lib/sysimage/libdnf5
-  (ppisar@redhat.com)
-- Fix `history list` with unknown terminal size (ali@mirjamali.com)
-- comps: Respect the display_order with listing groups and environments
-  (pkratoch@redhat.com)
-- comps: Add methods to get the integer value of the display_order
-  (pkratoch@redhat.com)
-- spec: Correct libdnf5-plugin-appstream description (ppisar@redhat.com)
-- dnfdaemon: Allow Base::clean("expire-cache") without admin privileges
-  (mcrha@redhat.com)
-- Fix invalid hint for unknown short argument (ali@mirjamali.com)
-- Add missing rpm scriptlet types: sysusers and pre/postuntrans
-  (pmatilai@redhat.com)
-- solv: Drop the size check from swap_considered_map (mblaha@redhat.com)
-- Improve missing `proxy_password` message (ali@mirjamali.com)
-- Ask for superuser privileges on `history <undo|redo|rollback>`
-  (ali@mirjamali.com)
-- RepoDownloader: remove unused code (amatej@redhat.com)
-- expired-pgp-keys: Drop braced initialization to fix clang build
-  (jkolarik@redhat.com)
-- spec: Fix building without any libdnf5 plugin (mblaha@redhat.com)
-- spec: Conditional find_lang calls (mblaha@redhat.com)
-- spec: Fix building without dnf5 plugins (mblaha@redhat.com)
-- spec: Fix building without man pages (mblaha@redhat.com)
-- doc: DNF_SYSTEM_UPGRADE_NO_REBOOT environment variable (ppisar@redhat.com)
-- doc: Environment variables for a terminal and temporary files
-  (ppisar@redhat.com)
-- Add `-i` and `-f` shoft options for repoquery (ali@mirjamali.com)
-- Reimplement `--color` flag (ali@mirjamali.com)
-- expired-pgp-keys: Respect install root (mblaha@redhat.com)
-- comps: Add configuration options for group and environment excludes
-  (pkratoch@redhat.com)
-- comps: Add group and environment excludes (pkratoch@redhat.com)
-- comps: Add comps sack to later store comps excludes (pkratoch@redhat.com)
-- spec: Package CHANGELOG and other project documentation files
-  (ppisar@redhat.com)
-- spec: Set mode to ghost files (ppisar@redhat.com)
+* Fri Jun 20 2025 Packit Team <hello@packit.dev> - 5.2.14.0-1
+- New upstream release 5.2.14.0
 
 * Wed Apr 23 2025 Packit Team <hello@packit.dev> - 5.2.13.1-1
 - New upstream release 5.2.13.1

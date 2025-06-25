@@ -25,6 +25,7 @@ along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 #include "commands/clean/clean.hpp"
 #include "commands/debuginfo-install/debuginfo-install.hpp"
 #include "commands/distro-sync/distro-sync.hpp"
+#include "commands/do/do.hpp"
 #include "commands/downgrade/downgrade.hpp"
 #include "commands/download/download.hpp"
 #include "commands/environment/environment.hpp"
@@ -54,6 +55,7 @@ along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 #include "dnf5/context.hpp"
 #include "download_callbacks.hpp"
 #include "plugins.hpp"
+#include "signal_handlers.hpp"
 
 #include <fcntl.h>
 #include <fmt/format.h>
@@ -429,6 +431,7 @@ void RootCommand::set_argument_parser() {
                                           [[maybe_unused]] ArgumentParser::NamedArg * arg,
                                           [[maybe_unused]] const char * option,
                                           [[maybe_unused]] const char * value) {
+        ctx.get_base().get_config().get_localpkg_gpgcheck_option().set(libdnf5::Option::Priority::COMMANDLINE, 0);
         ctx.get_base().get_config().get_pkg_gpgcheck_option().set(libdnf5::Option::Priority::COMMANDLINE, 0);
         ctx.get_base().get_config().get_repo_gpgcheck_option().set(libdnf5::Option::Priority::COMMANDLINE, 0);
         // Store to vector. Use it later when repositories configuration will be loaded.
@@ -676,6 +679,7 @@ static void add_commands(Context & context) {
     // First, add the "root" command.
     context.add_and_initialize_command(std::make_unique<RootCommand>(context));
 
+    context.add_and_initialize_command(std::make_unique<DoCommand>(context));
     context.add_and_initialize_command(std::make_unique<InstallCommand>(context));
     context.add_and_initialize_command(std::make_unique<UpgradeCommand>(context));
     context.add_and_initialize_command(std::make_unique<RemoveCommand>(context));
@@ -741,9 +745,10 @@ static void load_plugins(Context & context) {
 }
 
 static void load_cmdline_aliases(Context & context) {
-    load_cmdline_aliases(context, INSTALL_PREFIX "/share/dnf5/aliases.d");
-    load_cmdline_aliases(context, SYSCONFIG_DIR "/dnf/dnf5-aliases.d");
-    load_cmdline_aliases(context, libdnf5::xdg::get_user_config_dir() / "dnf5/aliases.d");
+    std::string locale_name = setlocale(LC_MESSAGES, NULL);
+    load_cmdline_aliases(context, INSTALL_PREFIX "/share/dnf5/aliases.d", locale_name);
+    load_cmdline_aliases(context, SYSCONFIG_DIR "/dnf/dnf5-aliases.d", locale_name);
+    load_cmdline_aliases(context, libdnf5::xdg::get_user_config_dir() / "dnf5/aliases.d", locale_name);
 }
 
 static void print_versions(Context & context) {
@@ -1202,6 +1207,7 @@ static bool user_has_privileges(dnf5::Context & context) {
 }
 
 int main(int argc, char * argv[]) try {
+    dnf5::install_signal_handlers();
     dnf5::set_locale();
 
     // Creates a vector of loggers with one circular memory buffer logger

@@ -33,6 +33,8 @@ Note, however, that DNF5 cannot yet interface with the following programming lan
  * Go - does not work, we are looking for contributors.
  * C - not implemented, not a priority for any of our existing API users.
 
+Join us on IRC at `#dnf` on [Libera.Chat](https://libera.chat). Questions should be asked there, issues discussed. Remember: `#dnf` is not a support channel, and prior research is expected from the questioner.
+
 
 Installing DNF5
 ---------------
@@ -43,7 +45,7 @@ DNF5 is available since Fedora 38. To install the DNF5 package manager, use eith
 | --------------------------- | ------- |
 | 37 | `sudo dnf copr enable rpmsoftwaremanagement/dnf-nightly && sudo dnf install dnf5`[^dnf-nightly] |
 | 38 or newer                 | `sudo dnf install dnf5` |
-[^dnf-nightly]: https://copr.fedorainfracloud.org/coprs/rpmsoftwaremanagement/dnf-nigthly
+[^dnf-nightly]: https://copr.fedorainfracloud.org/coprs/rpmsoftwaremanagement/dnf-nightly
 
 Note: `dnf-nightly` provides nightly builds for the entire DNF stack. Once you enable this repository you will start receiving updates for DNF, libdnf, and for the other packages of the stack.
 

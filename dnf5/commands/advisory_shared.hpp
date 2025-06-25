@@ -28,7 +28,10 @@ along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 #include <libdnf5/advisory/advisory_query.hpp>
 #include <libdnf5/base/base_weak.hpp>
 #include <libdnf5/utils/bgettext/bgettext-lib.h>
+#include <libdnf5/utils/bgettext/bgettext-mark-domain.h>
 
+#include <iostream>
+#include <memory>
 #include <optional>
 
 
@@ -43,7 +46,8 @@ inline std::optional<libdnf5::advisory::AdvisoryQuery> advisory_query_from_cli_i
     bool advisory_newpackage,
     const std::vector<std::string> & advisory_severities,
     const std::vector<std::string> & advisory_bzs,
-    const std::vector<std::string> & advisory_cves) {
+    const std::vector<std::string> & advisory_cves,
+    const bool strict) {
     std::vector<std::string> advisory_types;
     if (advisory_security) {
         advisory_types.emplace_back("security");
@@ -62,10 +66,23 @@ inline std::optional<libdnf5::advisory::AdvisoryQuery> advisory_query_from_cli_i
         !advisory_cves.empty()) {
         auto advisories = libdnf5::advisory::AdvisoryQuery(base);
         advisories.clear();
+        std::unique_ptr<BgettextMessage> specific_error{nullptr};
         // Filter by advisory name
         if (!advisory_names.empty()) {
             auto advisories_names = libdnf5::advisory::AdvisoryQuery(base);
             advisories_names.filter_name(advisory_names);
+            if (advisories_names.empty()) {
+                specific_error = std::make_unique<BgettextMessage>(
+                    BgettextMessage(M_("No advisory found matching the requested name: \"{}\"")));
+                if (strict) {
+                    throw libdnf5::cli::CommandExitError(
+                        1, *specific_error, libdnf5::utils::string::join(advisory_names, ", "));
+                } else {
+                    std::cerr << libdnf5::utils::sformat(
+                                     TM_(*specific_error, 1), libdnf5::utils::string::join(advisory_names, ", "))
+                              << std::endl;
+                }
+            }
             advisories |= advisories_names;
         }
 
@@ -87,6 +104,18 @@ inline std::optional<libdnf5::advisory::AdvisoryQuery> advisory_query_from_cli_i
         if (!advisory_bzs.empty()) {
             auto advisories_bzs = libdnf5::advisory::AdvisoryQuery(base);
             advisories_bzs.filter_reference(advisory_bzs, {"bugzilla"});
+            if (advisories_bzs.empty()) {
+                specific_error = std::make_unique<BgettextMessage>(
+                    BgettextMessage(M_("No advisory found fixing the Bugzilla ID: \"{}\"")));
+                if (strict) {
+                    throw libdnf5::cli::CommandExitError(
+                        1, *specific_error, libdnf5::utils::string::join(advisory_bzs, ", "));
+                } else {
+                    std::cerr << libdnf5::utils::sformat(
+                                     TM_(*specific_error, 1), libdnf5::utils::string::join(advisory_bzs, ", "))
+                              << std::endl;
+                }
+            }
             advisories |= advisories_bzs;
         }
 
@@ -94,9 +123,25 @@ inline std::optional<libdnf5::advisory::AdvisoryQuery> advisory_query_from_cli_i
         if (!advisory_cves.empty()) {
             auto advisories_cves = libdnf5::advisory::AdvisoryQuery(base);
             advisories_cves.filter_reference(advisory_cves, {"cve"});
+            if (advisories_cves.empty()) {
+                specific_error = std::make_unique<BgettextMessage>(
+                    BgettextMessage(M_("No advisory found fixing the CVE ID: \"{}\"")));
+                if (strict) {
+                    throw libdnf5::cli::CommandExitError(
+                        1, *specific_error, libdnf5::utils::string::join(advisory_cves, ", "));
+                } else {
+                    std::cerr << libdnf5::utils::sformat(
+                                     TM_(*specific_error, 1), libdnf5::utils::string::join(advisory_cves, ", "))
+                              << std::endl;
+                }
+            }
             advisories |= advisories_cves;
         }
 
+
+        if (!specific_error && advisories.empty()) {
+            std::cerr << _("No advisory found matching the specified filters.") << std::endl;
+        }
         return advisories;
     }
 
@@ -110,7 +155,7 @@ public:
               command,
               "advisories",
               '\0',
-              _("Limit to packages in advisories with specified name. List option."),
+              _("Include content contained in advisories with specified name. List option."),
               _("ADVISORY_NAME,...")) {}
 };
 
@@ -118,28 +163,28 @@ public:
 class SecurityOption : public libdnf5::cli::session::BoolOption {
 public:
     explicit SecurityOption(libdnf5::cli::session::Command & command)
-        : BoolOption(command, "security", '\0', _("Limit to packages in security advisories."), false) {}
+        : BoolOption(command, "security", '\0', _("Include content contained in security advisories."), false) {}
 };
 
 
 class BugfixOption : public libdnf5::cli::session::BoolOption {
 public:
     explicit BugfixOption(libdnf5::cli::session::Command & command)
-        : BoolOption(command, "bugfix", '\0', _("Limit to packages in bugfix advisories."), false) {}
+        : BoolOption(command, "bugfix", '\0', _("Include content contained in bugfix advisories."), false) {}
 };
 
 
 class EnhancementOption : public libdnf5::cli::session::BoolOption {
 public:
     explicit EnhancementOption(libdnf5::cli::session::Command & command)
-        : BoolOption(command, "enhancement", '\0', _("Limit to packages in enhancement advisories."), false) {}
+        : BoolOption(command, "enhancement", '\0', _("Include content contained in enhancement advisories."), false) {}
 };
 
 
 class NewpackageOption : public libdnf5::cli::session::BoolOption {
 public:
     explicit NewpackageOption(libdnf5::cli::session::Command & command)
-        : BoolOption(command, "newpackage", '\0', _("Limit to packages in newpackage advisories."), false) {}
+        : BoolOption(command, "newpackage", '\0', _("Include content contained in newpackage advisories."), false) {}
 };
 
 
@@ -150,7 +195,7 @@ public:
               command,
               "advisory-severities",
               '\0',
-              _("Limit to packages in advisories with specified severity. List option. Can be "
+              _("Include content contained in advisories with specified severity. List option. Can be "
                 "\"critical\", \"important\", \"moderate\", \"low\", \"none\"."),
               _("ADVISORY_SEVERITY,..."),
               "critical|important|moderate|low|none",
@@ -164,7 +209,7 @@ public:
               command,
               "bzs",
               '\0',
-              _("Limit to packages in advisories that fix a Bugzilla ID, Eg. 123123. List option."),
+              _("Include content contained in advisories that fix a Bugzilla ID, Eg. 123123. List option."),
               _("BUGZILLA_ID,...")) {}
 };
 
@@ -175,7 +220,7 @@ public:
               command,
               "cves",
               '\0',
-              _("Limit to packages in advisories that fix a CVE (Common Vulnerabilities and Exposures) "
+              _("Include content contained in advisories that fix a CVE (Common Vulnerabilities and Exposures) "
                 "ID, Eg. CVE-2201-0123. List option."),
               _("CVE_ID,...")) {}
 };
