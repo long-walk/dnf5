@@ -6,7 +6,7 @@
 %bcond dnf5_obsoletes_dnf %[0%{?fedora} > 40 || 0%{?rhel} > 10]
 
 Name:           dnf5
-Version:        %{project_version_prime}.%{project_version_major}.%{project_version_minor}.%{project_version_micro}
+Version:        5.2.14.0
 Release:        1%{?dist}
 Summary:        Command-line package manager
 License:        GPL-2.0-or-later
@@ -1022,6 +1022,113 @@ mkdir -p %{buildroot}%{_libdir}/libdnf5/plugins
 %ldconfig_scriptlets
 
 %changelog
+* Wed Jun 25 2025 Thomas <temp.mail@hispeed.ch> 5.2.14.0-1
+- Release 5.2.14.0 (kontura@users.noreply.github.com)
+- Update translations from weblate (github-actions@github.com)
+- Unify system state module saving (amatej@redhat.com)
+- Make system state files writing more robust (amatej@redhat.com)
+- Add `Base` to `system::State` (amatej@redhat.com)
+- automatic: Expand emit_via in command_email emitter to individual arguments
+  (ppisar@redhat.com)
+- ci: Remove "Package Build" GitHub Action (mail@evangoo.de)
+- [dnf5] cmdline_aliases: Fix TOML syntax err msg in build TOML11_COMPAT
+  (jrohel@redhat.com)
+- doc: aliases: switch code-block language from 'none' to 'TOML'
+  (jrohel@redhat.com)
+- cmdline_aliases: Support values consumed by command aliases
+  (jrohel@redhat.com)
+- dnf5: Add support for localization of aliases (jrohel@redhat.com)
+- dnf5 cmdline_aliases: Print warnings to stderr (jrohel@redhat.com)
+- dnf5 cmdline_aliases: Localize printed error messages (jrohel@redhat.com)
+- dnf5 cmdline_aliases: Unify use of BasicValue type (jrohel@redhat.com)
+- dnf5 cmdline_aliases: Refactor to use shared location functions
+  (jrohel@redhat.com)
+- Mark dnf5daemon-server-polkit as noarch (mblaha@redhat.com)
+- doc: Correct a typo in dnf-nightly repository URL (ppisar@redhat.com)
+- automatic: email emitter: Do not use fractional seconds in e-mail Date
+  headers (ppisar@redhat.com)
+- Unify `D-Bus` name formatting (amatej@redhat.com)
+- Expose dnf_daemon dbus Python example in docs (amatej@redhat.com)
+- dnf5: download: Argument "--from-repo" (jrohel@redhat.com)
+- dnf5: install/upgrade/reinstall/downgrade/swap: Argument "--from-repo"
+  (jrohel@redhat.com)
+- reposync: Spell "GPG" as "OpenPGP" in the usage text (ppisar@redhat.com)
+- Update `max_parallel_downloads` doc, it now affects also repo downloads
+  (amatej@redhat.com)
+- Remove no longer needed `RepoDownloader::perform` (amatej@redhat.com)
+- Use new RepoDownloader API to download repo descriptions (amatej@redhat.com)
+- Add new `RepoDownloader` API to donwload only repomd/metalink
+  (amatej@redhat.com)
+- Rename `end_cb` to `end_cb_full_download`, there will be more end cbs
+  (amatej@redhat.com)
+- Move `lr_target`s to `callback_data` and move setup to `add`
+  (amatej@redhat.com)
+- Name `load_repo` function type and add `reusing` option (amatej@redhat.com)
+- Extract `librepo` handle dlist configuration (amatej@redhat.com)
+- Extract error handling of `RepoDownloader::download()` report
+  (amatej@redhat.com)
+- Turn `handle_repo_exception` to `static` `RepoSack::Impl` method
+  (amatej@redhat.com)
+- dnf5: Reset cursor and formatting after SIGINT (mblaha@redhat.com)
+- dnf5daemon: Fix a missing reset method if built with sdbus-s++ version 2
+  (tla@rasmil.dk)
+- pre-commit: Exclude .tito/tito.props from check-xml (mblaha@redhat.com)
+- Add missing interfaces and re-order interfaces in a more logical order
+  (tla@rasmil.dk)
+- changes_from_dnf4: makecache doesn't always refresh (mail@evangoo.de)
+- Honor per-repo pgp_gpgcheck=0 even in rpm's enforcing signature mode
+  (pmatilai@redhat.com)
+- doc: --use-host-config instead of --releasever=/ (mail@evangoo.de)
+- dnf5: Command "do": New argument "--from-repo" (jrohel@redhat.com)
+- dnf5: Command "do" (jrohel@redhat.com)
+- dnfdaemon: Add Polkit rule to allow wheel users to run transactions
+  (mblaha@redhat.com)
+- dnfdaemon: Split-off polkit policy for trusted transactions
+  (mblaha@redhat.com)
+- doc: Document '\n' sequence in repoquery --queryformat string
+  (ppisar@redhat.com)
+- Include dnf-nightly in testing farm testing jobs (amatej@redhat.com)
+- Require new librepo which has fix API for parallel downloads
+  (amatej@redhat.com)
+- Use new API for parallel downloading (amatej@redhat.com)
+- Replace `download_metadata` API with `Add` and `Download` (amatej@redhat.com)
+- Update users of `RepoDownloader` to match new API (amatej@redhat.com)
+- Rework is_repomd_in_sync and is_metalink_in_sync to use new perform
+  (amatej@redhat.com)
+- Make `RepoDownloader::perform` static and rework callbacks
+  (amatej@redhat.com)
+- Convert several of `RepoDownloader` methods that to static ones
+  (amatej@redhat.com)
+- Extract callback data from `RepoDownloader` (amatej@redhat.com)
+- Remove unused `RepoDownloader` defines (amatej@redhat.com)
+- Split `DownloadData` out of `RepoDownloader` (amatej@redhat.com)
+- Include dnf-nightly in packit copr builds (amatej@redhat.com)
+- Fix clang build by disabling ruby deprecation warning (amatej@redhat.com)
+- Fix package build workflow: use code from the tested PR (amatej@redhat.com)
+- doc: Advisory filters can cause transaction commands to fail
+  (mblaha@redhat.com)
+- dnf5: Strict handling of --bzs and --cves options (mblaha@redhat.com)
+- Add NOT_FOUND_IN_ADVISORIES to resolve log for UPGRADE_ALL
+  (mblaha@redhat.com)
+- goal: Report specs filtered out by advisories (mblaha@redhat.com)
+- dnf5: Strict handling of --advisories=... option (mblaha@redhat.com)
+- dnf5: --no-gpgchecks overrides localpkg_gpgcheck (tmz@pobox.com)
+- I18N: Do not glue sentences in offline command messages (ppisar@redhat.com)
+- Remove unused `WITH_ZCHUNK` option (amatej@redhat.com)
+- dnfdaemon: Adjust wording of advisory options descriptions
+  (mblaha@redhat.com)
+- dnf5: Adjust wording of advisory options descriptions (mblaha@redhat.com)
+- doc: Clarify advisories filters documentation (mblaha@redhat.com)
+- expired-pgp-keys: Do not use a deprecated way of removing keys with RPM v6
+  (ppisar@redhat.com)
+- doc: "dnf4 config-manager" dropped --dump and --dump-variables options
+  (ppisar@redhat.com)
+- Change scriptlet names to match spec designators (mail@evangoo.de)
+- README: Mention #dnf IRC channel in first section (mail@evangoo.de)
+- expired-pgp-keys: Use a temporary GnuPG home directory (ppisar@redhat.com)
+- download: Do not print "Downloading Packages:" header in quiet mode
+  (ppisar@redhat.com)
+
 * Fri Jun 20 2025 Packit Team <hello@packit.dev> - 5.2.14.0-1
 - New upstream release 5.2.14.0
 
