@@ -1022,6 +1022,26 @@ mkdir -p %{buildroot}%{_libdir}/libdnf5/plugins
 %ldconfig_scriptlets
 
 %changelog
+* Thu Jun 26 2025 Thomas <temp.mail@hispeed.ch> 5.2.14.3-1
+- 5.2.14.3 (temp.mail@hispeed.ch)
+- update (temp.mail@hispeed.ch)
+- readthedocs: add swig include to fix doc builds (amatej@redhat.com)
+- readthedocs: extract `SOURCE_DIR` variable (amatej@redhat.com)
+- readthedocs: fix path joining (amatej@redhat.com)
+- dnfdaemon: Make permission check more consistent (mblaha@redhat.com)
+- dnfdaemon: Removed incorrect output parameter names (mblaha@redhat.com)
+- dnfdaemon: support all_advisories option for recent_changes()
+  (mblaha@redhat.com)
+- advisory: Add support for filtering advisories by Nevra (mblaha@redhat.com)
+- dnfdaemon: support installonly pkgs in recent_changes() (mblaha@redhat.com)
+- dnfdaemon: Add new History interface (mblaha@redhat.com)
+- dnf5: repoclosure: Support globs in "--check=" option (jrohel@redhat.com)
+- doc: Handling translations (ppisar@redhat.com)
+- Docs: enhance install command behavior description (amatej@redhat.com)
+- Unify commands help with package specs (amatej@redhat.com)
+- Introduce new format denoting package spec formats (amatej@redhat.com)
+- test: ease path assertions in tests (jelle@archlinux.org)
+
 * Thu Jun 26 2025 Thomas <temp.mail@hispeed.ch>
 - dnfdaemon: Removed incorrect output parameter names (mblaha@redhat.com)
 - dnfdaemon: support all_advisories option for recent_changes()
