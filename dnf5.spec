@@ -1,7 +1,7 @@
 %global project_version_prime 5
 %global project_version_major 2
 %global project_version_minor 14
-%global project_version_micro 2
+%global project_version_micro 0
 
 %bcond dnf5_obsoletes_dnf %[0%{?fedora} > 40 || 0%{?rhel} > 10]
 
@@ -1022,6 +1022,20 @@ mkdir -p %{buildroot}%{_libdir}/libdnf5/plugins
 %ldconfig_scriptlets
 
 %changelog
+* Thu Jun 26 2025 Thomas <temp.mail@hispeed.ch>
+- dnfdaemon: Removed incorrect output parameter names (mblaha@redhat.com)
+- dnfdaemon: support all_advisories option for recent_changes()
+  (mblaha@redhat.com)
+- advisory: Add support for filtering advisories by Nevra (mblaha@redhat.com)
+- dnfdaemon: support installonly pkgs in recent_changes() (mblaha@redhat.com)
+- dnfdaemon: Add new History interface (mblaha@redhat.com)
+- dnf5: repoclosure: Support globs in "--check=" option (jrohel@redhat.com)
+- doc: Handling translations (ppisar@redhat.com)
+- Docs: enhance install command behavior description (amatej@redhat.com)
+- Unify commands help with package specs (amatej@redhat.com)
+- Introduce new format denoting package spec formats (amatej@redhat.com)
+- test: ease path assertions in tests (jelle@archlinux.org)
+
 * Thu Jun 26 2025 Thomas <temp.mail@hispeed.ch>
 - dnfdaemon: Removed incorrect output parameter names (mblaha@redhat.com)
 - dnfdaemon: support all_advisories option for recent_changes()
