@@ -1,12 +1,12 @@
 %global project_version_prime 5
 %global project_version_major 2
 %global project_version_minor 14
-%global project_version_micro 0
+%global project_version_micro 3
 
 %bcond dnf5_obsoletes_dnf %[0%{?fedora} > 40 || 0%{?rhel} > 10]
 
 Name:           dnf5
-Version:        5.2.14.0
+Version:        5.2.14.3
 Release:        1%{?dist}
 Summary:        Command-line package manager
 License:        GPL-2.0-or-later
