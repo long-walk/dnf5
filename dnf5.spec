@@ -1022,6 +1022,9 @@ mkdir -p %{buildroot}%{_libdir}/libdnf5/plugins
 %ldconfig_scriptlets
 
 %changelog
+* Fri Jun 27 2025 Thomas <temp.mail@hispeed.ch>
+- 
+
 * Thu Jun 26 2025 Thomas <temp.mail@hispeed.ch> 5.2.14.3-1
 - 5.2.14.3 (temp.mail@hispeed.ch)
 - update (temp.mail@hispeed.ch)
