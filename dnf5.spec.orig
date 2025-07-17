@@ -1,12 +1,17 @@
 %global project_version_prime 5
 %global project_version_major 2
+<<<<<<< HEAD
 %global project_version_minor 14
+%global project_version_micro 3
+=======
+%global project_version_minor 15
 %global project_version_micro 0
+>>>>>>> 5.2.15.0
 
 %bcond dnf5_obsoletes_dnf %[0%{?fedora} > 40 || 0%{?rhel} > 10]
 
 Name:           dnf5
-Version:        5.2.13.1
+Version:        5.2.14.4
 Release:        1%{?dist}
 Summary:        Command-line package manager
 License:        GPL-2.0-or-later
@@ -122,7 +127,7 @@ Provides:       dnf5-command(versionlock)
 # ========== versions of dependencies ==========
 
 %global libmodulemd_version 2.5.0
-%global librepo_version 1.20.0
+%global librepo_version 1.19.0
 %if %{with focus_new}
     %global libsolv_version 0.7.30
 %else
@@ -785,6 +790,7 @@ Package management service with a DBus interface.
 Summary:        Polkit rule to allow wheel group members install trusted packages
 License:        GPL-2.0-or-later
 Requires:       polkit
+Requires:       dnf5daemon-server = %{version}-%{release}
 BuildArch:      noarch
 
 %description -n dnf5daemon-server-polkit
@@ -1023,81 +1029,173 @@ mkdir -p %{buildroot}%{_libdir}/libdnf5/plugins
 
 %changelog
 <<<<<<< HEAD
-* Sun May 04 2025 Thomas <temp.mail@hispeed.ch> 5.2.13.1-1
-- Release 5.2.13.1 (evan-goode@users.noreply.github.com)
-- bindings: Add Python cmp_nevra binding (nikita@linux.ibm.com)
-- Deprecate deltarpm support (mblaha@redhat.com)
-- Deprecate the "retries" configuration option (mblaha@redhat.com)
-- RepoCacheRemoveStatistics::get_bytes_removed return uintmax_t
-  (mail@evangoo.de)
-- ci: Use RSM_CI_APP_PRIVATE_KEY in do-release.yaml (mail@evangoo.de)
-- Release 5.2.13.0 (evan-goode@users.noreply.github.com)
+* Sat Jun 28 2025 Thomas <temp.mail@hispeed.ch> 5.2.14.4-1
+- 5.2.14.4 (temp.mail@hispeed.ch)
+
+* Fri Jun 27 2025 Thomas <temp.mail@hispeed.ch>
+- 
+
+* Thu Jun 26 2025 Thomas <temp.mail@hispeed.ch> 5.2.14.3-1
+- 5.2.14.3 (temp.mail@hispeed.ch)
+- update (temp.mail@hispeed.ch)
+- readthedocs: add swig include to fix doc builds (amatej@redhat.com)
+- readthedocs: extract `SOURCE_DIR` variable (amatej@redhat.com)
+- readthedocs: fix path joining (amatej@redhat.com)
+- dnfdaemon: Make permission check more consistent (mblaha@redhat.com)
+- dnfdaemon: Removed incorrect output parameter names (mblaha@redhat.com)
+- dnfdaemon: support all_advisories option for recent_changes()
+  (mblaha@redhat.com)
+- advisory: Add support for filtering advisories by Nevra (mblaha@redhat.com)
+- dnfdaemon: support installonly pkgs in recent_changes() (mblaha@redhat.com)
+- dnfdaemon: Add new History interface (mblaha@redhat.com)
+- dnf5: repoclosure: Support globs in "--check=" option (jrohel@redhat.com)
+- doc: Handling translations (ppisar@redhat.com)
+- Docs: enhance install command behavior description (amatej@redhat.com)
+- Unify commands help with package specs (amatej@redhat.com)
+- Introduce new format denoting package spec formats (amatej@redhat.com)
+- test: ease path assertions in tests (jelle@archlinux.org)
+
+* Thu Jun 26 2025 Thomas <temp.mail@hispeed.ch>
+- dnfdaemon: Removed incorrect output parameter names (mblaha@redhat.com)
+- dnfdaemon: support all_advisories option for recent_changes()
+  (mblaha@redhat.com)
+- advisory: Add support for filtering advisories by Nevra (mblaha@redhat.com)
+- dnfdaemon: support installonly pkgs in recent_changes() (mblaha@redhat.com)
+- dnfdaemon: Add new History interface (mblaha@redhat.com)
+- dnf5: repoclosure: Support globs in "--check=" option (jrohel@redhat.com)
+- doc: Handling translations (ppisar@redhat.com)
+- Docs: enhance install command behavior description (amatej@redhat.com)
+- Unify commands help with package specs (amatej@redhat.com)
+- Introduce new format denoting package spec formats (amatej@redhat.com)
+- test: ease path assertions in tests (jelle@archlinux.org)
+
+* Thu Jun 26 2025 Thomas <temp.mail@hispeed.ch>
+- dnfdaemon: Removed incorrect output parameter names (mblaha@redhat.com)
+- dnfdaemon: support all_advisories option for recent_changes()
+  (mblaha@redhat.com)
+- advisory: Add support for filtering advisories by Nevra (mblaha@redhat.com)
+- dnfdaemon: support installonly pkgs in recent_changes() (mblaha@redhat.com)
+- dnfdaemon: Add new History interface (mblaha@redhat.com)
+- dnf5: repoclosure: Support globs in "--check=" option (jrohel@redhat.com)
+- doc: Handling translations (ppisar@redhat.com)
+- Docs: enhance install command behavior description (amatej@redhat.com)
+- Unify commands help with package specs (amatej@redhat.com)
+- Introduce new format denoting package spec formats (amatej@redhat.com)
+- test: ease path assertions in tests (jelle@archlinux.org)
+
+* Wed Jun 25 2025 Thomas <temp.mail@hispeed.ch> 5.2.14.0-1
+- Release 5.2.14.0 (kontura@users.noreply.github.com)
 - Update translations from weblate (github-actions@github.com)
-- daemon: Add the configuration file for the daemon (mblaha@redhat.com)
-- repo: Allow system_cachedir copy for the root user (mblaha@redhat.com)
-- Fix conditional which assumed RHEL 10 could support SOLVER_FLAG_FOCUS_NEW
-  (jonathan@almalinux.org)
-- repo: Log correct path when loading system repo (mblaha@redhat.com)
-- Unify duplicated group attributes handling (amatej@redhat.com)
-- Add `order_int` support to dnf5 daemon (amatej@redhat.com)
-- Move comps ordering to libdnf5-cli (amatej@redhat.com)
-- Add new group/env API to its adapters and interfaces (amatej@redhat.com)
-- comps: Test merging environment grouplists and optionlists
-  (pkratoch@redhat.com)
-- comps: Create env grouplist by merging grouplists of all its solvables
-  (pkratoch@redhat.com)
-- comps: Create group packagelist by merging packagelists of all its solvables
-  (pkratoch@redhat.com)
-- nevra: Fix description of evrcmp and rpmvercmp functions
-  (nikita@linux.ibm.com)
-- SWIG: unit tests for exceptions (jrohel@redhat.com)
-- SWIG: Implement exception forwarding (jrohel@redhat.com)
-- libdnf5::FormatDetailLevel: Change to enum class and add doc strings
+- Unify system state module saving (amatej@redhat.com)
+- Make system state files writing more robust (amatej@redhat.com)
+- Add `Base` to `system::State` (amatej@redhat.com)
+- automatic: Expand emit_via in command_email emitter to individual arguments
+  (ppisar@redhat.com)
+- ci: Remove "Package Build" GitHub Action (mail@evangoo.de)
+- [dnf5] cmdline_aliases: Fix TOML syntax err msg in build TOML11_COMPAT
   (jrohel@redhat.com)
-- Disallow `dnf download non-sense` without `--skip-unavailable`
-  (ali@mirjamali.com)
-- Show cleaned space bytes for `dnf clean` (ali@mirjamali.com)
-- spec: Remove a duplicate record for %%{_prefix}/lib/sysimage/libdnf5
-  (ppisar@redhat.com)
-- Fix `history list` with unknown terminal size (ali@mirjamali.com)
-- comps: Respect the display_order with listing groups and environments
-  (pkratoch@redhat.com)
-- comps: Add methods to get the integer value of the display_order
-  (pkratoch@redhat.com)
-- spec: Correct libdnf5-plugin-appstream description (ppisar@redhat.com)
-- dnfdaemon: Allow Base::clean("expire-cache") without admin privileges
-  (mcrha@redhat.com)
-- Fix invalid hint for unknown short argument (ali@mirjamali.com)
-- Add missing rpm scriptlet types: sysusers and pre/postuntrans
+- doc: aliases: switch code-block language from 'none' to 'TOML'
+  (jrohel@redhat.com)
+- cmdline_aliases: Support values consumed by command aliases
+  (jrohel@redhat.com)
+- dnf5: Add support for localization of aliases (jrohel@redhat.com)
+- dnf5 cmdline_aliases: Print warnings to stderr (jrohel@redhat.com)
+- dnf5 cmdline_aliases: Localize printed error messages (jrohel@redhat.com)
+- dnf5 cmdline_aliases: Unify use of BasicValue type (jrohel@redhat.com)
+- dnf5 cmdline_aliases: Refactor to use shared location functions
+  (jrohel@redhat.com)
+- Mark dnf5daemon-server-polkit as noarch (mblaha@redhat.com)
+- doc: Correct a typo in dnf-nightly repository URL (ppisar@redhat.com)
+- automatic: email emitter: Do not use fractional seconds in e-mail Date
+  headers (ppisar@redhat.com)
+- Unify `D-Bus` name formatting (amatej@redhat.com)
+- Expose dnf_daemon dbus Python example in docs (amatej@redhat.com)
+- dnf5: download: Argument "--from-repo" (jrohel@redhat.com)
+- dnf5: install/upgrade/reinstall/downgrade/swap: Argument "--from-repo"
+  (jrohel@redhat.com)
+- reposync: Spell "GPG" as "OpenPGP" in the usage text (ppisar@redhat.com)
+- Update `max_parallel_downloads` doc, it now affects also repo downloads
+  (amatej@redhat.com)
+- Remove no longer needed `RepoDownloader::perform` (amatej@redhat.com)
+- Use new RepoDownloader API to download repo descriptions (amatej@redhat.com)
+- Add new `RepoDownloader` API to donwload only repomd/metalink
+  (amatej@redhat.com)
+- Rename `end_cb` to `end_cb_full_download`, there will be more end cbs
+  (amatej@redhat.com)
+- Move `lr_target`s to `callback_data` and move setup to `add`
+  (amatej@redhat.com)
+- Name `load_repo` function type and add `reusing` option (amatej@redhat.com)
+- Extract `librepo` handle dlist configuration (amatej@redhat.com)
+- Extract error handling of `RepoDownloader::download()` report
+  (amatej@redhat.com)
+- Turn `handle_repo_exception` to `static` `RepoSack::Impl` method
+  (amatej@redhat.com)
+- dnf5: Reset cursor and formatting after SIGINT (mblaha@redhat.com)
+- dnf5daemon: Fix a missing reset method if built with sdbus-s++ version 2
+  (tla@rasmil.dk)
+- pre-commit: Exclude .tito/tito.props from check-xml (mblaha@redhat.com)
+- Add missing interfaces and re-order interfaces in a more logical order
+  (tla@rasmil.dk)
+- changes_from_dnf4: makecache doesn't always refresh (mail@evangoo.de)
+- Honor per-repo pgp_gpgcheck=0 even in rpm's enforcing signature mode
   (pmatilai@redhat.com)
-- solv: Drop the size check from swap_considered_map (mblaha@redhat.com)
-- Improve missing `proxy_password` message (ali@mirjamali.com)
-- Ask for superuser privileges on `history <undo|redo|rollback>`
-  (ali@mirjamali.com)
-- RepoDownloader: remove unused code (amatej@redhat.com)
-- expired-pgp-keys: Drop braced initialization to fix clang build
-  (jkolarik@redhat.com)
-- spec: Fix building without any libdnf5 plugin (mblaha@redhat.com)
-- spec: Conditional find_lang calls (mblaha@redhat.com)
-- spec: Fix building without dnf5 plugins (mblaha@redhat.com)
-- spec: Fix building without man pages (mblaha@redhat.com)
-- doc: DNF_SYSTEM_UPGRADE_NO_REBOOT environment variable (ppisar@redhat.com)
-- doc: Environment variables for a terminal and temporary files
+- doc: --use-host-config instead of --releasever=/ (mail@evangoo.de)
+- dnf5: Command "do": New argument "--from-repo" (jrohel@redhat.com)
+- dnf5: Command "do" (jrohel@redhat.com)
+- dnfdaemon: Add Polkit rule to allow wheel users to run transactions
+  (mblaha@redhat.com)
+- dnfdaemon: Split-off polkit policy for trusted transactions
+  (mblaha@redhat.com)
+- doc: Document '\n' sequence in repoquery --queryformat string
   (ppisar@redhat.com)
-- Add `-i` and `-f` shoft options for repoquery (ali@mirjamali.com)
-- Reimplement `--color` flag (ali@mirjamali.com)
-- expired-pgp-keys: Respect install root (mblaha@redhat.com)
-- comps: Add configuration options for group and environment excludes
-  (pkratoch@redhat.com)
-- comps: Add group and environment excludes (pkratoch@redhat.com)
-- comps: Add comps sack to later store comps excludes (pkratoch@redhat.com)
-- spec: Package CHANGELOG and other project documentation files
+- Include dnf-nightly in testing farm testing jobs (amatej@redhat.com)
+- Require new librepo which has fix API for parallel downloads
+  (amatej@redhat.com)
+- Use new API for parallel downloading (amatej@redhat.com)
+- Replace `download_metadata` API with `Add` and `Download` (amatej@redhat.com)
+- Update users of `RepoDownloader` to match new API (amatej@redhat.com)
+- Rework is_repomd_in_sync and is_metalink_in_sync to use new perform
+  (amatej@redhat.com)
+- Make `RepoDownloader::perform` static and rework callbacks
+  (amatej@redhat.com)
+- Convert several of `RepoDownloader` methods that to static ones
+  (amatej@redhat.com)
+- Extract callback data from `RepoDownloader` (amatej@redhat.com)
+- Remove unused `RepoDownloader` defines (amatej@redhat.com)
+- Split `DownloadData` out of `RepoDownloader` (amatej@redhat.com)
+- Include dnf-nightly in packit copr builds (amatej@redhat.com)
+- Fix clang build by disabling ruby deprecation warning (amatej@redhat.com)
+- Fix package build workflow: use code from the tested PR (amatej@redhat.com)
+- doc: Advisory filters can cause transaction commands to fail
+  (mblaha@redhat.com)
+- dnf5: Strict handling of --bzs and --cves options (mblaha@redhat.com)
+- Add NOT_FOUND_IN_ADVISORIES to resolve log for UPGRADE_ALL
+  (mblaha@redhat.com)
+- goal: Report specs filtered out by advisories (mblaha@redhat.com)
+- dnf5: Strict handling of --advisories=... option (mblaha@redhat.com)
+- dnf5: --no-gpgchecks overrides localpkg_gpgcheck (tmz@pobox.com)
+- I18N: Do not glue sentences in offline command messages (ppisar@redhat.com)
+- Remove unused `WITH_ZCHUNK` option (amatej@redhat.com)
+- dnfdaemon: Adjust wording of advisory options descriptions
+  (mblaha@redhat.com)
+- dnf5: Adjust wording of advisory options descriptions (mblaha@redhat.com)
+- doc: Clarify advisories filters documentation (mblaha@redhat.com)
+- expired-pgp-keys: Do not use a deprecated way of removing keys with RPM v6
   (ppisar@redhat.com)
-- spec: Set mode to ghost files (ppisar@redhat.com)
+- doc: "dnf4 config-manager" dropped --dump and --dump-variables options
+  (ppisar@redhat.com)
+- Change scriptlet names to match spec designators (mail@evangoo.de)
+- README: Mention #dnf IRC channel in first section (mail@evangoo.de)
+- expired-pgp-keys: Use a temporary GnuPG home directory (ppisar@redhat.com)
+- download: Do not print "Downloading Packages:" header in quiet mode
+  (ppisar@redhat.com)
 =======
+* Fri Jul 11 2025 Packit Team <hello@packit.dev> - 5.2.15.0-1
+- New upstream release 5.2.15.0
+>>>>>>> 5.2.15.0
+
 * Fri Jun 20 2025 Packit Team <hello@packit.dev> - 5.2.14.0-1
 - New upstream release 5.2.14.0
->>>>>>> 5.2.14.0
 
 * Wed Apr 23 2025 Packit Team <hello@packit.dev> - 5.2.13.1-1
 - New upstream release 5.2.13.1
