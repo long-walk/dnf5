@@ -6,7 +6,7 @@
 %bcond dnf5_obsoletes_dnf %[0%{?fedora} > 40 || 0%{?rhel} > 10]
 
 Name:           dnf5
-Version:        %{project_version_prime}.%{project_version_major}.%{project_version_minor}.%{project_version_micro}
+Version:        5.2.16.0
 Release:        1%{?dist}
 Summary:        Command-line package manager
 License:        GPL-2.0-or-later
@@ -1023,6 +1023,60 @@ mkdir -p %{buildroot}%{_libdir}/libdnf5/plugins
 %ldconfig_scriptlets
 
 %changelog
+* Thu Aug 14 2025 Thomas <temp.mail@hispeed.ch> 5.2.16.0-1
+- Release 5.2.16.0 (m-blaha@users.noreply.github.com)
+- Update translations from weblate (github-actions@github.com)
+- Bump minor version to 5.2.16 (mblaha@redhat.com)
+- dnfdaemon: Enable download-only transaction execution (mblaha@redhat.com)
+- dnfdaemon: Make it possible to set 'interactive' option for
+  Rpm::system_upgrade() (mcrha@redhat.com)
+- dnfdaemon: Make it possible to set 'interactive' option for
+  Offline::cancel(), Offline::clean(), Offline::set_finish_action()
+  (mcrha@redhat.com)
+- dnfdaemon: Make it possible to set 'interactive' option for
+  Repo::confirm_key(), Repo::enable(), Repo::disable() (mcrha@redhat.com)
+- dnfdaemon: Make it possible to set 'interactive' option for
+  Goal::do_transaction() (mcrha@redhat.com)
+- dnfdaemon: Make it possible to set 'interactive' option for Base::clean()
+  (mcrha@redhat.com)
+- test: Add test for temp files toml with missing key (mblaha@redhat.com)
+- repo: Do not fail on empty temporary files toml (mblaha@redhat.com)
+- actions: Replace L10N_SSH_KEY secret with RSM CI GitHub token
+  (mail@evangoo.de)
+- dnf5: Support --installed-from-repo= for "do" (jrohel@redhat.com)
+- Disable fastest_mirror callback for package downloading (amatej@redhat.com)
+- Copy return value from `SetConstIterator::operator*` (amatej@redhat.com)
+- tests: verify `SetConstIterator` works in Python bindings (amatej@redhat.com)
+- test_nevra.py: change formatting to satisfy autopep8 (amatej@redhat.com)
+- Fix various typos found by Lintian (luca.boccassi@gmail.com)
+- tests: fix compat with dash and other shellcheck warnings
+  (luca.boccassi@gmail.com)
+- dnf5: Support --installed-from-repo= for swap (jrohel@redhat.com)
+- dnf5: Support --installed-from-repo= for upgrade/downgrade/distro-sync
+  (jrohel@redhat.com)
+- Goal: add_rpm_(upgrade/distro_sync) Improve support from_repo_ids
+  (jrohel@redhat.com)
+- Goal: Honor set_from_repo_ids in add_up_down_distrosync_to_goal
+  (jrohel@redhat.com)
+- dnf5: Support --installed-from-repo= for reinstall/remove (jrohel@redhat.com)
+- Goal: Honor set_from_repo_ids in add_(remove,reinstall)_to_goal
+  (jrohel@redhat.com)
+- dnf5: Support --installed-from-repo= for repoquery/list/info
+  (jrohel@redhat.com)
+- rpm::PackageQuery: New filter "filter_from_repo_id" (jrohel@redhat.com)
+- dnf5: "--from-repo=" option enables and validates source repositories
+  (jrohel@redhat.com)
+- Goal::Impl::add_install_to_goal: Fix to_repo_ids handling (jrohel@redhat.com)
+- dnf5: upgrade/distro-sync: Apply --from-repo only if pkgs are specified
+  (jrohel@redhat.com)
+- Goal::Impl::add_specs_to_goal: Skip processing of empty query in *ALL*
+  (jrohel@redhat.com)
+- Goal::Impl::add_specs_to_goal: Apply to_repo_ids settings in *ALL*
+  (jrohel@redhat.com)
+- Add unit tests for nevra parsing (pkratoch@redhat.com)
+- swig: Add bindings for templated functions that convert nevra to string
+  (pkratoch@redhat.com)
+
 * Thu Aug 07 2025 Packit Team <hello@packit.dev> - 5.2.16.0-1
 - New upstream release 5.2.16.0
 
