@@ -1,12 +1,12 @@
 %global project_version_prime 5
 %global project_version_major 2
-%global project_version_minor 15
+%global project_version_minor 16
 %global project_version_micro 0
 
 %bcond dnf5_obsoletes_dnf %[0%{?fedora} > 40 || 0%{?rhel} > 10]
 
 Name:           dnf5
-Version:        5.2.15.0
+Version:        %{project_version_prime}.%{project_version_major}.%{project_version_minor}.%{project_version_micro}
 Release:        1%{?dist}
 Summary:        Command-line package manager
 License:        GPL-2.0-or-later
@@ -1023,27 +1023,8 @@ mkdir -p %{buildroot}%{_libdir}/libdnf5/plugins
 %ldconfig_scriptlets
 
 %changelog
-* Thu Jul 17 2025 Thomas <temp.mail@hispeed.ch> 5.2.15.0-1
-- Release 5.2.15.0 (pkratoch@users.noreply.github.com)
-- Update translations from weblate (github-actions@github.com)
-- Adapt missing gpg key check for parallel downloading (amatej@redhat.com)
-- repoclosure: skip rich dependencies (awilliam@redhat.com)
-- search: Do not separate a package from a summary with a colon
-  (ppisar@redhat.com)
-- Fix: add_up_down_distrosync_to_goal: to_repo_ids filtering
-  (jrohel@redhat.com)
-- dnf5: distro-sync: Argument "--from-repo" (jrohel@redhat.com)
-- swig: Add %%thread directive for repo_sack.hpp for Python
-  (pkratoch@redhat.com)
-- dnfdaemon: Fix a crash under dnf5daemon::DownloadCB::create_signal_download()
-  (mcrha@redhat.com)
-- Add dnf5daemon-server requirement for polkit subpkg (mblaha@redhat.com)
-- doc: Correct handling the translations (ppisar@redhat.com)
-- dnfdaemon-client: Call server methods asynchronously (mblaha@redhat.com)
-- offline: Require D-Bus socket service from dnf5-offline-transaction.service
-  (ppisar@redhat.com)
-- offline: Perform gracefull powerof/reboot instead of immediate one
-  (ppisar@redhat.com)
+* Thu Aug 07 2025 Packit Team <hello@packit.dev> - 5.2.16.0-1
+- New upstream release 5.2.16.0
 
 * Fri Jul 11 2025 Packit Team <hello@packit.dev> - 5.2.15.0-1
 - New upstream release 5.2.15.0
