@@ -6,7 +6,7 @@
 %bcond dnf5_obsoletes_dnf %[0%{?fedora} > 40 || 0%{?rhel} > 10]
 
 Name:           dnf5
-Version:        %{project_version_prime}.%{project_version_major}.%{project_version_minor}.%{project_version_micro}
+Version:        5.2.17.0
 Release:        1%{?dist}
 Summary:        Command-line package manager
 License:        GPL-2.0-or-later
@@ -1027,6 +1027,49 @@ mkdir -p %{buildroot}%{_libdir}/libdnf5/plugins
 %ldconfig_scriptlets
 
 %changelog
+* Fri Sep 05 2025 Thomas <temp.mail@hispeed.ch> 5.2.17.0-1
+- Release 5.2.17.0 (m-blaha@users.noreply.github.com)
+- Update translations from weblate (github-actions@github.com)
+- Add `repomanage` plugin (amatej@redhat.com)
+- dnf5daemon-server: Allow RPM key import without password prompt for wheel
+  users (mcrha@redhat.com)
+- doc: Add Tutorial: API changes between DNF and DNF5 (pkratoch@redhat.com)
+- test: Add tests for code examples for API changes tutorial
+  (pkratoch@redhat.com)
+- doc: Format API changes as paragraphs instead of sections
+  (pkratoch@redhat.com)
+- test: Keep the same working directory when running python tutorial tests
+  (pkratoch@redhat.com)
+- Introduces `libdnf5` list plugins on `--version` parameter (me@fhbash.com)
+- cli: Fix use-after-free in NamedArg::parse_short (mblaha@redhat.com)
+- cli: Fix use-after-free issue in CommandAlias (mblaha@redhat.com)
+- libdnf5: Don't double format a transaction error (ppisar@redhat.com)
+- Unify docs for shared transactions options: --offline and --store
+  (amatej@redhat.com)
+- Add `replay` to the hardcoded set of commands that require privileges
+  (amatej@redhat.com)
+- All commands that compose a transaction should support offline and store
+  (amatej@redhat.com)
+- doc: Add a chapter about migrating to dnf5 (dcantrell@redhat.com)
+- doc: changes_from_dnf4: Info about `shell` cmd superseded by `do` cmd
+  (jrohel@redhat.com)
+- DNF5: Documentation for "do" command (jrohel@redhat.com)
+- dnf5: Move create(_installed)_from_repo_option to public API
+  (jrohel@redhat.com)
+- dnf5: builddep: Argument "--from-repo" (jrohel@redhat.com)
+- dnf5daemon-server: Correct repo::confirm_key_with_options D-Bus signature
+  (mcrha@redhat.com)
+- `--store` option: override keepcache option not to remove packages
+  (amatej@redhat.com)
+- doc: fix references to dnf5.conf(5) (oss@mmarchini.me)
+- Replace locale-dependent std::isalnum checks (mblaha@redhat.com)
+- repo: Correctly URL-encode packages locations (mblaha@redhat.com)
+- test: Add unit tests for common/utils/url (mblaha@redhat.com)
+- utils: New url_path_encode() function (mblaha@redhat.com)
+- utils: Add url_decode() function (mblaha@redhat.com)
+- Move url_encode() to libdnf5::utils::url (mblaha@redhat.com)
+- dnfdaemon: Obey downloader D-Bus signal signature (mcrha@redhat.com)
+
 * Tue Sep 02 2025 Packit Team <hello@packit.dev> - 5.2.17.0-1
 - New upstream release 5.2.17.0
 
