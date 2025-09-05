@@ -9,6 +9,7 @@ Welcome to DNF5's documentation!
     tutorial/index
     tutorial/bindings/index
     tutorial/plugins/index
+    tutorial/api-changes/index
     api/index
     dnf5_workflow
     libdnf5_plugins/index
@@ -21,6 +22,7 @@ Welcome to DNF5's documentation!
     best_practices/index
     templates/index
     changes_from_dnf4.7
+    migrating_to_dnf5.7
 
 
 Indices and tables

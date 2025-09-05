@@ -50,7 +50,7 @@ are considered correct, the resulting package is picked simply by lexicographica
 
 When installing groups defined in ``group-spec`` arguments, ``DNF5`` ensures that the groups and
 their packages are installed on the system. Installs only group packages matching configured package
-type. See :manpage:`dnf5-conf(5)`, :ref:`group_package_types <group_package_types_options-label>`.
+type. See :manpage:`dnf5.conf(5)`, :ref:`group_package_types <group_package_types_options-label>`.
 
 When installing environments defined in ``environment-spec`` arguments, ``DNF5`` ensures that the
 environments and their groups are installed on the system.
@@ -79,8 +79,7 @@ Options
 ``--downloadonly``
     | Download the resolved package set without executing an RPM transaction.
 
-``--offline``
-    | Store the transaction to be performed offline. See :manpage:`dnf5-offline(8)`, :ref:`Offline command <offline_command_ref-label>`.
+.. include:: ../_shared/options/transaction.rst
 
 .. include:: ../_shared/options/advisories.rst
 

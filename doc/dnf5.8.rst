@@ -468,6 +468,7 @@ Application Plugins:
     | :manpage:`dnf5-copr(8)`, :ref:`Copr command <copr_plugin_ref-label>`
     | :manpage:`dnf5-needs-restarting(8)`, :ref:`Needs-Restarting command <needs_restarting_plugin_ref-label>`
     | :manpage:`dnf5-repoclosure(8)`, :ref:`Repoclosure command <repoclosure_plugin_ref-label>`
+    | :manpage:`dnf5-repomanage(8)`, :ref:`Repomanage command <repomanage_plugin_ref-label>`
     | :manpage:`dnf5-reposync(8)`, :ref:`Reposync command <reposync_plugin_ref-label>`
 
 
@@ -476,7 +477,7 @@ Library Plugins:
     | :manpage:`libdnf5-expired-pgp-keys(8)`, :ref:`Expired PGP keys plugin <expired-pgp-keys_plugin_ref-label>`
 
 Configuration:
-    | :manpage:`dnf5-conf(5)`, :ref:`DNF5 Configuration Reference <dnf5_conf-label>`
+    | :manpage:`dnf5.conf(5)`, :ref:`DNF5 Configuration Reference <dnf5_conf-label>`
 
 Miscellaneous:
     | :manpage:`dnf5-aliases(7)`, :ref:`Aliases for command line arguments <aliases_misc_ref-label>`
