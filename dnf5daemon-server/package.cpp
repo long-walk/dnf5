@@ -1,21 +1,21 @@
-/*
-Copyright Contributors to the libdnf project.
-
-This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
-
-Libdnf is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-Libdnf is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
-*/
+// Copyright Contributors to the DNF5 project.
+// Copyright Contributors to the libdnf project.
+// SPDX-License-Identifier: GPL-2.0-or-later
+//
+// This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
+//
+// Libdnf is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 2 of the License, or
+// (at your option) any later version.
+//
+// Libdnf is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "package.hpp"
 
@@ -329,10 +329,19 @@ std::string package_to_json(const libdnf5::rpm::Package & libdnf_package, const 
                 add_string_list(json_pkg, cattr, reldeplist_to_strings(libdnf_package.get_supplements()));
                 break;
             case PackageAttribute::evr:
-                json_object_object_add(json_pkg, cattr, json_object_new_string(libdnf_package.get_evr().c_str()));
+                // Always show epoch in EVR (epoch:version-release)
+                {
+                    std::string evr_with_epoch = libdnf_package.get_epoch();
+                    if (evr_with_epoch.empty()) {
+                        evr_with_epoch = "0";
+                    }
+                    evr_with_epoch += ":" + libdnf_package.get_version() + "-" + libdnf_package.get_release();
+                    json_object_object_add(json_pkg, cattr, json_object_new_string(evr_with_epoch.c_str()));
+                }
                 break;
             case PackageAttribute::nevra:
-                json_object_object_add(json_pkg, cattr, json_object_new_string(libdnf_package.get_nevra().c_str()));
+                json_object_object_add(
+                    json_pkg, cattr, json_object_new_string(libdnf_package.get_full_nevra().c_str()));
                 break;
             case PackageAttribute::full_nevra:
                 json_object_object_add(

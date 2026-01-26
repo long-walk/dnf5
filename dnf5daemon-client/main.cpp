@@ -1,21 +1,21 @@
-/*
-Copyright Contributors to the libdnf project.
-
-This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
-
-Libdnf is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-Libdnf is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
-*/
+// Copyright Contributors to the DNF5 project.
+// Copyright Contributors to the libdnf project.
+// SPDX-License-Identifier: GPL-2.0-or-later
+//
+// This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
+//
+// Libdnf is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 2 of the License, or
+// (at your option) any later version.
+//
+// Libdnf is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "callbacks.hpp"
 #include "commands/advisory/advisory.hpp"
@@ -130,6 +130,20 @@ void RootCommand::set_argument_parser() {
     releasever->set_description("override the $releasever variable value");
     releasever->link_value(&ctx.releasever);
     cmd.register_named_arg(releasever);
+
+    auto releasever_major = ctx.get_argument_parser().add_new_named_arg("releasever-major");
+    releasever_major->set_long_name("releasever-major");
+    releasever_major->set_has_value(true);
+    releasever_major->set_description("override the $releasever_major variable value");
+    releasever_major->link_value(&ctx.releasever_major);
+    cmd.register_named_arg(releasever_major);
+
+    auto releasever_minor = ctx.get_argument_parser().add_new_named_arg("releasever-minor");
+    releasever_minor->set_long_name("releasever-minor");
+    releasever_minor->set_has_value(true);
+    releasever_minor->set_description("override the $releasever_minor variable value");
+    releasever_minor->link_value(&ctx.releasever_minor);
+    cmd.register_named_arg(releasever_minor);
 
     auto setopt = ctx.get_argument_parser().add_new_named_arg("setopt");
     setopt->set_long_name("setopt");

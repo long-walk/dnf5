@@ -1,21 +1,21 @@
-/*
-Copyright Contributors to the libdnf project.
-
-This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
-
-Libdnf is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-Libdnf is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
-*/
+// Copyright Contributors to the DNF5 project.
+// Copyright Contributors to the libdnf project.
+// SPDX-License-Identifier: GPL-2.0-or-later
+//
+// This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
+//
+// Libdnf is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 2 of the License, or
+// (at your option) any later version.
+//
+// Libdnf is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 
 
 #include "test_conf.hpp"
@@ -70,4 +70,41 @@ void ConfTest::test_config_pkg_gpgcheck() {
     repo::ConfigRepo config_repo(config, "test-repo");
     CPPUNIT_ASSERT_EQUAL(&config_repo.get_pkg_gpgcheck_option(), &config_repo.get_gpgcheck_option());
 #pragma GCC diagnostic pop
+}
+
+void ConfTest::test_config_load_from_config() {
+    libdnf5::ConfigMain config;
+
+    config.get_assumeyes_option().set(libdnf5::Option::Priority::MAINCONFIG, false);
+    config.get_debuglevel_option().set(libdnf5::Option::Priority::RUNTIME, 7);
+    config.get_allow_downgrade_option().set(libdnf5::Option::Priority::RUNTIME, false);
+    config.get_destdir_option().set(libdnf5::Option::Priority::RUNTIME, "foobar");
+
+    libdnf5::ConfigMain config_copy;
+    config_copy.load_from_config(config);
+
+    CPPUNIT_ASSERT_EQUAL(false, config_copy.get_allow_downgrade_option().get_value());
+    CPPUNIT_ASSERT_EQUAL(std::string{"foobar"}, config_copy.get_destdir_option().get_value());
+
+    CPPUNIT_ASSERT_EQUAL(libdnf5::Option::Priority::MAINCONFIG, config.get_assumeyes_option().get_priority());
+    CPPUNIT_ASSERT_EQUAL(false, config.get_assumeyes_option().get_value());
+
+    CPPUNIT_ASSERT_EQUAL(libdnf5::Option::Priority::MAINCONFIG, config_copy.get_assumeyes_option().get_priority());
+    CPPUNIT_ASSERT_EQUAL(false, config_copy.get_assumeyes_option().get_value());
+
+    config_copy.get_assumeyes_option().set(libdnf5::Option::Priority::RUNTIME, true);
+
+    CPPUNIT_ASSERT_EQUAL(libdnf5::Option::Priority::MAINCONFIG, config.get_assumeyes_option().get_priority());
+    CPPUNIT_ASSERT_EQUAL(false, config.get_assumeyes_option().get_value());
+
+    CPPUNIT_ASSERT_EQUAL(libdnf5::Option::Priority::RUNTIME, config_copy.get_assumeyes_option().get_priority());
+    CPPUNIT_ASSERT_EQUAL(true, config_copy.get_assumeyes_option().get_value());
+
+    CPPUNIT_ASSERT_EQUAL(0ul, config_copy.get_excludepkgs_option().get_value().size());
+    CPPUNIT_ASSERT_EQUAL(0ul, config.get_excludepkgs_option().get_value().size());
+
+    config_copy.get_excludepkgs_option().add_item(libdnf5::Option::Priority::RUNTIME, "abc");
+
+    CPPUNIT_ASSERT_EQUAL(1ul, config_copy.get_excludepkgs_option().get_value().size());
+    CPPUNIT_ASSERT_EQUAL(0ul, config.get_excludepkgs_option().get_value().size());
 }

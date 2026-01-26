@@ -1,21 +1,21 @@
-/*
-Copyright Contributors to the libdnf project.
-
-This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
-
-Libdnf is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-Libdnf is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
-*/
+// Copyright Contributors to the DNF5 project.
+// Copyright Contributors to the libdnf project.
+// SPDX-License-Identifier: GPL-2.0-or-later
+//
+// This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
+//
+// Libdnf is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 2 of the License, or
+// (at your option) any later version.
+//
+// Libdnf is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 
 
 #include "test_solv_map.hpp"
@@ -132,6 +132,32 @@ void SolvMapTest::test_difference() {
     CPPUNIT_ASSERT(map2->contains(1) == true);
     CPPUNIT_ASSERT(map2->contains(2) == false);
     CPPUNIT_ASSERT(map2->contains(3) == false);
+}
+
+
+void SolvMapTest::test_is_and_empty() {
+    libdnf5::solv::SolvMap map1(16);
+    libdnf5::solv::SolvMap map2(24);
+
+    CPPUNIT_ASSERT(map1.is_intersection_empty(map1));
+
+    map1.add(4);
+    map1.add(6);
+    map1.add(14);
+    map2.add(5);
+    map2.add(8);
+    map2.add(12);
+    map2.add(22);
+
+    CPPUNIT_ASSERT(!map1.is_intersection_empty(map1));
+
+    CPPUNIT_ASSERT(map1.is_intersection_empty(map2));
+    CPPUNIT_ASSERT(map2.is_intersection_empty(map1));
+
+    map1.add(12);
+
+    CPPUNIT_ASSERT(!map1.is_intersection_empty(map2));
+    CPPUNIT_ASSERT(!map2.is_intersection_empty(map1));
 }
 
 

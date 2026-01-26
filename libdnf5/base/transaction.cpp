@@ -1,21 +1,21 @@
-/*
-Copyright Contributors to the libdnf project.
-
-This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
-
-Libdnf is free software: you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation, either version 2.1 of the License, or
-(at your option) any later version.
-
-Libdnf is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
-
-You should have received a copy of the GNU Lesser General Public License
-along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
-*/
+// Copyright Contributors to the DNF5 project.
+// Copyright Contributors to the libdnf project.
+// SPDX-License-Identifier: LGPL-2.1-or-later
+//
+// This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
+//
+// Libdnf is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 2.1 of the License, or
+// (at your option) any later version.
+//
+// Libdnf is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 
 
 #include "rpm/transaction.hpp"
@@ -25,6 +25,7 @@ along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 #include "module/module_db.hpp"
 #include "module/module_sack_impl.hpp"
 #endif
+#include "../repo/repo_sack_private.hpp"
 #include "repo/temp_files_memory.hpp"
 #include "rpm/package_set_impl.hpp"
 #include "solv/pool.hpp"
@@ -1169,10 +1170,13 @@ Transaction::TransactionRunResult Transaction::Impl::_run(
 
         // Set correct system state for groups in the transaction
         auto comps_xml_dir = system_state.get_group_xml_dir();
-        std::filesystem::create_directories(comps_xml_dir);
+        auto comps_xml_dir_groups = comps_xml_dir / "groups";
+        auto comps_xml_dir_environments = comps_xml_dir / "environments";
+        std::filesystem::create_directories(comps_xml_dir_groups);
+        std::filesystem::create_directories(comps_xml_dir_environments);
         for (const auto & tsgroup : groups) {
             auto group = tsgroup.get_group();
-            auto group_xml_path = comps_xml_dir / (group.get_groupid() + ".xml");
+            auto group_xml_path = comps_xml_dir_groups / (group.get_groupid() + ".xml");
             if (transaction_item_action_is_inbound(tsgroup.get_action())) {
                 libdnf5::system::GroupState state;
                 state.userinstalled = tsgroup.get_reason() == transaction::TransactionItemReason::USER;
@@ -1213,7 +1217,7 @@ Transaction::TransactionRunResult Transaction::Impl::_run(
         // Set correct system state for environmental groups in the transaction
         for (const auto & tsenvironment : environments) {
             auto environment = tsenvironment.get_environment();
-            auto environment_xml_path = comps_xml_dir / (environment.get_environmentid() + ".xml");
+            auto environment_xml_path = comps_xml_dir_environments / (environment.get_environmentid() + ".xml");
             if (transaction_item_action_is_inbound(tsenvironment.get_action())) {
                 libdnf5::system::EnvironmentState state;
                 // Remember groups installed by this environmental group
@@ -1451,7 +1455,9 @@ void Transaction::Impl::set_rpm_messages(std::vector<std::string> && rpm_message
 }
 
 std::string Transaction::serialize(
-    const std::filesystem::path & packages_path, const std::filesystem::path & comps_path) const {
+    const std::filesystem::path & packages_path,
+    const std::filesystem::path & comps_path,
+    const std::string repo_prefix) const {
     transaction::TransactionReplay transaction_replay;
 
     for (const auto & pkg : get_transaction_packages()) {
@@ -1461,7 +1467,11 @@ std::string Transaction::serialize(
         package_replay.nevra = rpm_pkg.get_nevra();
         package_replay.action = pkg.get_action();
         package_replay.reason = pkg.get_reason();
-        package_replay.repo_id = rpm_pkg.get_repo_id();
+        if (repo_prefix.empty() || rpm_pkg.get_repo_id() == std::string(libdnf5::repo::SYSTEM_REPO_NAME)) {
+            package_replay.repo_id = rpm_pkg.get_repo_id();
+        } else {
+            package_replay.repo_id = repo_prefix + "(" + rpm_pkg.get_repo_id() + ")";
+        }
         if (pkg.get_reason_change_group_id()) {
             package_replay.group_id = *pkg.get_reason_change_group_id();
         }
@@ -1481,11 +1491,16 @@ std::string Transaction::serialize(
         group_replay.action = group.get_action();
         group_replay.reason = group.get_reason();
         // TODO(amatej): does each group has to have at least one repo?
-        group_replay.repo_id = *(group.get_group().get_repos().begin());
+        std::string first_repo_id = *(group.get_group().get_repos().begin());
+        if (repo_prefix.empty() || first_repo_id == std::string(libdnf5::repo::SYSTEM_REPO_NAME)) {
+            group_replay.repo_id = first_repo_id;
+        } else {
+            group_replay.repo_id = repo_prefix + "(" + first_repo_id + ")";
+        }
         group_replay.package_types = group.get_package_types();
 
         if (!comps_path.empty()) {
-            group_replay.group_path = build_comps_xml_path(comps_path, xml_group.get_groupid());
+            group_replay.group_path = build_comps_xml_path(comps_path / "groups", xml_group.get_groupid());
         }
 
         transaction_replay.groups.push_back(group_replay);
@@ -1498,10 +1513,16 @@ std::string Transaction::serialize(
         environment_replay.environment_id = xml_environment.get_environmentid();
         environment_replay.action = environment.get_action();
         // TODO(amatej): does each environment has to have at least one repo?
-        environment_replay.repo_id = *(environment.get_environment().get_repos().begin());
+        std::string first_repo_id = *(environment.get_environment().get_repos().begin());
+        if (repo_prefix.empty() || first_repo_id == std::string(libdnf5::repo::SYSTEM_REPO_NAME)) {
+            environment_replay.repo_id = first_repo_id;
+        } else {
+            environment_replay.repo_id = repo_prefix + "(" + first_repo_id + ")";
+        }
 
         if (!comps_path.empty()) {
-            environment_replay.environment_path = build_comps_xml_path(comps_path, xml_environment.get_environmentid());
+            environment_replay.environment_path =
+                build_comps_xml_path(comps_path / "environments", xml_environment.get_environmentid());
         }
 
         transaction_replay.environments.push_back(environment_replay);
@@ -1515,18 +1536,22 @@ std::string Transaction::serialize(
 void Transaction::store_comps(const std::filesystem::path & comps_path) const {
     auto groups = get_transaction_groups();
     auto envs = get_transaction_environments();
-    if (!groups.empty() || !envs.empty()) {
-        std::filesystem::create_directories(comps_path);
+    if (!groups.empty()) {
+        auto comps_xml_dir_groups = comps_path / "groups";
+        std::filesystem::create_directories(comps_xml_dir_groups);
+        for (const auto & group : groups) {
+            auto xml_group = group.get_group();
+            xml_group.serialize(build_comps_xml_path(comps_xml_dir_groups, xml_group.get_groupid()));
+        }
     }
-
-    for (const auto & group : groups) {
-        auto xml_group = group.get_group();
-        xml_group.serialize(build_comps_xml_path(comps_path, xml_group.get_groupid()));
-    }
-
-    for (const auto & environment : envs) {
-        auto xml_environment = environment.get_environment();
-        xml_environment.serialize(build_comps_xml_path(comps_path, xml_environment.get_environmentid()));
+    if (!envs.empty()) {
+        auto comps_xml_dir_environments = comps_path / "environments";
+        std::filesystem::create_directories(comps_xml_dir_environments);
+        for (const auto & environment : envs) {
+            auto xml_environment = environment.get_environment();
+            xml_environment.serialize(
+                build_comps_xml_path(comps_xml_dir_environments, xml_environment.get_environmentid()));
+        }
     }
 }
 

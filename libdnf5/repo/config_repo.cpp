@@ -1,21 +1,21 @@
-/*
-Copyright Contributors to the libdnf project.
-
-This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
-
-Libdnf is free software: you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation, either version 2.1 of the License, or
-(at your option) any later version.
-
-Libdnf is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
-
-You should have received a copy of the GNU Lesser General Public License
-along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
-*/
+// Copyright Contributors to the DNF5 project.
+// Copyright Contributors to the libdnf project.
+// SPDX-License-Identifier: LGPL-2.1-or-later
+//
+// This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
+//
+// Libdnf is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 2.1 of the License, or
+// (at your option) any later version.
+//
+// Libdnf is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "libdnf5/repo/config_repo.hpp"
 
@@ -41,7 +41,7 @@ class ConfigRepo::Impl {
     std::string id;
 
     OptionString name{""};
-    OptionChild<OptionBool> enabled{main_config.get_enabled_option()};
+    OptionBool enabled{true};
     OptionChild<OptionString> basecachedir{main_config.get_cachedir_option()};
     OptionStringList baseurl{std::vector<std::string>{}};
     OptionString mirrorlist{nullptr};
@@ -72,6 +72,8 @@ class ConfigRepo::Impl {
     OptionChild<OptionNumber<float>> throttle{main_config.get_throttle_option()};
     OptionChild<OptionSeconds> timeout{main_config.get_timeout_option()};
     OptionChild<OptionNumber<std::uint32_t>> max_parallel_downloads{main_config.get_max_parallel_downloads_option()};
+    OptionChild<OptionNumber<std::uint32_t>> max_downloads_per_mirror{
+        main_config.get_max_downloads_per_mirror_option()};
     OptionChild<OptionSeconds> metadata_expire{main_config.get_metadata_expire_option()};
     OptionNumber<std::int32_t> cost{1000};
     OptionNumber<std::int32_t> priority{99};
@@ -162,6 +164,7 @@ ConfigRepo::Impl::Impl(Config & owner, ConfigMain & main_config, const std::stri
     owner.opt_binds().add("throttle", throttle);
     owner.opt_binds().add("timeout", timeout);
     owner.opt_binds().add("max_parallel_downloads", max_parallel_downloads);
+    owner.opt_binds().add("max_downloads_per_mirror", max_downloads_per_mirror);
     owner.opt_binds().add("metadata_expire", metadata_expire);
     owner.opt_binds().add("cost", cost);
     owner.opt_binds().add("priority", priority);
@@ -204,10 +207,10 @@ OptionString & ConfigRepo::get_name_option() {
 const OptionString & ConfigRepo::get_name_option() const {
     return p_impl->name;
 }
-OptionChild<OptionBool> & ConfigRepo::get_enabled_option() {
+OptionBool & ConfigRepo::get_enabled_option() {
     return p_impl->enabled;
 }
-const OptionChild<OptionBool> & ConfigRepo::get_enabled_option() const {
+const OptionBool & ConfigRepo::get_enabled_option() const {
     return p_impl->enabled;
 }
 
@@ -409,6 +412,13 @@ OptionChild<OptionNumber<std::uint32_t>> & ConfigRepo::get_max_parallel_download
 }
 const OptionChild<OptionNumber<std::uint32_t>> & ConfigRepo::get_max_parallel_downloads_option() const {
     return p_impl->max_parallel_downloads;
+}
+
+OptionChild<OptionNumber<std::uint32_t>> & ConfigRepo::get_max_downloads_per_mirror_option() {
+    return p_impl->max_downloads_per_mirror;
+}
+const OptionChild<OptionNumber<std::uint32_t>> & ConfigRepo::get_max_downloads_per_mirror_option() const {
+    return p_impl->max_downloads_per_mirror;
 }
 
 OptionChild<OptionSeconds> & ConfigRepo::get_metadata_expire_option() {

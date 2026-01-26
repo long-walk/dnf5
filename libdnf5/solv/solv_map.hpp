@@ -1,21 +1,21 @@
-/*
-Copyright Contributors to the libdnf project.
-
-This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
-
-Libdnf is free software: you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation, either version 2.1 of the License, or
-(at your option) any later version.
-
-Libdnf is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
-
-You should have received a copy of the GNU Lesser General Public License
-along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
-*/
+// Copyright Contributors to the DNF5 project.
+// Copyright Contributors to the libdnf project.
+// SPDX-License-Identifier: LGPL-2.1-or-later
+//
+// This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
+//
+// Libdnf is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 2.1 of the License, or
+// (at your option) any later version.
+//
+// Libdnf is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 
 
 #ifndef LIBDNF5_SOLV_MAP_HPP
@@ -227,6 +227,12 @@ public:
         return *this;
     }
 
+    /// Returns true if result of intersection is empty
+    [[nodiscard]] bool is_intersection_empty(const Map & other) const noexcept;
+
+    /// Returns true if result of intersection is empty
+    [[nodiscard]] bool is_intersection_empty(const SolvMap & other) const noexcept;
+
     /// Swaps the underlying libsolv Map pointers.
     void swap(SolvMap & other) noexcept { std::swap(map, other.map); }
 
@@ -371,6 +377,24 @@ inline std::size_t SolvMap::size() const noexcept {
         result += BIT_COUNT_LOOKUP[*byte++];
     }
     return result;
+}
+
+
+inline bool SolvMap::is_intersection_empty(const Map & other_map) const noexcept {
+    const unsigned char * it = map.map;
+    const unsigned char * other_it = other_map.map;
+    const unsigned char * const end = it + (map.size < other_map.size ? map.size : other_map.size);
+    while (it < end) {
+        if ((*it++ & *other_it++) != 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
+
+inline bool SolvMap::is_intersection_empty(const SolvMap & other) const noexcept {
+    return this->is_intersection_empty(other.get_map());
 }
 
 }  // namespace libdnf5::solv

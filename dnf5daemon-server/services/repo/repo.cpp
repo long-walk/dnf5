@@ -1,21 +1,21 @@
-/*
-Copyright Contributors to the libdnf project.
-
-This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
-
-Libdnf is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-Libdnf is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
-*/
+// Copyright Contributors to the DNF5 project.
+// Copyright Contributors to the libdnf project.
+// SPDX-License-Identifier: GPL-2.0-or-later
+//
+// This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
+//
+// Libdnf is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 2 of the License, or
+// (at your option) any later version.
+//
+// Libdnf is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "repo.hpp"
 
@@ -283,7 +283,9 @@ void Repo::dbus_register() {
                 sdbus::Signature{""},
                 {},
                 [this](sdbus::MethodCall call) -> void {
-                    session.get_threads_manager().handle_method(*this, &Repo::confirm_key_with_options, call);
+                    // confirm_key_with_options method does not call any libdnf5 API. Do not use the mutex to avoid deadlocks.
+                    session.get_threads_manager().handle_method<Repo, false>(
+                        *this, &Repo::confirm_key_with_options, call);
                 },
                 {}},
             sdbus::MethodVTableItem{
@@ -293,7 +295,8 @@ void Repo::dbus_register() {
                 sdbus::Signature{""},
                 {},
                 [this](sdbus::MethodCall call) -> void {
-                    session.get_threads_manager().handle_method(*this, &Repo::confirm_key, call);
+                    // confirm_key method does not call any libdnf5 API. Do not use the mutex to avoid deadlocks.
+                    session.get_threads_manager().handle_method<Repo, false>(*this, &Repo::confirm_key, call);
                 },
                 {}},
             sdbus::MethodVTableItem{
@@ -358,7 +361,8 @@ void Repo::dbus_register() {
         "",
         {},
         [this](sdbus::MethodCall call) -> void {
-            session.get_threads_manager().handle_method(*this, &Repo::confirm_key_with_options, call);
+            // confirm_key_with_options method does not call any libdnf5 API. Do not use the mutex to avoid deadlocks.
+            session.get_threads_manager().handle_method<Repo, false>(*this, &Repo::confirm_key_with_options, call);
         });
     dbus_object->registerMethod(
         dnfdaemon::INTERFACE_REPO,
@@ -368,7 +372,8 @@ void Repo::dbus_register() {
         "",
         {},
         [this](sdbus::MethodCall call) -> void {
-            session.get_threads_manager().handle_method(*this, &Repo::confirm_key, call);
+            // confirm_key method does not call any libdnf5 API. Do not use the mutex to avoid deadlocks.
+            session.get_threads_manager().handle_method<Repo, false>(*this, &Repo::confirm_key, call);
         });
     dbus_object->registerMethod(
         dnfdaemon::INTERFACE_REPO,

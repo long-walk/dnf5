@@ -1,21 +1,21 @@
-/*
-Copyright Contributors to the libdnf project.
-
-This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
-
-Libdnf is free software: you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation, either version 2.1 of the License, or
-(at your option) any later version.
-
-Libdnf is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
-
-You should have received a copy of the GNU Lesser General Public License
-along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
-*/
+// Copyright Contributors to the DNF5 project.
+// Copyright Contributors to the libdnf project.
+// SPDX-License-Identifier: LGPL-2.1-or-later
+//
+// This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
+//
+// Libdnf is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 2.1 of the License, or
+// (at your option) any later version.
+//
+// Libdnf is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 
 #ifndef LIBDNF5_PLUGIN_PLUGINS_HPP
 #define LIBDNF5_PLUGIN_PLUGINS_HPP
@@ -41,7 +41,7 @@ public:
 
 class Plugin {
 public:
-    explicit Plugin(IPlugin & iplugin_instance);
+    Plugin(IPlugin & iplugin_instance, ConfigParser && parser);
     virtual ~Plugin();
 
     Plugin(const Plugin &) = delete;
@@ -84,13 +84,8 @@ public:
     /// Registers the plugin passed by the argument.
     void register_plugin(std::unique_ptr<Plugin> && plugin);
 
-    /// Loads the plugin from the library defined by the configuration file config_file_path.
-    void load_plugin(
-        const std::string & config_file_path, const PreserveOrderMap<std::string, bool> & plugin_enablement);
-
     /// Loads plugins defined by configuration files in the directory.
-    void load_plugins(
-        const std::string & config_dir_path, const PreserveOrderMap<std::string, bool> & plugin_enablement);
+    void load_plugins(const std::string & config_dir_path);
 
     /// Returns the number of registered plugins.
     size_t count() const noexcept;
@@ -131,7 +126,9 @@ private:
 };
 
 
-inline Plugin::Plugin(IPlugin & iplugin_instance) : iplugin_instance{&iplugin_instance} {}
+inline Plugin::Plugin(IPlugin & iplugin_instance, ConfigParser && parser)
+    : iplugin_instance{&iplugin_instance},
+      cfg_parser(std::move(parser)) {}
 
 inline Plugin::~Plugin() {
     finish();

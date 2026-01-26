@@ -1,21 +1,21 @@
-/*
-Copyright Contributors to the libdnf project.
-
-This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
-
-Libdnf is free software: you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation, either version 2.1 of the License, or
-(at your option) any later version.
-
-Libdnf is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
-
-You should have received a copy of the GNU Lesser General Public License
-along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
-*/
+// Copyright Contributors to the DNF5 project.
+// Copyright Contributors to the libdnf project.
+// SPDX-License-Identifier: LGPL-2.1-or-later
+//
+// This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
+//
+// Libdnf is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 2.1 of the License, or
+// (at your option) any later version.
+//
+// Libdnf is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "libdnf5/conf/vars.hpp"
 
@@ -52,7 +52,7 @@ extern char ** environ;
 
 namespace libdnf5 {
 
-static const std::unordered_set<std::string> READ_ONLY_VARIABLES = {"releasever_major", "releasever_minor"};
+static const std::unordered_set<std::string> READ_ONLY_VARIABLES = {};
 
 static constexpr const char * DISTROVERPKGS[] = {
     "system-release(releasever)",
@@ -61,6 +61,9 @@ static constexpr const char * DISTROVERPKGS[] = {
     "distribution-release",
     "redhat-release",
     "suse-release"};
+
+static constexpr const char * DISTROVER_MAJOR_PKG = "system-release(releasever_major)";
+static constexpr const char * DISTROVER_MINOR_PKG = "system-release(releasever_minor)";
 
 
 class Vars::Impl {
@@ -77,7 +80,14 @@ private:
 Vars::Impl::Impl(const BaseWeakPtr & base) : base(base) {}
 
 std::unique_ptr<std::string> Vars::detect_release(const BaseWeakPtr & base, const std::string & install_root_path) {
-    std::unique_ptr<std::string> release_ver;
+    return std::get<0>(detect_releasevers(base, install_root_path));
+}
+
+std::tuple<std::unique_ptr<std::string>, std::unique_ptr<std::string>, std::unique_ptr<std::string>>
+Vars::detect_releasevers(const BaseWeakPtr & base, const std::string & install_root_path) {
+    std::unique_ptr<std::string> releasever;
+    std::unique_ptr<std::string> releasever_major;
+    std::unique_ptr<std::string> releasever_minor;
 
     libdnf5::rpm::RpmLogGuard rpm_log_guard(base);
 
@@ -87,29 +97,50 @@ std::unique_ptr<std::string> Vars::detect_release(const BaseWeakPtr & base, cons
         auto mi = rpmtsInitIterator(ts, RPMTAG_PROVIDENAME, distroverpkg, 0);
         if (auto hdr = rpmdbNextIterator(mi)) {
             const char * version = headerGetString(hdr, RPMTAG_VERSION);
+            const char * version_major = "";
+            const char * version_minor = "";
             rpmds ds = rpmdsNew(hdr, RPMTAG_PROVIDENAME, 0);
             while (rpmdsNext(ds) >= 0) {
-                if (std::strcmp(rpmdsN(ds), distroverpkg) == 0 && rpmdsFlags(ds) == RPMSENSE_EQUAL) {
-                    const char * evr = rpmdsEVR(ds);
-                    if (evr && evr[0] != '\0') {
-                        version = evr;
-                        break;
+                if (rpmdsFlags(ds) == RPMSENSE_EQUAL) {
+                    if (std::strcmp(rpmdsN(ds), distroverpkg) == 0) {
+                        const char * evr = rpmdsEVR(ds);
+                        if (evr && evr[0] != '\0') {
+                            version = evr;
+                        }
+                    } else if (std::strcmp(rpmdsN(ds), DISTROVER_MAJOR_PKG) == 0) {
+                        const char * evr = rpmdsEVR(ds);
+                        if (evr && evr[0] != '\0') {
+                            version_major = evr;
+                        }
+                    } else if (std::strcmp(rpmdsN(ds), DISTROVER_MINOR_PKG) == 0) {
+                        const char * evr = rpmdsEVR(ds);
+                        if (evr && evr[0] != '\0') {
+                            version_minor = evr;
+                        }
                     }
                 }
             }
+
             if (version) {
                 // Is the result of rpmdsEVR(ds) valid after rpmdsFree(ds)? Make a copy to be sure.
-                release_ver = std::make_unique<std::string>(version);
+                releasever = std::make_unique<std::string>(version);
             }
+            if (version_major) {
+                releasever_major = std::make_unique<std::string>(version_major);
+            }
+            if (version_minor) {
+                releasever_minor = std::make_unique<std::string>(version_minor);
+            }
+
             rpmdsFree(ds);
         }
         rpmdbFreeIterator(mi);
-        if (release_ver) {
+        if (releasever) {
             break;
         }
     }
     rpmtsFree(ts);
-    return release_ver;
+    return std::make_tuple(std::move(releasever), std::move(releasever_major), std::move(releasever_minor));
 }
 
 
@@ -397,10 +428,19 @@ void Vars::detect_vars(const std::string & installroot) {
         },
         Priority::AUTO);
 
-    set_lazy(
-        "releasever",
-        [this, &installroot]() -> auto { return detect_release(p_impl->base, installroot); },
-        Priority::AUTO);
+    auto it = p_impl->variables.find("releasever");
+    if (it == p_impl->variables.end() || it->second.priority <= Priority::AUTO) {
+        const auto & [releasever, releasever_major, releasever_minor] = detect_releasevers(p_impl->base, installroot);
+        if (releasever != nullptr) {
+            set("releasever", *releasever, Priority::AUTO);
+        }
+        if (releasever_major != nullptr) {
+            set("releasever_major", *releasever_major, Priority::AUTO);
+        }
+        if (releasever_minor != nullptr) {
+            set("releasever_minor", *releasever_minor, Priority::AUTO);
+        }
+    }
 }
 
 static void dir_close(DIR * d) {

@@ -1,5 +1,7 @@
 ..
+    Copyright Contributors to the DNF5 project.
     Copyright Contributors to the libdnf project.
+    SPDX-License-Identifier: GPL-2.0-or-later
 
     This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
 
@@ -55,7 +57,8 @@ repository configuration file should aside from repo ID consists of baseurl, met
 ``allow_vendor_change``
     :ref:`boolean <boolean-label>`
 
-    If disabled DNF5 will stick to vendor when upgrading or downgrading rpms.
+    If disabled, DNF5 will stick to the original vendor during RPM upgrades or downgrades.
+    This preference, however, can be fine-tuned using :ref:`Vendor change policies <dnf5_vendor_change_policy-label>`.
 
     Default: ``True``.
 
@@ -707,6 +710,7 @@ repository configuration file should aside from repo ID consists of baseurl, met
 
     Default: ``bold,magenta``.
 
+.. _repo_options-label:
 
 Repo Options
 ============
@@ -1032,6 +1036,15 @@ configuration.
     :ref:`integer <integer-label>`
 
     Maximum number of simultaneous downloads. Max is ``20``.
+
+    Default: ``3``.
+
+.. _max_downloads_per_mirror_options-label:
+
+``max_downloads_per_mirror``
+    :ref:`integer <integer-label>`
+
+    Maximum number of simultaneous downloads per mirror. Max is ``20``.
 
     Default: ``3``.
 
@@ -1579,5 +1592,6 @@ See Also
 ========
 
 * :manpage:`dnf5(8)`, :ref:`DNF5 Command Reference <command_ref-label>`
+* :manpage:`dnf5.conf-vendorpolicy(5)`, :ref:`DNF5 Vendor Change Policy File Reference <dnf5_vendor_change_policy-label>`
 * :manpage:`dnf5.conf-todo(5)`, :ref:`Options that are documented/implemented in DNF but not in DNF5 <dnf5_conf_todo-label>`
 * :manpage:`dnf5.conf-deprecated(5)`, :ref:`Config Options that are deprecated in DNF5 <dnf5_conf_deprecated-label>`

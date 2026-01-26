@@ -1,21 +1,21 @@
-/*
-Copyright Contributors to the libdnf project.
-
-This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
-
-Libdnf is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-Libdnf is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
-*/
+// Copyright Contributors to the DNF5 project.
+// Copyright Contributors to the libdnf project.
+// SPDX-License-Identifier: GPL-2.0-or-later
+//
+// This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
+//
+// Libdnf is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 2 of the License, or
+// (at your option) any later version.
+//
+// Libdnf is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "offline.hpp"
 
@@ -34,6 +34,12 @@ std::filesystem::path Offline::get_datadir() {
     auto base = session.get_base();
     const auto & installroot = base->get_config().get_installroot_option().get_value();
     return installroot / libdnf5::offline::DEFAULT_DATADIR.relative_path();
+}
+
+std::filesystem::path Offline::get_destdir() {
+    auto base = session.get_base();
+    const auto & installroot = base->get_config().get_installroot_option().get_value();
+    return installroot / libdnf5::offline::DEFAULT_DESTDIR.relative_path();
 }
 
 Offline::Scheduled Offline::offline_transaction_scheduled() {
@@ -291,6 +297,15 @@ sdbus::MethodReply Offline::impl_clean(sdbus::MethodCall & call, const dnfdaemon
     }
     // clean dnf5 offline transaction files
     for (const auto & entry : std::filesystem::directory_iterator(get_datadir())) {
+        std::error_code ec;
+        std::filesystem::remove_all(entry.path(), ec);
+        if (ec) {
+            success = false;
+            error_msgs.push_back(ec.message());
+        }
+    }
+    // clean dnf5 offline packages destdir
+    for (const auto & entry : std::filesystem::directory_iterator(get_destdir())) {
         std::error_code ec;
         std::filesystem::remove_all(entry.path(), ec);
         if (ec) {

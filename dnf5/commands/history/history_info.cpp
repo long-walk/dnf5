@@ -1,26 +1,27 @@
-/*
-Copyright Contributors to the libdnf project.
-
-This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
-
-Libdnf is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-Libdnf is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
-*/
+// Copyright Contributors to the DNF5 project.
+// Copyright Contributors to the libdnf project.
+// SPDX-License-Identifier: GPL-2.0-or-later
+//
+// This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
+//
+// Libdnf is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 2 of the License, or
+// (at your option) any later version.
+//
+// Libdnf is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "history_info.hpp"
 
 #include "transaction_id.hpp"
 
+#include <dnf5/shared_options.hpp>
 #include <libdnf5-cli/output/transactioninfo.hpp>
 
 #include <iostream>
@@ -37,6 +38,8 @@ void HistoryInfoCommand::set_argument_parser() {
     transaction_specs->get_arg()->set_complete_hook_func(create_history_id_autocomplete(ctx));
     reverse = std::make_unique<ReverseOption>(*this);
     contains_pkgs = std::make_unique<HistoryContainsPkgsOption>(*this);
+
+    create_json_option(*this);
 }
 
 void HistoryInfoCommand::run() {
@@ -60,6 +63,11 @@ void HistoryInfoCommand::run() {
         std::sort(transactions.begin(), transactions.end());
     }
 
+    auto & ctx = get_context();
+    if (ctx.get_json_output_requested()) {
+        libdnf5::cli::output::print_transaction_info_json(transactions);
+        return;
+    }
     if (!transactions.empty()) {
         for (auto ts : transactions) {
             libdnf5::cli::output::print_transaction_info(ts);

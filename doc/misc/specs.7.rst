@@ -1,5 +1,7 @@
 ..
+    Copyright Contributors to the DNF5 project.
     Copyright Contributors to the libdnf project.
+    SPDX-License-Identifier: GPL-2.0-or-later
 
     This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
 
@@ -168,6 +170,10 @@ current ``LC_MESSAGES`` locale (if possible).
 
 Comps ``specs`` are prefixed by ``@`` for commands that also accept package ``specs``.
 For example see :manpage:`dnf5-install(8)`, :ref:`Install Command <install_command_ref-label>`.
+
+The group and environment commands accept both ``<group-spec>`` and ``<environment-spec>``, but
+prefer only their corresponding type in case both groups and environments match the given argument.
+Other commands that accept both types affect both groups and environments.
 
 Modules
 =======

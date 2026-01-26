@@ -1,21 +1,21 @@
-/*
-Copyright Contributors to the libdnf project.
-
-This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
-
-Libdnf is free software: you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation, either version 2.1 of the License, or
-(at your option) any later version.
-
-Libdnf is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
-
-You should have received a copy of the GNU Lesser General Public License
-along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
-*/
+// Copyright Contributors to the DNF5 project.
+// Copyright Contributors to the libdnf project.
+// SPDX-License-Identifier: LGPL-2.1-or-later
+//
+// This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
+//
+// Libdnf is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 2.1 of the License, or
+// (at your option) any later version.
+//
+// Libdnf is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 
 #ifndef LIBDNF5_BASE_BASE_HPP
 #define LIBDNF5_BASE_BASE_HPP
@@ -30,6 +30,7 @@ along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 #include "libdnf5/defs.h"
 #include "libdnf5/logger/log_router.hpp"
 #include "libdnf5/module/module_sack_weak.hpp"
+#include "libdnf5/plugin/iplugin.hpp"
 #include "libdnf5/plugin/plugin_info.hpp"
 #include "libdnf5/repo/download_callbacks.hpp"
 #include "libdnf5/repo/repo_sack.hpp"
@@ -133,6 +134,20 @@ public:
     VarsWeakPtr get_vars();
 
     libdnf5::BaseWeakPtr get_weak_ptr();
+
+    /// @brief Load libdnf5 plugin config, extract name of the plugin and check if it is enabled
+    /// @param config_file_path Path to a plugin config
+    /// @return a tuple with plugin name, parsed config and a bool whether the plugin is enabled
+    std::tuple<std::string, libdnf5::ConfigParser, bool> load_plugin_config(const std::string & config_file_path);
+
+    /// @brief Add libdnf5 plugin instance that introduces additional logic into the library using hooks.
+    /// @param plugin_name Name of the new plugin
+    /// @param plugin_config Parsed config of the new plugin
+    /// @param iplugin_instance New libdnf5 plugin instance
+    void add_plugin(
+        const std::string & plugin_name,
+        libdnf5::ConfigParser && plugin_config,
+        libdnf5::plugin::IPlugin & iplugin_instance);
 
 private:
     friend class libdnf5::InternalBaseUser;

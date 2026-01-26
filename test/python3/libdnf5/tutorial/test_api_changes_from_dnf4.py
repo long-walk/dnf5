@@ -1,4 +1,6 @@
+# Copyright Contributors to the DNF5 project.
 # Copyright Contributors to the libdnf project.
+# SPDX-License-Identifier: GPL-2.0-or-later
 #
 # This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
 #
@@ -99,6 +101,48 @@ class TestAPIChangesFromDNF4(base_test_case.BaseTestCase):
             file += f.read()
 
         with open("tutorial/api_changes_from_dnf4/transaction.py", "r") as f:
+            file += f.read()
+
+        tmp_path = os.getcwd()
+        exec(file, {'installroot': self.installroot,
+                    'cachedir': self.cachedir, 'baseurl': self.baseurl})
+        os.chdir(tmp_path)
+
+    def test_download_callbacks(self):
+        file = ""
+        with open("tutorial/api_changes_from_dnf4/create_base.py", "r") as f:
+            file += f.read()
+
+        with open("tutorial/api_changes_from_dnf4/load_repos.py", "r") as f:
+            file += f.read()
+
+        with open("tutorial/api_changes_from_dnf4/transaction.py", "r") as f:
+            # Only the beginning of the transaction.py, so that we don't download packages
+            # and run transaction unnecessariy twice.
+            for _ in range(22):
+                file += f.readline()
+
+        with open("tutorial/api_changes_from_dnf4/download_callbacks.py", "r") as f:
+            file += f.read()
+
+        tmp_path = os.getcwd()
+        exec(file, {'installroot': self.installroot,
+                    'cachedir': self.cachedir, 'baseurl': self.baseurl})
+        os.chdir(tmp_path)
+
+    def test_transaction_callbacks(self):
+        file = ""
+        with open("tutorial/api_changes_from_dnf4/create_base.py", "r") as f:
+            file += f.read()
+
+        with open("tutorial/api_changes_from_dnf4/load_repos.py", "r") as f:
+            file += f.read()
+
+        with open("tutorial/api_changes_from_dnf4/transaction.py", "r") as f:
+            for _ in range(25):
+                file += f.readline()
+
+        with open("tutorial/api_changes_from_dnf4/transaction_callbacks.py", "r") as f:
             file += f.read()
 
         tmp_path = os.getcwd()

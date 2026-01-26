@@ -1,21 +1,21 @@
-/*
-Copyright Contributors to the libdnf project.
-
-This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
-
-Libdnf is free software: you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation, either version 2.1 of the License, or
-(at your option) any later version.
-
-Libdnf is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
-
-You should have received a copy of the GNU Lesser General Public License
-along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
-*/
+// Copyright Contributors to the DNF5 project.
+// Copyright Contributors to the libdnf project.
+// SPDX-License-Identifier: LGPL-2.1-or-later
+//
+// This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
+//
+// Libdnf is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 2.1 of the License, or
+// (at your option) any later version.
+//
+// Libdnf is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "libdnf5-cli/output/advisorylist.hpp"
 
@@ -123,8 +123,7 @@ static json_object * adv_pkg_as_json(auto & adv_pkg) {
     json_object_object_add(json_advisory, "severity", json_object_new_string(advisory->get_severity().c_str()));
     json_object_object_add(json_advisory, "nevra", json_object_new_string(adv_pkg->get_nevra().c_str()));
     unsigned long long buildtime = advisory->get_buildtime();
-    json_object_object_add(
-        json_advisory, "buildtime", json_object_new_string(libdnf5::utils::string::format_epoch(buildtime).c_str()));
+    json_object_object_add(json_advisory, "buildtime", json_object_new_int64(static_cast<int64_t>(buildtime)));
     return json_advisory;
 }
 
@@ -134,10 +133,7 @@ static json_object * adv_refs_as_json(auto & reference_type, auto & adv_pkg, aut
     json_object_object_add(json_advisory, "advisory_type", json_object_new_string(advisory.get_type().c_str()));
     json_object_object_add(json_advisory, "advisory_severity", json_object_new_string(advisory.get_type().c_str()));
     unsigned long long buildtime = advisory.get_buildtime();
-    json_object_object_add(
-        json_advisory,
-        "advisory_buildtime",
-        json_object_new_string(libdnf5::utils::string::format_epoch(buildtime).c_str()));
+    json_object_object_add(json_advisory, "advisory_buildtime", json_object_new_int64(static_cast<int64_t>(buildtime)));
     json_object_object_add(json_advisory, "nevra", json_object_new_string(adv_pkg.get_nevra().c_str()));
 
     json_object * json_adv_references = json_object_new_array();
@@ -153,6 +149,7 @@ static json_object * adv_refs_as_json(auto & reference_type, auto & adv_pkg, aut
 }
 
 
+// [NOTE] When editing JSON output format, do not forget to update the docs at doc/commands/advisory.8.rst
 void print_advisorylist_json(
     std::vector<std::unique_ptr<IAdvisoryPackage>> & advisory_package_list_not_installed,
     std::vector<std::unique_ptr<IAdvisoryPackage>> & advisory_package_list_installed) {
@@ -207,6 +204,7 @@ void print_advisorylist_references_table(
     scols_unref_table(table);
 }
 
+// [NOTE] When editing JSON output format, do not forget to update the docs at doc/commands/advisory.8.rst
 void print_advisorylist_references_json(
     std::vector<libdnf5::advisory::AdvisoryPackage> & advisory_package_list_not_installed,
     std::vector<libdnf5::advisory::AdvisoryPackage> & advisory_package_list_installed,

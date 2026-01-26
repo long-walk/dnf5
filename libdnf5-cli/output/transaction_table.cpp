@@ -1,21 +1,21 @@
-/*
-Copyright Contributors to the libdnf project.
-
-This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
-
-Libdnf is free software: you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation, either version 2.1 of the License, or
-(at your option) any later version.
-
-Libdnf is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
-
-You should have received a copy of the GNU Lesser General Public License
-along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
-*/
+// Copyright Contributors to the DNF5 project.
+// Copyright Contributors to the libdnf project.
+// SPDX-License-Identifier: LGPL-2.1-or-later
+//
+// This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
+//
+// Libdnf is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 2.1 of the License, or
+// (at your option) any later version.
+//
+// Libdnf is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "libdnf5-cli/output/transaction_table.hpp"
 
@@ -345,7 +345,13 @@ TransactionTable::Impl::Impl(ITransaction & transaction) {
         // column. Thus adding a indentation manualy.
         scols_line_set_data(ln, COL_NAME, (" " + pkg->get_name()).c_str());
         scols_line_set_data(ln, COL_ARCH, pkg->get_arch().c_str());
-        scols_line_set_data(ln, COL_EVR, pkg->get_evr().c_str());
+        // Always show epoch in EVR (epoch:version-release)
+        std::string evr_with_epoch = pkg->get_epoch();
+        if (evr_with_epoch.empty()) {
+            evr_with_epoch = "0";
+        }
+        evr_with_epoch += ":" + pkg->get_version() + "-" + pkg->get_release();
+        scols_line_set_data(ln, COL_EVR, evr_with_epoch.c_str());
         if (tspkg->get_action() == libdnf5::transaction::TransactionItemAction::REMOVE) {
             scols_line_set_data(ln, COL_REPO, pkg->get_from_repo_id().c_str());
         } else {
@@ -594,6 +600,7 @@ void TransactionTable::Impl::print_table() {
         return;
     }
     auto fd = scols_table_get_stream(*tb);
+
     for (const auto & section : sections) {
         const auto header = section.get_header();
         if (!header.empty()) {

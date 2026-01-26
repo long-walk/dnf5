@@ -1,21 +1,21 @@
-/*
-Copyright Contributors to the libdnf project.
-
-This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
-
-Libdnf is free software: you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation, either version 2.1 of the License, or
-(at your option) any later version.
-
-Libdnf is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
-
-You should have received a copy of the GNU Lesser General Public License
-along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
-*/
+// Copyright Contributors to the DNF5 project.
+// Copyright Contributors to the libdnf project.
+// SPDX-License-Identifier: LGPL-2.1-or-later
+//
+// This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
+//
+// Libdnf is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 2.1 of the License, or
+// (at your option) any later version.
+//
+// Libdnf is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "libdnf5/repo/repo_errors.hpp"
 constexpr const char * REPOID_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.:";
@@ -321,7 +321,7 @@ bool Repo::is_expired() const {
         return true;
     if (p_impl->config.get_metadata_expire_option().get_value() == -1)
         return false;
-    return get_age() > p_impl->config.get_metadata_expire_option().get_value();
+    return get_age() >= p_impl->config.get_metadata_expire_option().get_value();
 }
 
 int Repo::get_expires_in() const {
@@ -644,7 +644,7 @@ void Repo::recompute_expired() {
             mtime(p_impl->downloader->get_metadata_path(RepoDownloader::MD_FILENAME_PRIMARY).c_str())) {
         p_impl->expired = true;
     } else {
-        p_impl->expired = get_age() > p_impl->config.get_metadata_expire_option().get_value();
+        p_impl->expired = get_age() >= p_impl->config.get_metadata_expire_option().get_value();
     }
 }
 

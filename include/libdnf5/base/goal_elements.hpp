@@ -1,21 +1,21 @@
-/*
-Copyright Contributors to the libdnf project.
-
-This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
-
-Libdnf is free software: you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation, either version 2.1 of the License, or
-(at your option) any later version.
-
-Libdnf is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
-
-You should have received a copy of the GNU Lesser General Public License
-along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
-*/
+// Copyright Contributors to the DNF5 project.
+// Copyright Contributors to the libdnf project.
+// SPDX-License-Identifier: LGPL-2.1-or-later
+//
+// This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
+//
+// Libdnf is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 2.1 of the License, or
+// (at your option) any later version.
+//
+// Libdnf is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 
 #ifndef LIBDNF5_BASE_GOAL_ELEMENTS_HPP
 #define LIBDNF5_BASE_GOAL_ELEMENTS_HPP
@@ -173,6 +173,9 @@ enum class GoalSetting { AUTO, SET_TRUE, SET_FALSE };
 /// Unresolved or resolved values based on GoalSetting
 enum class GoalUsedSetting { UNUSED, USED_TRUE, USED_FALSE };
 
+/// Settings for which comps types should be preffered in case both match.
+enum class CompsTypePreferred { BOTH, GROUP, ENVIRONMENT };
+
 /// Configure SPEC resolving.
 /// Important for queries that resolve SPEC.
 struct LIBDNF_API ResolveSpecSettings {
@@ -306,6 +309,13 @@ public:
     /// Default: false
     void set_environment_no_groups(bool environment_no_groups);
     bool get_environment_no_groups() const;
+
+    /// Set which comps type (GROUP or ENVIRONMENT) is preffered in case both match.
+    /// If only one type matches, it is selected regardless.
+    ///
+    /// By default, both groups and environments will be selected if both match.
+    void set_comps_type_preferred(CompsTypePreferred comps_type_preferred);
+    CompsTypePreferred get_comps_type_preferred() const;
 
     /// Set whether to report packages providing alternatives (``alternative-for(..)`` provide) and packages
     /// with different letter capitalization when no matches are found.

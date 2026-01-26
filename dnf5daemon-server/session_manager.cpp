@@ -1,21 +1,21 @@
-/*
-Copyright Contributors to the libdnf project.
-
-This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
-
-Libdnf is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-Libdnf is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
-*/
+// Copyright Contributors to the DNF5 project.
+// Copyright Contributors to the libdnf project.
+// SPDX-License-Identifier: GPL-2.0-or-later
+//
+// This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
+//
+// Libdnf is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 2 of the License, or
+// (at your option) any later version.
+//
+// Libdnf is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "session_manager.hpp"
 
@@ -57,7 +57,8 @@ void SessionManager::dbus_register() {
                 sdbus::Signature{"o"},
                 {"session_object_path"},
                 [this](sdbus::MethodCall call) -> void {
-                    threads_manager.handle_method(*this, &SessionManager::open_session, call);
+                    // open_session method manages sessions and does not call any libdnf5 API. Do not use the mutex.
+                    threads_manager.handle_method<SessionManager, false>(*this, &SessionManager::open_session, call);
                 },
                 {}},
             sdbus::MethodVTableItem{
@@ -67,7 +68,8 @@ void SessionManager::dbus_register() {
                 sdbus::Signature{"b"},
                 {"success"},
                 [this](sdbus::MethodCall call) -> void {
-                    threads_manager.handle_method(*this, &SessionManager::close_session, call);
+                    // close_session method manages sessions and does not call any libdnf5 API. Do not use the mutex.
+                    threads_manager.handle_method<SessionManager, false>(*this, &SessionManager::close_session, call);
                 },
                 {}})
         .forInterface(dnfdaemon::INTERFACE_SESSION_MANAGER);
@@ -80,7 +82,8 @@ void SessionManager::dbus_register() {
         "o",
         {"session_object_path"},
         [this](sdbus::MethodCall call) -> void {
-            threads_manager.handle_method(*this, &SessionManager::open_session, call);
+            // open_session method manages sessions and does not call any libdnf5 API. Do not use the mutex.
+            threads_manager.handle_method<SessionManager, false>(*this, &SessionManager::open_session, call);
         });
     dbus_object->registerMethod(
         dnfdaemon::INTERFACE_SESSION_MANAGER,
@@ -90,7 +93,8 @@ void SessionManager::dbus_register() {
         "b",
         {"success"},
         [this](sdbus::MethodCall call) -> void {
-            threads_manager.handle_method(*this, &SessionManager::close_session, call);
+            // close_session method manages sessions and does not call any libdnf5 API. Do not use the mutex.
+            threads_manager.handle_method<SessionManager, false>(*this, &SessionManager::close_session, call);
         });
     dbus_object->finishRegistration();
 

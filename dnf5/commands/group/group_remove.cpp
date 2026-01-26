@@ -1,21 +1,21 @@
-/*
-Copyright Contributors to the libdnf project.
-
-This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
-
-Libdnf is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-Libdnf is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
-*/
+// Copyright Contributors to the DNF5 project.
+// Copyright Contributors to the libdnf project.
+// SPDX-License-Identifier: GPL-2.0-or-later
+//
+// This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
+//
+// Libdnf is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 2 of the License, or
+// (at your option) any later version.
+//
+// Libdnf is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "group_remove.hpp"
 
@@ -30,10 +30,10 @@ using namespace libdnf5::cli;
 
 void GroupRemoveCommand::set_argument_parser() {
     auto & cmd = *get_argument_parser_command();
-    cmd.set_description("Remove comp groups, including their packages");
+    cmd.set_description("Remove comp environments or groups, including their packages");
 
     no_packages = std::make_unique<GroupNoPackagesOption>(*this);
-    group_specs = std::make_unique<GroupSpecArguments>(*this, ArgumentParser::PositionalArg::AT_LEAST_ONE);
+    group_specs = std::make_unique<CompsSpecArguments>(*this, ArgumentParser::PositionalArg::AT_LEAST_ONE);
     create_offline_option(*this);
     create_store_option(*this);
 }
@@ -54,6 +54,7 @@ void GroupRemoveCommand::run() {
     if (no_packages->get_value()) {
         settings.set_group_no_packages(true);
     }
+    settings.set_comps_type_preferred(get_comps_type_preferred());
     for (const auto & spec : group_specs->get_value()) {
         goal->add_group_remove(spec, libdnf5::transaction::TransactionItemReason::USER, settings);
     }

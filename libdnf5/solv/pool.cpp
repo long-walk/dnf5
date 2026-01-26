@@ -1,25 +1,27 @@
-/*
-Copyright Contributors to the libdnf project.
-
-This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
-
-Libdnf is free software: you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation, either version 2.1 of the License, or
-(at your option) any later version.
-
-Libdnf is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
-
-You should have received a copy of the GNU Lesser General Public License
-along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
-*/
+// Copyright Contributors to the DNF5 project.
+// Copyright Contributors to the libdnf project.
+// SPDX-License-Identifier: LGPL-2.1-or-later
+//
+// This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
+//
+// Libdnf is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 2.1 of the License, or
+// (at your option) any later version.
+//
+// Libdnf is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "pool.hpp"
 
 #include "libdnf5/utils/bgettext/bgettext-mark-domain.h"
+
+#include <fnmatch.h>
 
 extern "C" {
 #include <solv/pool.h>
@@ -29,6 +31,36 @@ extern "C" {
 
 
 namespace libdnf5::solv {
+
+// Check if an illegal vendor change occurs when an installed solvable is replaced by a new solvable.
+// Returns 1 if the vendor change is illegal, otherwise returns 0.
+int RpmPool::callback_policy_illegal_vendorchange(::Pool * libsolv_pool, Solvable * installed, Solvable * new_solv) {
+    // Treat a missing vendor as an empty string (ID_EMPTY)
+    auto outgoing_vendor = installed->vendor ? installed->vendor : ID_EMPTY;
+    auto incoming_vendor = new_solv->vendor ? new_solv->vendor : ID_EMPTY;
+    if (incoming_vendor == outgoing_vendor) {
+        return 0;  // OK, no vendor change occured
+    }
+
+    auto * pool = reinterpret_cast<RpmPool *>(libsolv_pool->appdata);
+
+    const auto & outgoing_vendor_mask =
+        pool->vendor_change_manager.get_vendor_change_masks(outgoing_vendor).outgoing_mask;
+    if (outgoing_vendor_mask.empty()) {
+        // The outgoing vendor is not involved in any valid policy change.
+        // Therefore, any change is illegal.
+        return 1;
+    }
+
+    const auto & incomin_vendor_mask =
+        pool->vendor_change_manager.get_vendor_change_masks(incoming_vendor).incoming_mask;
+    if (!outgoing_vendor_mask.is_intersection_empty(incomin_vendor_mask)) {
+        return 0;  // OK, a policy match was found
+    }
+
+    return 1;  // Illegal vendor change.
+}
+
 
 TempEvr::TempEvr(const Pool & pool, const char * evr) {
     split_evr = pool_alloctmpspace(*pool, static_cast<int>(strlen(evr)) + 1);

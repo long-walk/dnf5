@@ -1,21 +1,21 @@
-/*
-Copyright Contributors to the libdnf project.
-
-This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
-
-Libdnf is free software: you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation, either version 2.1 of the License, or
-(at your option) any later version.
-
-Libdnf is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
-
-You should have received a copy of the GNU Lesser General Public License
-along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
-*/
+// Copyright Contributors to the DNF5 project.
+// Copyright Contributors to the libdnf project.
+// SPDX-License-Identifier: LGPL-2.1-or-later
+//
+// This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
+//
+// Libdnf is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 2.1 of the License, or
+// (at your option) any later version.
+//
+// Libdnf is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 
 #ifndef LIBDNF5_CONF_CONFIG_MAIN_HPP
 #define LIBDNF5_CONF_CONFIG_MAIN_HPP
@@ -268,7 +268,11 @@ public:
     const OptionBool & get_pkg_gpgcheck_option() const;
     OptionBool & get_repo_gpgcheck_option();
     const OptionBool & get_repo_gpgcheck_option() const;
+    /// @deprecated Use ConfigRepo::get_enabled_option()
+    [[deprecated("Use ConfigRepo::get_enabled_option()")]]
     OptionBool & get_enabled_option();
+    /// @deprecated Use ConfigRepo::get_enabled_option() const
+    [[deprecated("Use ConfigRepo::get_enabled_option() const")]]
     const OptionBool & get_enabled_option() const;
     OptionBool & get_enablegroups_option();
     const OptionBool & get_enablegroups_option() const;
@@ -284,6 +288,8 @@ public:
     const OptionSeconds & get_timeout_option() const;
     OptionNumber<std::uint32_t> & get_max_parallel_downloads_option();
     const OptionNumber<std::uint32_t> & get_max_parallel_downloads_option() const;
+    OptionNumber<std::uint32_t> & get_max_downloads_per_mirror_option();
+    const OptionNumber<std::uint32_t> & get_max_downloads_per_mirror_option() const;
     OptionSeconds & get_metadata_expire_option();
     const OptionSeconds & get_metadata_expire_option() const;
     OptionString & get_sslcacert_option();
@@ -320,6 +326,12 @@ public:
         const libdnf5::Vars & vars,
         libdnf5::Logger & logger,
         Option::Priority priority = Option::Priority::MAINCONFIG) override;
+
+
+    /// For each option, set the option value to the value from `other`. An option
+    /// will only be set if its priority in `other` is greater or equal to the
+    /// current priority and the option in `other` is not empty.
+    void load_from_config(const libdnf5::ConfigMain & other);
 
 private:
     class LIBDNF_LOCAL Impl;

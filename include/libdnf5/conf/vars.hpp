@@ -1,21 +1,21 @@
-/*
-Copyright Contributors to the libdnf project.
-
-This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
-
-Libdnf is free software: you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation, either version 2.1 of the License, or
-(at your option) any later version.
-
-Libdnf is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
-
-You should have received a copy of the GNU Lesser General Public License
-along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
-*/
+// Copyright Contributors to the DNF5 project.
+// Copyright Contributors to the libdnf project.
+// SPDX-License-Identifier: LGPL-2.1-or-later
+//
+// This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
+//
+// Libdnf is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 2.1 of the License, or
+// (at your option) any later version.
+//
+// Libdnf is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 
 #ifndef LIBDNF5_CONF_VARS_HPP
 #define LIBDNF5_CONF_VARS_HPP
@@ -106,7 +106,24 @@ public:
     /// @param name Name of the variable
     const Variable & get(const std::string & name) const;
 
+    /// @brief Detects the releasever of the system
+    ///
+    /// Returns the release name of the distribution of the tree rooted at `installroot`.
+    /// This function uses information from RPMDB found under the tree.
+    /// It's preferred to use ``detect_releasevers`` over ``detect_release``; if you use the latter, you will not be aware of distribution overrides for the major and minor release versions.
+    ///
+    /// @return the detected releasever, or nullptr if the releasever could not be determined (perhaps because the tree has no RPMDB).
     static std::unique_ptr<std::string> detect_release(const BaseWeakPtr & base, const std::string & install_root_path);
+
+    /// @brief Detect the releasever, overridden major release, and overridden minor release for the system
+    ///
+    /// Returns a tuple of the release name, overridden major release, and overridden minor release of the distribution of the tree rooted at `installroot`.
+    /// This function uses information from RPMDB found under the tree.
+    /// The major and minor release versions are usually derived from the release version by splitting it on the first ``.``, but distributions can override the derived major and minor versions.
+    ///
+    /// @return a tuple of the releasever, overridden releasever_major, and overridden releasever_minor. Each member of the tuple can be nullptr if not provided by the system.
+    static std::tuple<std::unique_ptr<std::string>, std::unique_ptr<std::string>, std::unique_ptr<std::string>>
+    detect_releasevers(const BaseWeakPtr & base, const std::string & install_root_path);
 
 private:
     friend class Base;

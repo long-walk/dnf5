@@ -1,21 +1,21 @@
-/*
-Copyright Contributors to the libdnf project.
-
-This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
-
-Libdnf is free software: you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation, either version 2.1 of the License, or
-(at your option) any later version.
-
-Libdnf is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
-
-You should have received a copy of the GNU Lesser General Public License
-along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
-*/
+// Copyright Contributors to the DNF5 project.
+// Copyright Contributors to the libdnf project.
+// SPDX-License-Identifier: LGPL-2.1-or-later
+//
+// This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
+//
+// Libdnf is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 2.1 of the License, or
+// (at your option) any later version.
+//
+// Libdnf is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "solv_repo.hpp"
 
@@ -298,7 +298,7 @@ void SolvRepo::load_system_repo_ext(RepodataType type) {
             auto & system_state = base->p_impl->get_system_state();
             auto comps_dir = system_state.get_group_xml_dir();
             for (auto & group_id : system_state.get_installed_groups()) {
-                auto ext_fn = comps_dir / (group_id + ".xml");
+                auto ext_fn = comps_dir / "groups" / (group_id + ".xml");
                 if (!read_group_solvable_from_xml(ext_fn)) {
                     // The group xml file either not exists or is not parseable by
                     // libsolv.
@@ -306,7 +306,7 @@ void SolvRepo::load_system_repo_ext(RepodataType type) {
                 }
             }
             for (auto & environment_id : system_state.get_installed_environments()) {
-                auto ext_fn = comps_dir / (environment_id + ".xml");
+                auto ext_fn = comps_dir / "environments" / (environment_id + ".xml");
                 if (!read_group_solvable_from_xml(ext_fn)) {
                     // The environment xml file either not exists or is not parseable by
                     // libsolv.

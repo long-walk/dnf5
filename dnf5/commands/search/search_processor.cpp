@@ -1,21 +1,21 @@
-/*
-Copyright Contributors to the libdnf project.
-
-This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
-
-Libdnf is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-Libdnf is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
-*/
+// Copyright Contributors to the DNF5 project.
+// Copyright Contributors to the libdnf project.
+// SPDX-License-Identifier: GPL-2.0-or-later
+//
+// This file is part of libdnf: https://github.com/rpm-software-management/libdnf/
+//
+// Libdnf is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 2 of the License, or
+// (at your option) any later version.
+//
+// Libdnf is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 
 
 #include "search_processor.hpp"
@@ -76,12 +76,19 @@ static auto get_cmp_from_pattern(const std::string & pattern) {
 }
 
 SearchProcessor::SearchProcessor(
-    libdnf5::Base & base, std::vector<std::string> patterns, bool search_all, bool show_duplicates)
+    libdnf5::Base & base,
+    std::vector<std::string> patterns,
+    bool search_all,
+    bool show_duplicates,
+    bool search_name,
+    bool search_summary)
     : base(base),
       patterns(patterns),
       search_all(search_all),
       full_package_query(base, libdnf5::sack::ExcludeFlags::IGNORE_VERSIONLOCK),
-      showdupes(show_duplicates) {
+      showdupes(show_duplicates),
+      search_name(search_name),
+      search_summary(search_summary) {
     if (!showdupes) {
         full_package_query.filter_latest_evr();
     }
@@ -133,12 +140,19 @@ SearchResults SearchProcessor::get_results() {
 
     for (auto it = patterns.begin(); it != patterns.end(); ++it) {
         libdnf5::rpm::PackageSet pattern_matches(base);
-        pattern_matches |= get_name_matches(*it);
-        pattern_matches |= get_summary_matches(*it);
 
-        if (search_all) {
-            pattern_matches |= get_description_matches(*it);
-            pattern_matches |= get_url_matches(*it);
+        if (search_name) {
+            pattern_matches |= get_name_matches(*it);
+        } else if (search_summary) {
+            pattern_matches |= get_summary_matches(*it);
+        } else {
+            pattern_matches |= get_name_matches(*it);
+            pattern_matches |= get_summary_matches(*it);
+
+            if (search_all) {
+                pattern_matches |= get_description_matches(*it);
+                pattern_matches |= get_url_matches(*it);
+            }
         }
 
         // For the first pattern we are always adding to the empty list.
@@ -166,7 +180,11 @@ SearchResults SearchProcessor::get_results() {
         results.group_results.push_back(
             {.matched_keys = get_matched_keys(priority), .matched_packages = std::move(packages)});
     }
-    results.options = {.search_all = search_all, .show_duplicates = showdupes};
+    results.options = {
+        .search_all = search_all,
+        .show_duplicates = showdupes,
+        .search_name = search_name,
+        .search_summary = search_summary};
     results.patterns = patterns;
 
     return results;

@@ -75,6 +75,10 @@ To setup a development environment, complete the following steps:
    dnf builddep dnf5.spec #[--define '_without_<option> 1 ...]
    ```
 
+   > **NOTE**: Requires Fedora of version at least 43, as the `libpkgmanifest`
+   > is not packaged in the lower versions, or build without the manifest
+   > plugin.
+
 2. Build DNF5:
 
    ```
@@ -115,6 +119,22 @@ To setup a development environment, complete the following steps:
      export PREFIX=$(rpmspec dnf5.spec -q --srpm --qf '%{name}-%{version}'); git archive --format=tar.gz --prefix=$PREFIX/ HEAD > $PREFIX.tar.gz
      rpmbuild -ba --define "_sourcedir $(pwd)" dnf5.spec #[--with=<option>|--without=<option> ...]
      ```
+
+## License Header
+
+New C++ and C source files should start with the following header:
+```
+// Copyright Contributors to the DNF5 project
+// SPDX-License-Identifier: THE-LICENSE-IDENTIFIER
+```
+
+The same rule applies to other source files, with the header adjusted according to the rules of the specific language. For example, Perl, Python, and Ruby source files should start with the header:
+```
+# Copyright Contributors to the DNF5 project
+# SPDX-License-Identifier: THE-LICENSE-IDENTIFIER
+```
+
+Replace `THE-LICENSE-IDENTIFIER` with either `GPL-2.0-or-later` or `LGPL-2.1-or-later`, according to COPYING.md.
 
 ## Pull request checklist
 
