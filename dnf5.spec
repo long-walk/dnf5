@@ -1091,6 +1091,172 @@ mkdir -p %{buildroot}%{_libdir}/libdnf5/plugins
 %ldconfig_scriptlets
 
 %changelog
+* Sun Mar 01 2026 Thomas <temp.mail@hispeed.ch> 5.4.0.0-1
+- Release 5.4.0.0 (evan-goode@users.noreply.github.com)
+- Update translations from weblate (github-actions@github.com)
+- NeedsRestartingTest.cpp: use bool values directly (amatej@redhat.com)
+- Make userconfirm() prompt strings translatable (userfrom1995@gmail.com)
+- docs(check-upgrade,list): correct the JSON docs (mfocko@redhat.com)
+- docs(check-upgrade): remove superfluous backtick (mfocko@redhat.com)
+- docs(check-upgrade,list): fix references to colors (mfocko@redhat.com)
+- feat(cli): JSON output for `list` (mfocko@redhat.com)
+- Use NullLogger instead (furyinbox@gmail.com)
+- Use StdCStreamLogger when DNF5_LOGGER_FILENAME isn't readable
+  (furyinbox@gmail.com)
+- transaction: sort history db packages when SOURCE_DATE_EPOCH is set
+  (jonathan@jlebon.com)
+- Require rpm>=4.19.0 for sysusers, {pre,post}untrans RPM tags
+  (shasta@toxcorp.com)
+- do-release workflow: use correct base branch (mail@evangoo.de)
+- doc: Remove Error Conditions sections from vendor policy docs
+  (jrohel@redhat.com)
+- doc: Split vendor change policy doc into version-specific files
+  (jrohel@redhat.com)
+- VendorChangeManager: Support evr, epoch, version, release in pkg filters
+  (jrohel@redhat.com)
+- VendorChangeManager: Support outgoing_packages and incomming_packages
+  (jrohel@redhat.com)
+- VendorChangeManager: Validate vendor regex patterns during config load
+  (jrohel@redhat.com)
+- VendorChangeManager: allow independent vendor arrays (jrohel@redhat.com)
+- Add "solv::SolvMap::add_grow" method (jrohel@redhat.com)
+- VendorChangeManager: Allow equivalent_vendors with other vendor keys
+  (jrohel@redhat.com)
+- VendorChangeManager: Accept version "1.1" in config files (jrohel@redhat.com)
+- doc: VendorChangeManager: .conf extension, config files ordering
+  (jrohel@redhat.com)
+- Documenting dnf updateinfo subcommands (me@fhbash.com)
+- Add --debugsource option to download command Add a new `--debugsource` flag
+  to the download command that enables downloading debugsource packages instead
+  of regular packages. (me@fhbash.com)
+- Clarify advisory filtering documentation in dnf5daemon
+  (userfrom1995@gmail.com)
+- autoremove: switch unneeded protected warning to stderr (amatej@redhat.com)
+- Allow marking packages as groups for different groups (pkratoch@redhat.com)
+- Remove package from groups when marking it as dependency
+  (pkratoch@redhat.com)
+- Add translated_name and translated_description for comps groups in dnf5daemon
+  (me@fhbash.com)
+- doc: Document SOURCE_DATE_EPOCH support (jonathan@jlebon.com)
+- transaction: honor SOURCE_DATE_EPOCH for history timestamps
+  (jonathan@jlebon.com)
+- Sort repos_for_processing_set to have stable repo processing order
+  (amatej@redhat.com)
+- update (temp.mail@hispeed.ch)
+- Add --debuginfo option to download command (me@fhbash.com)
+- autoremove: report but ignore unneeded protected dependencies
+  (amatej@redhat.com)
+- PackageQuery: add new filter `filter_unneeded_not_protected`
+  (amatej@redhat.com)
+- autoremove: hint how to handle unused protected dependencies
+  (amatej@redhat.com)
+- Mark all protected packages as user installed for all transactions
+  (amatej@redhat.com)
+- fix(pkg_list): add description of used colors (mfocko@redhat.com)
+- Fix typo for color_update_local (grumpey0@gmail.com)
+- Replace all `std::format` with `fmt::format` (amatej@redhat.com)
+- Add a couple of missing includes to fix builds (amatej@redhat.com)
+- progressbar: remove unused `message_index` variable (amatej@redhat.com)
+- copr_plugin: silence error: variable ‘val’ set but not used
+  (amatej@redhat.com)
+- ruby bindings: ignore unused-but-set-variable warning (error)
+  (amatej@redhat.com)
+- doc: link to GitHub (anatoli@rainforce.org)
+- feat(check-upgrade): add `Upgrades` header (mfocko@redhat.com)
+- feat(cli-utils): implement normalize for JSON fields (mfocko@redhat.com)
+- fix: use fwd-reference in PackageSet::to_sorted_vector() (mfocko@redhat.com)
+- feat(cli): JSON output for `check-upgrade` (mfocko@redhat.com)
+- fix: factor out PackageSet to sorted std::vector logic (mfocko@redhat.com)
+- style: skip empty package sets instead of nesting (mfocko@redhat.com)
+- fix: be explicit about RAII-allocated object (mfocko@redhat.com)
+- Change package state when the reason changes to GROUP (pkratoch@redhat.com)
+- Don't add duplicit package names to group lists when changing reason
+  (pkratoch@redhat.com)
+- transaction: sort packages when SOURCE_DATE_EPOCH set (jonathan@jlebon.com)
+- spec: Add directory for distribution plugin configuration files
+  (jrohel@redhat.com)
+- ConfigMain: Add "plugin_conf_dir" and deprecate "pluginconfpath"
+  (jrohel@redhat.com)
+- plugin::get_config_dirs: Interpret LIBDNF_PLUGINS_CONFIG_DIR as a list of
+  dirs (jrohel@redhat.com)
+- python plugins loader: Use libdnf5 APIs for config files discovery
+  (jrohel@redhat.com)
+- actions plugin: Use libdnf5 APIs for action files discovery
+  (jrohel@redhat.com)
+- utils: Expose create_sorted_file_list via public API (jrohel@redhat.com)
+- libdnf5 plugins: Add public API for getting plugin config directories
+  (jrohel@redhat.com)
+- libdnf5 plugins: Support load_plugins from multiple config directories
+  (jrohel@redhat.com)
+- Base: Add `const` overload for get_config method (jrohel@redhat.com)
+- Move cmd_requires_privileges to Context::Impl (mail@evangoo.de)
+- Move Context::load_repos to Context::Impl (mail@evangoo.de)
+- Context: add load_available arg to load_repos (mail@evangoo.de)
+- doc: document skip_system_repo_lock and --skip-file-locks (mail@evangoo.de)
+- Add --skip-file-locks, skip_system_repo_lock option (mail@evangoo.de)
+- Move system-repo.lock to /usr/lib/sysimage/libdnf5/system-repo.lock
+  (mail@evangoo.de)
+- Locker: add p_impl, open_file, and get_path (mail@evangoo.de)
+- Locker: add keep_file option (mail@evangoo.de)
+- tutorial: Add base.lock_system_repo calls (mail@evangoo.de)
+- python bindings: add Locker and LockAccessType, LockBlockingType enums
+  (mail@evangoo.de)
+- context: lock system repo in load_repos (mail@evangoo.de)
+- proc: add fuser, pid_cmdline utilities (mail@evangoo.de)
+- Base: add lock_system_repo, unlock_system_repo (mail@evangoo.de)
+- Locker: replace {read,write}_lock{,_blocking} with single lock() method
+  (mail@evangoo.de)
+- comps: Do not install already installed groups and environments
+  (pkratoch@redhat.com)
+- comps: Report reason change when installing groups with different reason
+  (pkratoch@redhat.com)
+- comps: Add reason to the Group object adapters (pkratoch@redhat.com)
+- spec: Disable building libdnf5-plugin-local on RHEL >= 10 (ppisar@redhat.com)
+- spec: remove libpkgmanifest-devel dep from dnf5-plugin-manifest
+  (yselkowi@redhat.com)
+- Move libdnf5/conf/config.h creation after feature detection
+  (pmatilai@redhat.com)
+- Define FNM_EXTMATCH for musl (adam.duskett@amarulasolutions.com)
+- add missing headers for musl (adam.duskett@amarulasolutions.com)
+- fix string concatenation errors for musl (adam.duskett@amarulasolutions.com)
+- Bindings: add iterator to libdnf5::OptionBinds (amatej@redhat.com)
+- fix(cli): adjust the description of list and info (mfocko@redhat.com)
+- spec: Postrelease version bump (ppisar@redhat.com)
+- fix: do not prefilter when querying for SRPMs (mfocko@redhat.com)
+- CONTRIBUTING: add AI contributions policy (mail@evangoo.de)
+- Use newer version of packit/pre-commit-hooks (amatej@redhat.com)
+- Add `is_dep_satisfied` to `PackageQuery` and use it for repoclosure
+  (amatej@redhat.com)
+- Only remove inbound or nonexistent RPMs from temporary_files.toml
+  (mail@evangoo.de)
+- Locker: support blocking locks (mail@evangoo.de)
+- manifest: document --use-host-repos (mail@evangoo.de)
+- manifest: --use-host-repos (mail@evangoo.de)
+- Unit tests for escape char support in OptionStringContainer::from_string
+  (jrohel@redhat.com)
+- doc: Escape character support in "list" type values (jrohel@redhat.com)
+- Implement escape character support in OptionStringContainer::from_string
+  (jrohel@redhat.com)
+- Trivial spelling fixes in dnf5.conf.5 (goeran@uddeborg.se)
+- dnf5: Document "--from-vendor=" argument (jrohel@redhat.com)
+- dnf5: Argument "--from-vendor=" for commands (jrohel@redhat.com)
+- Goal: Implement support for allowed vendors list (GoalJobSettings)
+  (jrohel@redhat.com)
+- GoalJobSettings: Add set/get_to_vendors API methods (jrohel@redhat.com)
+- solv::VendorChangeManager: Support incoming solvs bypassing vendor check
+  (jrohel@redhat.com)
+- New API method rpm::PackageQuery::filter_vendor (jrohel@redhat.com)
+- Add method solv::Pool::get_vendor (jrohel@redhat.com)
+- rotating logger: Preserve file mode and ACL (ppisar@redhat.com)
+- Unit tests for OptionStringList::get_value_string and to_string
+  (jrohel@redhat.com)
+- Fix: OptionStringContainer::to_string delimiter and implement escaping
+  (jrohel@redhat.com)
+- When upgrading group, upgrade all packages that are part of it
+  (pkratoch@redhat.com)
+- python_plugins_loader: disable sign-compare check errors (amatej@redhat.com)
+- test_conf.cpp: make comparing `size_type` cross platform (amatej@redhat.com)
+
 * Mon Feb 16 2026 Packit Team <hello@packit.dev> - 5.4.0.0-1
 - New upstream release 5.4.0.0
 
