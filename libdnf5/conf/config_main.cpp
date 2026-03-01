@@ -97,7 +97,7 @@ static std::string get_user_agent() {
         return "libdnf";
     }
 
-    return std::format(
+    return fmt::format(
         "libdnf ({} {}; {}; {}.{})",
         os_release.get_value("NAME"),
         os_release.get_value("VERSION_ID"),
@@ -123,6 +123,7 @@ class ConfigMain::Impl {
     OptionBool plugins{true};
     OptionPath pluginpath{DEFAULT_LIBDNF5_PLUGINS_LIB_DIR};
     OptionPath pluginconfpath{PLUGINS_CONF_DIR};
+    OptionStringList plugin_conf_dir{PLUGINS_CONF_DIRS};
     OptionPath persistdir{PERSISTDIR};
     OptionPath system_state_dir{SYSTEM_STATE_DIR};
     OptionPath transaction_history_dir{SYSTEM_STATE_DIR};
@@ -233,6 +234,7 @@ class ConfigMain::Impl {
     OptionBool countme{false};
     OptionBool protect_running_kernel{true};
     OptionBool build_cache{true};
+    OptionBool skip_system_repo_lock{false};
 
     // Repo main config
 
@@ -313,6 +315,7 @@ ConfigMain::Impl::Impl(Config & owner) : owner(owner) {
     owner.opt_binds().add("plugins", plugins);
     owner.opt_binds().add("pluginpath", pluginpath);
     owner.opt_binds().add("pluginconfpath", pluginconfpath);
+    owner.opt_binds().add("plugin_conf_dir", plugin_conf_dir);
     owner.opt_binds().add("persistdir", persistdir);
 
     // Unless transaction_history_dir has been explicitly set, use the system_state_dir as its default
@@ -410,6 +413,7 @@ ConfigMain::Impl::Impl(Config & owner) : owner(owner) {
     owner.opt_binds().add("countme", countme);
     owner.opt_binds().add("protect_running_kernel", protect_running_kernel);
     owner.opt_binds().add("build_cache", build_cache);
+    owner.opt_binds().add("skip_system_repo_lock", skip_system_repo_lock);
 
     // Repo main config
 
@@ -532,6 +536,13 @@ OptionPath & ConfigMain::get_pluginconfpath_option() {
 }
 const OptionPath & ConfigMain::get_pluginconfpath_option() const {
     return p_impl->pluginconfpath;
+}
+
+OptionStringList & ConfigMain::get_plugin_conf_dir_option() {
+    return p_impl->plugin_conf_dir;
+}
+const OptionStringList & ConfigMain::get_plugin_conf_dir_option() const {
+    return p_impl->plugin_conf_dir;
 }
 
 OptionPath & ConfigMain::get_persistdir_option() {
@@ -1054,6 +1065,12 @@ OptionBool & ConfigMain::get_build_cache_option() {
 const OptionBool & ConfigMain::get_build_cache_option() const {
     return p_impl->build_cache;
 }
+OptionBool & ConfigMain::get_skip_system_repo_lock_option() {
+    return p_impl->skip_system_repo_lock;
+}
+const OptionBool & ConfigMain::get_skip_system_repo_lock_option() const {
+    return p_impl->skip_system_repo_lock;
+}
 
 // Repo main config
 OptionNumber<std::uint32_t> & ConfigMain::get_retries_option() {
@@ -1377,6 +1394,7 @@ void ConfigMain::Impl::load_from_config(const ConfigMain::Impl & other) {
     load_option(plugins, other.plugins);
     load_option(pluginpath, other.pluginpath);
     load_option(pluginconfpath, other.pluginconfpath);
+    load_option(plugin_conf_dir, other.plugin_conf_dir);
     load_option(persistdir, other.persistdir);
     load_option(system_state_dir, other.system_state_dir);
     load_option(transaction_history_dir, other.transaction_history_dir);
@@ -1450,6 +1468,9 @@ void ConfigMain::Impl::load_from_config(const ConfigMain::Impl & other) {
     load_option(countme, other.countme);
     load_option(protect_running_kernel, other.protect_running_kernel);
     load_option(build_cache, other.build_cache);
+    load_option(skip_system_repo_lock, other.skip_system_repo_lock);
+
+    // Repo main config
     load_option(retries, other.retries);
     load_option(cachedir, other.cachedir);
     load_option(fastestmirror, other.fastestmirror);

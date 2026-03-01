@@ -41,7 +41,7 @@ void ListCommand::set_argument_parser() {
     auto & parser = ctx.get_argument_parser();
 
     auto & cmd = *get_argument_parser_command();
-    cmd.set_description(_("Lists packages depending on the packages' relation to the system"));
+    cmd.set_description(get_command_description());
 
     auto specs =
         parser.add_new_positional_arg("package-spec-NI", ArgumentParser::PositionalArg::UNLIMITED, nullptr, nullptr);
@@ -53,7 +53,7 @@ void ListCommand::set_argument_parser() {
             }
             return true;
         });
-    specs->set_complete_hook_func([&ctx](const char * arg) { return match_specs(ctx, arg, true, true, false, false); });
+    specs->set_complete_hook_func([&ctx](const char * arg) { return ctx.match_specs(arg, true, true, false, false); });
     cmd.register_positional_arg(specs);
 
     show_duplicates = std::make_unique<libdnf5::cli::session::BoolOption>(
@@ -107,6 +107,8 @@ void ListCommand::set_argument_parser() {
     recent->get_arg()->set_conflict_arguments(conflicts);
     upgrades->get_arg()->set_conflict_arguments(conflicts);
     autoremove->get_arg()->set_conflict_arguments(conflicts);
+
+    create_json_option(*this);
 }
 
 void ListCommand::configure() {
@@ -258,6 +260,11 @@ void ListCommand::run() {
             base_query.filter_recent(now - (recent_limit_days * 86400));
             package_matched |= sections->add_section(_("Recently added packages"), base_query);
             break;
+    }
+
+    if (ctx.get_json_output_requested()) {
+        sections->print_json();
+        return;
     }
 
     if (!package_matched && !pkg_specs.empty()) {

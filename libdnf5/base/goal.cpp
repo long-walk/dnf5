@@ -50,6 +50,8 @@
 #include "libdnf5/utils/fs/file.hpp"
 #include "libdnf5/utils/patterns.hpp"
 
+#include <fnmatch.h>
+
 #include <filesystem>
 #include <iostream>
 #include <map>
@@ -267,6 +269,8 @@ private:
 
     void install_group_package(base::Transaction & transaction, libdnf5::comps::Package pkg);
     void remove_group_packages(const rpm::PackageSet & remove_candidates);
+
+    libdnf5::solv::SolvMap incoming_vendor_bypassed_solvables{0};
 
     // (path_to_serialized_transaction, settings)
     std::unique_ptr<std::tuple<std::filesystem::path, GoalJobSettings>> serialized_transaction;
@@ -606,6 +610,12 @@ GoalProblem Goal::Impl::add_specs_to_goal(base::Transaction & transaction) {
                     query.filter_repo_id(settings.get_to_repo_ids(), sack::QueryCmp::GLOB);
                 }
 
+                const auto & to_vendors = settings.get_to_vendors();
+
+                if (!to_vendors.empty()) {
+                    query.filter_vendor(to_vendors, sack::QueryCmp::GLOB);
+                }
+
                 // Apply advisory filters
                 if (settings.get_advisory_filter() != nullptr) {
                     filter_candidates_for_advisory_upgrade(
@@ -631,6 +641,10 @@ GoalProblem Goal::Impl::add_specs_to_goal(base::Transaction & transaction) {
                     query.filter_earliest_evr();
                 }
 
+                if (!to_vendors.empty()) {
+                    incoming_vendor_bypassed_solvables |= *query.p_impl;
+                }
+
                 libdnf5::solv::IdQueue upgrade_ids;
                 for (auto package_id : *query.p_impl) {
                     upgrade_ids.push_back(package_id);
@@ -651,8 +665,18 @@ GoalProblem Goal::Impl::add_specs_to_goal(base::Transaction & transaction) {
                     query.filter_repo_id(settings.get_to_repo_ids(), sack::QueryCmp::GLOB);
                 }
 
+                const auto & to_vendors = settings.get_to_vendors();
+
+                if (!to_vendors.empty()) {
+                    query.filter_vendor(to_vendors, sack::QueryCmp::GLOB);
+                }
+
                 if (query.empty()) {
                     return GoalProblem::NO_PROBLEM;
+                }
+
+                if (!to_vendors.empty()) {
+                    incoming_vendor_bypassed_solvables |= *query.p_impl;
                 }
 
                 libdnf5::solv::IdQueue upgrade_ids;
@@ -1423,10 +1447,12 @@ std::pair<GoalProblem, libdnf5::solv::IdQueue> Goal::Impl::add_install_to_goal(
         }
     }
 
+    const auto & to_vendors = settings.get_to_vendors();
+
     // The correct evaluation of rich dependencies can be only performed by solver.
     // There are some limitations - solver is unable to handle when operation is limited to packages from the
     // particular repository and multilib_policy `all`.
-    if (libdnf5::rpm::Reldep::is_rich_dependency(spec) && settings.get_to_repo_ids().empty()) {
+    if (libdnf5::rpm::Reldep::is_rich_dependency(spec) && settings.get_to_repo_ids().empty() && to_vendors.empty()) {
         add_provide_install_to_goal(spec, settings);
         return {GoalProblem::NO_PROBLEM, result_queue};
     }
@@ -1462,6 +1488,34 @@ std::pair<GoalProblem, libdnf5::solv::IdQueue> Goal::Impl::add_install_to_goal(
         query |= installed;
     }
 
+    if (!to_vendors.empty()) {
+        query.filter_vendor(to_vendors, sack::QueryCmp::GLOB);
+        if (query.empty()) {
+            transaction.p_impl->add_resolve_log(
+                action,
+                GoalProblem::NOT_FOUND_IN_REPOSITORIES,  // TODO(jrohel): NOT_FOUND_FROM_VENDOR
+                settings,
+                libdnf5::transaction::TransactionItemType::PACKAGE,
+                spec,
+                {},
+                log_level);
+            return {skip_unavailable ? GoalProblem::NO_PROBLEM : GoalProblem::NOT_FOUND_IN_REPOSITORIES, result_queue};
+        }
+
+        // We require packages only from the to_vendors vendors. We'll select only the corresponding installed
+        // packages (matching name and architecture, or the same NEVRA for install-only packages)
+        installed.filter_name_arch(query);
+        rpm::PackageQuery installed_install_only(installed);
+        installed_install_only.filter_installonly();
+        installed -= installed_install_only;
+        installed_install_only.filter_nevra(query);
+        installed |= installed_install_only;
+
+        // Return the corresponding installed packages to the query
+        // TODO(jrohel): Is it needed?
+        query |= installed;
+    }
+
     bool has_just_name = nevra_pair.second.has_just_name();
     bool add_obsoletes = cfg_main.get_obsoletes_option().get_value() && has_just_name;
 
@@ -1474,6 +1528,16 @@ std::pair<GoalProblem, libdnf5::solv::IdQueue> Goal::Impl::add_install_to_goal(
             spec,
             {pool.get_nevra(package_id)},
             libdnf5::Logger::Level::WARNING);
+    }
+
+    if (!to_vendors.empty()) {
+        if (settings.get_advisory_filter() != nullptr) {
+            rpm::PackageQuery tmp_query(query);
+            tmp_query.filter_advisories(*settings.get_advisory_filter(), libdnf5::sack::QueryCmp::EQ);
+            incoming_vendor_bypassed_solvables |= *tmp_query.p_impl;
+        } else {
+            incoming_vendor_bypassed_solvables |= *query.p_impl;
+        }
     }
 
     bool skip_broken = settings.resolve_skip_broken(cfg_main);
@@ -2000,6 +2064,27 @@ GoalProblem Goal::Impl::add_reinstall_to_goal(
         }
     }
 
+    const auto & to_vendors = settings.get_to_vendors();
+
+    if (!to_vendors.empty()) {
+        relevant_available.filter_vendor(to_vendors, sack::QueryCmp::GLOB);
+        if (relevant_available.empty()) {
+            transaction.p_impl->add_resolve_log(
+                GoalAction::REINSTALL,
+                GoalProblem::NOT_FOUND_IN_REPOSITORIES,  // TODO(jrohel): NOT_FOUND_FROM_VENDOR
+                settings,
+                libdnf5::transaction::TransactionItemType::PACKAGE,
+                spec,
+                {},
+                log_level);
+            return skip_unavailable ? GoalProblem::NO_PROBLEM : GoalProblem::NOT_FOUND_IN_REPOSITORIES;
+        }
+    }
+
+    if (!to_vendors.empty()) {
+        incoming_vendor_bypassed_solvables |= *query.p_impl;
+    }
+
     Id current_name = 0;
     Id current_arch = 0;
     std::vector<Solvable *> tmp_solvables;
@@ -2422,6 +2507,23 @@ GoalProblem Goal::Impl::add_up_down_distrosync_to_goal(
         }
     }
 
+    const auto & to_vendors = settings.get_to_vendors();
+
+    if (!to_vendors.empty()) {
+        query.filter_vendor(to_vendors, sack::QueryCmp::GLOB);
+        if (query.empty()) {
+            transaction.p_impl->add_resolve_log(
+                action,
+                GoalProblem::NOT_FOUND_IN_REPOSITORIES,  // TODO(jrohel): NOT_FOUND_FROM_VENDOR
+                settings,
+                libdnf5::transaction::TransactionItemType::PACKAGE,
+                spec,
+                {},
+                libdnf5::Logger::Level::WARNING);
+            return skip_unavailable ? GoalProblem::NO_PROBLEM : GoalProblem::NOT_FOUND_IN_REPOSITORIES;
+        }
+    }
+
     // Apply advisory filters
     if (settings.get_advisory_filter() != nullptr) {
         filter_candidates_for_advisory_upgrade(base, query, *settings.get_advisory_filter(), obsoletes);
@@ -2440,6 +2542,10 @@ GoalProblem Goal::Impl::add_up_down_distrosync_to_goal(
 
     if (minimal) {
         query.filter_earliest_evr();
+    }
+
+    if (!to_vendors.empty()) {
+        incoming_vendor_bypassed_solvables |= *query.p_impl;
     }
 
     switch (action) {
@@ -2602,7 +2708,26 @@ void Goal::Impl::add_group_install_to_goal(
     auto & cfg_main = base->get_config();
     auto allowed_package_types = settings.resolve_group_package_types(cfg_main);
     for (auto group : group_query) {
-        rpm_goal.add_group(group, transaction::TransactionItemAction::INSTALL, reason, allowed_package_types);
+        comps::GroupQuery installed_group = comps::GroupQuery(base, false);
+        installed_group.filter_groupid(group.get_groupid());
+        installed_group.filter_installed(true);
+        if (installed_group.empty()) {
+            // Mark the group for installation since it wasn't previously installed.
+            rpm_goal.add_group(group, transaction::TransactionItemAction::INSTALL, reason, allowed_package_types);
+        } else if (installed_group.get().get_reason() < reason) {
+            // Change the reason of the group.
+            rpm_goal.add_group(group, transaction::TransactionItemAction::REASON_CHANGE, reason, allowed_package_types);
+        } else {
+            // The group is already installed with the same reason, don't mark it for installation again.
+            transaction.p_impl->add_resolve_log(
+                GoalAction::INSTALL,
+                GoalProblem::ALREADY_INSTALLED,
+                settings,
+                libdnf5::transaction::TransactionItemType::GROUP,
+                group.get_groupid(),
+                {},
+                libdnf5::Logger::Level::WARNING);
+        }
         if (settings.get_group_no_packages()) {
             continue;
         }
@@ -2684,9 +2809,6 @@ void Goal::Impl::add_group_upgrade_to_goal(
     comps::GroupQuery available_groups(base);
     available_groups.filter_installed(false);
 
-    rpm::PackageQuery query_installed(base);
-    query_installed.filter_installed();
-
     for (auto installed_group : group_query) {
         auto group_id = installed_group.get_groupid();
         // find available group of the same id
@@ -2725,9 +2847,11 @@ void Goal::Impl::add_group_upgrade_to_goal(
             old_set.emplace(pkg.get_name());
         }
         // set of package names that are part of the available version of the group
-        std::set<std::string> new_set{};
-        for (const auto & pkg : available_group.get_packages()) {
-            new_set.emplace(pkg.get_name());
+        std::vector<std::string> new_set;
+        const auto & pkgs_from_available_group = available_group.get_packages();
+        new_set.reserve(pkgs_from_available_group.size());
+        for (const auto & pkg : pkgs_from_available_group) {
+            new_set.push_back(pkg.get_name());
         }
 
         // install packages newly added to the group
@@ -2737,16 +2861,17 @@ void Goal::Impl::add_group_upgrade_to_goal(
             }
         }
 
+        // upgrade installed packages that are part of the group (even if not installed with the group)
         auto pkg_settings = GoalJobSettings();
         pkg_settings.set_with_provides(false);
         pkg_settings.set_with_filenames(false);
         pkg_settings.set_with_binaries(false);
-        for (const auto & pkg_name : state_group.packages) {
-            if (new_set.contains(pkg_name)) {
-                // upgrade all packages installed with the group
-                pkg_settings.set_nevra_forms({rpm::Nevra::Form::NAME});
-                add_up_down_distrosync_to_goal(transaction, GoalAction::UPGRADE, pkg_name, pkg_settings);
-            }
+        pkg_settings.set_nevra_forms({rpm::Nevra::Form::NAME});
+        rpm::PackageQuery query_installed(base);
+        query_installed.filter_name(new_set);
+        query_installed.filter_installed();
+        for (const auto & pkg : query_installed) {
+            add_up_down_distrosync_to_goal(transaction, GoalAction::UPGRADE, pkg.get_name(), pkg_settings);
         }
     }
 }
@@ -2760,7 +2885,23 @@ void Goal::Impl::add_environment_install_to_goal(
     group_settings.set_group_search_groups(true);
     std::vector<GroupSpec> env_group_specs;
     for (auto environment : environment_query) {
-        rpm_goal.add_environment(environment, transaction::TransactionItemAction::INSTALL, with_optional);
+        comps::EnvironmentQuery installed_env = comps::EnvironmentQuery(base, false);
+        installed_env.filter_environmentid(environment.get_environmentid());
+        installed_env.filter_installed(true);
+        if (installed_env.empty()) {
+            // Mark the environment for installation since it wasn't previously installed.
+            rpm_goal.add_environment(environment, transaction::TransactionItemAction::INSTALL, with_optional);
+        } else {
+            // The environment is already installed, don't mark it for installation again.
+            transaction.p_impl->add_resolve_log(
+                GoalAction::INSTALL,
+                GoalProblem::ALREADY_INSTALLED,
+                settings,
+                libdnf5::transaction::TransactionItemType::ENVIRONMENT,
+                environment.get_environmentid(),
+                {},
+                libdnf5::Logger::Level::WARNING);
+        }
         if (settings.get_environment_no_groups()) {
             continue;
         }
@@ -2945,7 +3086,11 @@ GoalProblem Goal::Impl::add_reason_change_to_goal(
         }
     }
     for (const auto & pkg : query) {
-        if (pkg.get_reason() == reason) {
+        // check if the package is already installed with the requested reason or
+        // if the requested reason is GROUP and the package is already part of the group
+        if (pkg.get_reason() == reason &&
+            (reason != transaction::TransactionItemReason::GROUP ||
+             (group_id && base->p_impl->get_system_state().get_package_groups(pkg.get_name()).contains(*group_id)))) {
             // pkg is already installed with correct reason
             transaction.p_impl->add_resolve_log(
                 GoalAction::REASON_CHANGE,
@@ -3143,6 +3288,22 @@ void Goal::Impl::add_paths_to_goal() {
     for (const auto & [action, path, settings] : rpm_filepaths) {
         auto pkg = cmdline_packages.find(path);
         if (pkg != cmdline_packages.end()) {
+            if (const auto & to_vendors = settings.get_to_vendors(); !to_vendors.empty()) {
+                auto pkg_vendor = pkg->second.get_vendor();
+                bool match = false;
+                for (const auto & to_vendor : to_vendors) {
+                    if (fnmatch(to_vendor.c_str(), pkg_vendor.c_str(), 0) == 0) {
+                        auto id = pkg->second.get_id().id;
+                        incoming_vendor_bypassed_solvables.grow(id);
+                        incoming_vendor_bypassed_solvables.add_unsafe(id);
+                        match = true;
+                        break;
+                    }
+                }
+                if (!match) {
+                    continue;
+                }
+            }
             add_rpm_ids(action, pkg->second, settings);
         }
     }
@@ -3386,6 +3547,9 @@ base::Transaction Goal::resolve() {
             p_impl->autodetect_unsatisfied_installed_weak_dependencies();
         }
     }
+
+    auto & pool = get_rpm_pool(p_impl->base);
+    pool.get_incoming_vendor_bypassed_solvables() = p_impl->incoming_vendor_bypassed_solvables;
 
     ret |= p_impl->rpm_goal.resolve();
 

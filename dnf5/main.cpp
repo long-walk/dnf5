@@ -52,6 +52,7 @@
 #include "commands/system-upgrade/system-upgrade.hpp"
 #include "commands/upgrade/upgrade.hpp"
 #include "commands/versionlock/versionlock.hpp"
+#include "context_impl.hpp"
 #include "dnf5/context.hpp"
 #include "download_callbacks.hpp"
 #include "plugins.hpp"
@@ -74,6 +75,7 @@
 #include <libdnf5/logger/factory.hpp>
 #include <libdnf5/logger/global_logger.hpp>
 #include <libdnf5/logger/memory_buffer_logger.hpp>
+#include <libdnf5/logger/null_logger.hpp>
 #include <libdnf5/repo/repo_cache.hpp>
 #include <libdnf5/rpm/arch.hpp>
 #include <libdnf5/rpm/package_query.hpp>
@@ -243,7 +245,7 @@ void RootCommand::set_argument_parser() {
     setopt->set_parse_hook_func(
         [&ctx](
             [[maybe_unused]] ArgumentParser::NamedArg * arg, [[maybe_unused]] const char * option, const char * value) {
-            auto val = strchr(value + 1, '=');
+            const auto * const val = strchr(value + 1, '=');
             if (!val) {
                 throw libdnf5::cli::ArgumentParserError(
                     M_("{}: Badly formatted argument value \"{}\""), std::string{"setopt"}, std::string(value));
@@ -282,7 +284,7 @@ void RootCommand::set_argument_parser() {
     setvar->set_parse_hook_func(
         [&ctx](
             [[maybe_unused]] ArgumentParser::NamedArg * arg, [[maybe_unused]] const char * option, const char * value) {
-            auto val = strchr(value + 1, '=');
+            const auto * const val = strchr(value + 1, '=');
             if (!val) {
                 throw libdnf5::cli::ArgumentParserError(
                     M_("{}: Badly formatted argument value \"{}\""), std::string{"setvar"}, std::string(value));
@@ -667,6 +669,15 @@ void RootCommand::set_argument_parser() {
         });
         global_options_group->register_argument(forcearch);
     }
+
+    auto skip_file_locks = parser.add_new_named_arg("skip-file-locks");
+    skip_file_locks->set_long_name("skip-file-locks");
+    skip_file_locks->set_description(_("Skip acquiring file locks, such as the lock on the system repository"));
+    skip_file_locks->set_const_value("true");
+    // For now, --skip-file-locks applies to just the system repository lock.
+    // It should be updated to ignore metadata locks, etc. when we implement those.
+    skip_file_locks->link_value(&config.get_skip_system_repo_lock_option());
+    global_options_group->register_argument(skip_file_locks);
 
     register_group_with_args(cmd, *global_options_group);
 
@@ -1200,61 +1211,30 @@ static void print_no_match_libdnf_plugin_patterns(dnf5::Context & context) {
     }
 }
 
-static bool cmd_requires_privileges(dnf5::Context & context) {
-    // the main, dnf5 command, is allowed
-    auto cmd = context.get_selected_command();
-    auto arg_cmd = cmd->get_argument_parser_command();
-    if (arg_cmd->get_parent() == nullptr) {
-        return false;
-    }
-
-    // first a hard-coded list of commands that always need to be run with elevated privileges
-    auto main_arg_cmd = cmd->get_parent_command() != context.get_root_command() ? arg_cmd->get_parent() : arg_cmd;
-    std::vector<std::string> privileged_cmds = {"automatic", "offline", "system-upgrade", "replay"};
-    if (std::find(privileged_cmds.begin(), privileged_cmds.end(), main_arg_cmd->get_id()) != privileged_cmds.end()) {
-        return true;
-    }
-
-    // when assumeno is set, system should not be modified
-    auto & config = context.get_base().get_config();
-    if (config.get_assumeno_option().get_value()) {
-        return false;
-    }
-
-    auto all_cmd_args = arg_cmd->get_named_args();
-    if (main_arg_cmd != arg_cmd) {
-        all_cmd_args.insert(
-            all_cmd_args.end(), main_arg_cmd->get_named_args().begin(), main_arg_cmd->get_named_args().end());
-    }
-
-    // when downloadonly is defined and set, system should not be modified
-    auto it_downloadonly = std::find_if(
-        all_cmd_args.begin(), all_cmd_args.end(), [](auto arg) { return arg->get_long_name() == "downloadonly"; });
-    if (it_downloadonly != all_cmd_args.end() &&
-        ((libdnf5::OptionBool *)(*it_downloadonly)->get_linked_value())->get_value()) {
-        return false;
-    }
-
-    // otherwise, transactional cmds with store option defined are expected to modify the system
-    auto it_store = std::find_if(
-        all_cmd_args.begin(), all_cmd_args.end(), [](auto arg) { return arg->get_long_name() == "store"; });
-    return it_store != all_cmd_args.end();
-}
-
 static bool user_has_privileges(dnf5::Context & context) {
-    std::filesystem::path lock_file_path = context.get_base().get_config().get_installroot_option().get_value();
-    lock_file_path /= std::filesystem::path(libdnf5::TRANSACTION_LOCK_FILEPATH).relative_path();
-    lock_file_path += ".tmp";
+    const auto & installroot = context.get_base().get_config().get_installroot_option().get_value();
+
+    const auto & transaction_lock_path =
+        installroot / std::filesystem::path{libdnf5::TRANSACTION_LOCK_FILEPATH}.relative_path();
+
+    const auto & system_state_dir = context.get_base().get_config().get_system_state_dir_option().get_value();
+    const auto & system_repo_lock_path =
+        installroot / std::filesystem::path{system_state_dir}.relative_path() / libdnf5::SYSTEM_REPO_LOCK_FILENAME;
 
     try {
-        std::filesystem::create_directories(lock_file_path.parent_path());
-        libdnf5::utils::Locker locker(lock_file_path);
-        return locker.write_lock();
+        std::filesystem::create_directories(transaction_lock_path.parent_path());
+        libdnf5::utils::Locker transaction_locker(transaction_lock_path, false);
+        transaction_locker.open_file(libdnf5::utils::LockAccess::WRITE);
+
+        std::filesystem::create_directories(system_repo_lock_path.parent_path());
+        libdnf5::utils::Locker system_repo_locker(system_repo_lock_path, true);
+        system_repo_locker.open_file(libdnf5::utils::LockAccess::WRITE);
     } catch (libdnf5::SystemError & ex) {
         return false;
     } catch (std::filesystem::filesystem_error & ex) {
         return false;
     }
+    return true;
 }
 
 int main(int argc, char * argv[]) try {
@@ -1469,7 +1449,21 @@ int main(int argc, char * argv[]) try {
 
             print_no_match_libdnf_plugin_patterns(context);
 
-            auto destination_logger = libdnf5::create_rotating_file_logger(base, DNF5_LOGGER_FILENAME);
+            std::unique_ptr<libdnf5::Logger> destination_logger;
+
+            // In case file system is read only or logger file is not writable for other reasons
+            // let's don't write any logs then.
+            try {
+                destination_logger = libdnf5::create_rotating_file_logger(base, DNF5_LOGGER_FILENAME);
+            } catch (const libdnf5::FileSystemError & ex) {
+                std::cerr << libdnf5::utils::sformat(
+                                 _("{}. Dropping all logs. To redirect the log file location use the \"logdir\" "
+                                   "configuration option."),
+                                 ex.what())
+                          << std::endl;
+                destination_logger = std::make_unique<libdnf5::NullLogger>();
+            }
+
             // Swap to destination logger
             log_router.swap_logger(destination_logger, 0);
             // Write messages from memory buffer logger to destination logger
@@ -1517,20 +1511,15 @@ int main(int argc, char * argv[]) try {
                 dump_repository_configuration(context, repo_id_list);
             }
 
-            if (cmd_requires_privileges(context) && !user_has_privileges(context)) {
+            if (context.p_impl->cmd_requires_privileges() && !user_has_privileges(context)) {
                 throw libdnf5::cli::InsufficientPrivilegesError(
                     M_("The requested operation requires superuser privileges. Please log in as a user with elevated "
                        "rights, or use the \"--assumeno\" or \"--downloadonly\" options to run the command without "
                        "modifying the system state."));
             }
 
-            {
-                if (context.get_load_available_repos() != dnf5::Context::LoadAvailableRepos::NONE) {
-                    context.load_repos(context.get_load_system_repo());
-                } else if (context.get_load_system_repo()) {
-                    repo_sack->load_repos(libdnf5::repo::Repo::Type::SYSTEM);
-                }
-            }
+            const auto load_available = context.get_load_available_repos() != dnf5::Context::LoadAvailableRepos::NONE;
+            context.p_impl->load_repos(context.get_load_system_repo(), load_available);
 
             command->load_additional_packages();
 

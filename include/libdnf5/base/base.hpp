@@ -37,6 +37,8 @@
 #include "libdnf5/rpm/package_sack.hpp"
 #include "libdnf5/transaction/transaction_history.hpp"
 
+#include <libdnf5/utils/locker.hpp>
+
 
 namespace libdnf5::module {
 
@@ -83,6 +85,8 @@ public:
 
     /// @return a reference to configuration
     ConfigMain & get_config();
+    const ConfigMain & get_config() const;
+
     LogRouterWeakPtr get_logger();
     comps::CompsSackWeakPtr get_comps_sack();
     repo::RepoSackWeakPtr get_repo_sack();
@@ -114,6 +118,25 @@ public:
     /// might be problematic, because architecture is already fixed for our solver.
     /// Calling the method for the second time result in throwing an exception
     void setup();
+
+    /// Acquire an advisory lock on the installroot's system repository.
+    /// The lock will be automatically released when Base goes out of scope, or manually when unlock_system_repo is called.
+    /// A WRITE lock can be downgraded to a READ lock but a READ lock cannot be upgraded to a WRITE lock.
+    /// Should be called before the system repo is loaded, and the lock should be held until all transactions are
+    /// complete and other processes can safely re-read the RPMDB and resolve transactions.
+    /// @throw libdnf5::SystemError if an unexpected error occurs when locking
+    /// @return true if acquiring the lock succeeded, false otherwise
+    bool lock_system_repo(
+        libdnf5::utils::LockAccess access = libdnf5::utils::LockAccess::WRITE,
+        libdnf5::utils::LockBlocking blocking = libdnf5::utils::LockBlocking::NON_BLOCKING);
+
+    /// Release the lock obtained by lock_system_repo.
+    /// Idempotent. No-op if there is currently no lock.
+    /// @throw libdnf5::SystemError if an unexpected error occurs when unlocking
+    void unlock_system_repo();
+
+    /// Get a pointer to the lock on the system repo, or nullptr if no lock exists.
+    const libdnf5::utils::Locker * get_system_repo_lock() const noexcept;
 
     /// Returns true when setup() (mandatory method in many workflows) was already called
     bool is_initialized();

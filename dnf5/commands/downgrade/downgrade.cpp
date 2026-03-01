@@ -49,7 +49,7 @@ void DowngradeCommand::set_argument_parser() {
             }
             return true;
         });
-    keys->set_complete_hook_func([&ctx](const char * arg) { return match_specs(ctx, arg, true, false, true, false); });
+    keys->set_complete_hook_func([&ctx](const char * arg) { return ctx.match_specs(arg, true, false, true, false); });
     cmd.register_positional_arg(keys);
 
     allow_erasing = std::make_unique<AllowErasingOption>(*this);
@@ -58,6 +58,7 @@ void DowngradeCommand::set_argument_parser() {
     create_allow_downgrade_options(*this);
     create_installed_from_repo_option(*this, installed_from_repos, true);
     create_from_repo_option(*this, from_repos, true);
+    create_from_vendor_option(*this, from_vendors, true);
     create_downloadonly_option(*this);
     create_offline_option(*this);
     create_store_option(*this);
@@ -75,6 +76,7 @@ void DowngradeCommand::run() {
     auto settings = libdnf5::GoalJobSettings();
     settings.set_from_repo_ids(installed_from_repos);
     settings.set_to_repo_ids(from_repos);
+    settings.set_to_vendors(from_vendors);
     for (const auto & spec : pkg_specs) {
         goal->add_downgrade(spec, settings);
     }

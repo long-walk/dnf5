@@ -90,6 +90,7 @@ void DoCommand::set_argument_parser() {
 
     create_installed_from_repo_option(*this, installed_from_repos, false);
     create_from_repo_option(*this, from_repos, false);
+    create_from_vendor_option(*this, from_vendors, false);
 
     {
         auto items =
@@ -102,6 +103,7 @@ void DoCommand::set_argument_parser() {
             libdnf5::GoalJobSettings settings;
             settings.set_from_repo_ids(installed_from_repos);
             settings.set_to_repo_ids(from_repos);
+            settings.set_to_vendors(from_vendors);
             switch (action) {
                 case Action::INSTALL:
                     for (int i = 0; i < argc; ++i) {
@@ -153,7 +155,7 @@ void DoCommand::set_argument_parser() {
         });
         items->set_nrepeats(ArgumentParser::PositionalArg::UNLIMITED);
         items->set_complete_hook_func(
-            [&ctx](const char * arg) { return match_specs(ctx, arg, false, true, true, false); });
+            [&ctx](const char * arg) { return ctx.match_specs(arg, false, true, true, false); });
         cmd.register_positional_arg(items);
     }
 

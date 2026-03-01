@@ -212,6 +212,25 @@ public:
     void filter_arch(
         const std::vector<std::string> & patterns, libdnf5::sack::QueryCmp cmp_type = libdnf5::sack::QueryCmp::EQ);
 
+    /// Filter packages by their `vendor`.
+    ///
+    /// @param pattern          A string the filter is matched against.
+    /// @param cmp_type         A comparison (match) operator, defaults to `QueryCmp::EQ`.
+    ///                         Supported values: `EQ`, `NEQ`, `GLOB`, `NOT_GLOB`, `IEXACT`, `NOT_IEXACT`, `ICONTAINS`, `NOT_ICONTAINS`, `IGLOB`, `NOT_IGLOB`, `CONTAINS`, `NOT_CONTAINS`.
+    /// @since 5.3
+    void filter_vendor(const std::string & pattern, libdnf5::sack::QueryCmp cmp_type = libdnf5::sack::QueryCmp::EQ) {
+        filter_vendor(std::vector<std::string>{pattern}, cmp_type);
+    };
+
+    /// Filter packages by their `vendor`.
+    ///
+    /// @param patterns         A vector of strings the filter is matched against.
+    /// @param cmp_type         A comparison (match) operator, defaults to `QueryCmp::EQ`.
+    ///                         Supported values: `EQ`, `NEQ`, `GLOB`, `NOT_GLOB`, `IEXACT`, `NOT_IEXACT`, `ICONTAINS`, `NOT_ICONTAINS`, `IGLOB`, `NOT_IGLOB`, `CONTAINS`, `NOT_CONTAINS`.
+    /// @since 5.3
+    void filter_vendor(
+        const std::vector<std::string> & patterns, libdnf5::sack::QueryCmp cmp_type = libdnf5::sack::QueryCmp::EQ);
+
     /// Filter packages by their `name` and `arch` based on names and arches of the packages in the `package_set`.
     ///
     /// @param package_set      PackageSet with Package objects the filter is matched against.
@@ -980,6 +999,11 @@ public:
     /// dependencies and are not required by any user-installed package any more.
     void filter_unneeded();
 
+    /// Filter unneeded packages without protected packages. Unneeded not protected packages are those
+    /// which are installed as dependencies and are not required by any user-installed or protected package
+    /// any more and are not protected them self.
+    void filter_unneeded_not_protected();
+
     /// Resolve spec according to provided settings. It tests whether spec is NEVRA type, provide, file or binary.
     /// It returns only the first match type. If spec has a match as NEVRA and provide type it only keeps matches with
     /// the first tested type (NEVRA).
@@ -987,6 +1011,10 @@ public:
     // @replaces libdnf/sack/query.hpp:method:std::pair<bool, std::unique_ptr<Nevra>> filterSubject(const char * subject, HyForm * forms, bool icase, bool with_nevra, bool with_provides, bool with_filenames);
     std::pair<bool, libdnf5::rpm::Nevra> resolve_pkg_spec(
         const std::string & pkg_spec, const libdnf5::ResolveSpecSettings & settings, bool with_src);
+
+    /// Returns `true` if the dependency `reldep` is satisfied by the packages in query, otherwise `false` is returned.
+    /// @since 5.3.0.1
+    bool is_dep_satisfied(const Reldep & reldep);
 
     void swap(PackageQuery & other) noexcept;
 

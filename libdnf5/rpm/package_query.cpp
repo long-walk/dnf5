@@ -743,6 +743,89 @@ void PackageQuery::filter_arch(const std::vector<std::string> & patterns, libdnf
     }
 }
 
+void PackageQuery::filter_vendor(const std::vector<std::string> & patterns, libdnf5::sack::QueryCmp cmp_type) {
+    auto & pool = get_rpm_pool(p_impl->base);
+    libdnf5::solv::SolvMap filter_result(pool.get_nsolvables());
+    const bool cmp_not = (cmp_type & libdnf5::sack::QueryCmp::NOT) == libdnf5::sack::QueryCmp::NOT;
+    if (cmp_not) {
+        // Removal of NOT CmpType makes following comparisons easier and more effective
+        cmp_type = cmp_type - libdnf5::sack::QueryCmp::NOT;
+    }
+
+    const bool cmp_glob = (cmp_type & libdnf5::sack::QueryCmp::GLOB) == libdnf5::sack::QueryCmp::GLOB;
+
+    for (const auto & pattern : patterns) {
+        libdnf5::sack::QueryCmp tmp_cmp_type = cmp_type;
+        const char * const c_pattern = pattern.c_str();
+        // Remove GLOB when the pattern is not a glob
+        if (cmp_glob && !libdnf5::utils::is_glob_pattern(c_pattern)) {
+            tmp_cmp_type = (tmp_cmp_type - libdnf5::sack::QueryCmp::GLOB) | libdnf5::sack::QueryCmp::EQ;
+        }
+
+        switch (tmp_cmp_type) {
+            case libdnf5::sack::QueryCmp::EQ: {
+                Id match_vendor_id = pool.str2id(pattern.c_str(), 0);
+                if (match_vendor_id == 0) {
+                    continue;
+                }
+                for (Id candidate_id : *p_impl) {
+                    const Solvable * const solvable = pool.id2solvable(candidate_id);
+                    if (solvable->vendor == match_vendor_id) {
+                        filter_result.add_unsafe(candidate_id);
+                    }
+                }
+            } break;
+            case libdnf5::sack::QueryCmp::IEXACT: {
+                Id icase_vendor = pool.id_to_lowercase_id(pattern.c_str(), 0);
+                if (icase_vendor == 0) {
+                    continue;
+                }
+                for (Id candidate_id : *p_impl) {
+                    const char * const vendor = pool.get_vendor(candidate_id);
+                    if (vendor != nullptr) {
+                        Id candidate_vendor_icase = pool.id_to_lowercase_id(vendor, 0);
+                        if (candidate_vendor_icase == icase_vendor) {
+                            filter_result.add_unsafe(candidate_id);
+                        }
+                    }
+                }
+            } break;
+            case libdnf5::sack::QueryCmp::ICONTAINS: {
+                for (Id candidate_id : *p_impl) {
+                    const char * const vendor = pool.get_vendor(candidate_id);
+                    if (vendor != nullptr && strcasestr(vendor, c_pattern) != nullptr) {
+                        filter_result.add_unsafe(candidate_id);
+                    }
+                }
+            } break;
+            case libdnf5::sack::QueryCmp::IGLOB:
+                filter_glob_internal<&libdnf5::solv::RpmPool::get_vendor>(
+                    pool, c_pattern, *p_impl, filter_result, FNM_CASEFOLD);
+                break;
+            case libdnf5::sack::QueryCmp::CONTAINS: {
+                for (Id candidate_id : *p_impl) {
+                    const char * const vendor = pool.get_vendor(candidate_id);
+                    if (vendor != nullptr && strstr(vendor, c_pattern) != nullptr) {
+                        filter_result.add_unsafe(candidate_id);
+                    }
+                }
+            } break;
+            case libdnf5::sack::QueryCmp::GLOB:
+                filter_glob_internal<&libdnf5::solv::RpmPool::get_vendor>(pool, c_pattern, *p_impl, filter_result, 0);
+                break;
+            default:
+                libdnf_throw_assert_unsupported_query_cmp_type(cmp_type);
+        }
+    }
+
+    // Apply filter results to query
+    if (cmp_not) {
+        *p_impl -= filter_result;
+    } else {
+        *p_impl &= filter_result;
+    }
+}
+
 namespace {
 
 struct NevraID {
@@ -2635,6 +2718,12 @@ void PackageQuery::filter_priority() {
     }
 }
 
+bool PackageQuery::is_dep_satisfied(const Reldep & reldep) {
+    p_impl->base->get_rpm_package_sack()->p_impl->make_provides_ready();
+    auto & pool = get_rpm_pool(p_impl->base);
+    return pool.is_dep_satisfied_in_map(reldep.get_id().id, *p_impl);
+}
+
 std::pair<bool, libdnf5::rpm::Nevra> PackageQuery::resolve_pkg_spec(
     const std::string & pkg_spec, const ResolveSpecSettings & settings, bool with_src) {
     auto & pool = get_rpm_pool(p_impl->base);
@@ -2867,20 +2956,30 @@ void PackageQuery::filter_userinstalled() {
     *p_impl &= filter_result;
 }
 
-void PackageQuery::filter_unneeded() {
-    auto & pool = get_rpm_pool(p_impl->base);
+void PackageQuery::PQImpl::filter_unneeded(PackageSet & pkg_set, bool mark_protected_userinstalled) {
+    auto & pool = get_rpm_pool(pkg_set.p_impl->base);
 
     auto * installed_repo = pool->installed;
     if (installed_repo == nullptr) {
-        (*p_impl).clear();
+        (*pkg_set.p_impl).clear();
         return;
     }
 
     libdnf5::solv::IdQueue job_userinstalled;
-    PackageQuery user_installed(p_impl->base);
+    PackageQuery user_installed(pkg_set.p_impl->base);
     user_installed.filter_userinstalled();
     for (const auto & pkg : user_installed) {
         job_userinstalled.push_back(SOLVER_SOLVABLE | SOLVER_USERINSTALLED, pkg.get_id().id);
+    }
+    if (mark_protected_userinstalled) {
+        PackageQuery protected_query(pkg_set.p_impl->base);
+        protected_query.filter_installed();
+        auto & cfg_main = pkg_set.p_impl->base->get_config();
+        auto & protected_packages = cfg_main.get_protected_packages_option().get_value();
+        protected_query.filter_name(protected_packages);
+        for (const auto & pkg : protected_query) {
+            job_userinstalled.push_back(SOLVER_SOLVABLE | SOLVER_USERINSTALLED, pkg.get_id().id);
+        }
     }
 
     // create a temporary libsolv solver to retrieve a list of unneeded packages
@@ -2889,7 +2988,7 @@ void PackageQuery::filter_unneeded() {
     solver.solve(job_userinstalled);
 
     // write autoremove debug data if required
-    auto & cfg_main = p_impl->base->get_config();
+    auto & cfg_main = pkg_set.p_impl->base->get_config();
     if (cfg_main.get_debug_solver_option().get_value()) {
         auto debug_dir =
             std::filesystem::absolute(std::filesystem::path(cfg_main.get_debugdir_option().get_value()) / "autoremove");
@@ -2904,7 +3003,15 @@ void PackageQuery::filter_unneeded() {
         unneeded_solv_map.add(unneeded_queue[i]);
     }
 
-    *p_impl &= unneeded_solv_map;
+    *pkg_set.p_impl &= unneeded_solv_map;
+}
+
+void PackageQuery::filter_unneeded() {
+    PQImpl::filter_unneeded(*this, false);
+}
+
+void PackageQuery::filter_unneeded_not_protected() {
+    PQImpl::filter_unneeded(*this, true);
 }
 
 void PackageQuery::filter_extras(const bool exact_evr) {

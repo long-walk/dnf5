@@ -51,7 +51,7 @@ void SwapCommand::set_argument_parser() {
         return true;
     });
     remove_spec_arg->set_complete_hook_func(
-        [&ctx](const char * arg) { return match_specs(ctx, arg, true, false, false, false); });
+        [&ctx](const char * arg) { return ctx.match_specs(arg, true, false, false, false); });
     cmd.register_positional_arg(remove_spec_arg);
 
     auto install_spec_arg = parser.add_new_positional_arg("install_spec", 1, nullptr, nullptr);
@@ -64,13 +64,14 @@ void SwapCommand::set_argument_parser() {
         return true;
     });
     install_spec_arg->set_complete_hook_func(
-        [&ctx](const char * arg) { return match_specs(ctx, arg, false, true, true, false); });
+        [&ctx](const char * arg) { return ctx.match_specs(arg, false, true, true, false); });
     cmd.register_positional_arg(install_spec_arg);
 
     allow_erasing = std::make_unique<AllowErasingOption>(*this);
 
     create_installed_from_repo_option(*this, installed_from_repos, true);
     create_from_repo_option(*this, from_repos, true);
+    create_from_vendor_option(*this, from_vendors, true);
 
     create_offline_option(*this);
     create_store_option(*this);
@@ -88,6 +89,7 @@ void SwapCommand::run() {
     auto settings = libdnf5::GoalJobSettings();
     settings.set_from_repo_ids(installed_from_repos);
     settings.set_to_repo_ids(from_repos);
+    settings.set_to_vendors(from_vendors);
     goal->add_install(install_pkg_spec, settings);
     goal->add_rpm_remove(remove_pkg_spec, settings);
 }

@@ -1,12 +1,12 @@
 %global project_version_prime 5
-%global project_version_major 3
+%global project_version_major 4
 %global project_version_minor 0
 %global project_version_micro 0
 
 %bcond dnf5_obsoletes_dnf %[0%{?fedora} > 40 || 0%{?rhel} > 10]
 
 Name:           dnf5
-Version:        5.3.0.0
+Version:        5.4.0.0
 Release:        1%{?dist}
 Summary:        Command-line package manager
 License:        GPL-2.0-or-later
@@ -85,8 +85,14 @@ Provides:       dnf5-command(versionlock)
 %bcond_without plugin_rhsm
 %bcond_without plugin_manifest
 %bcond_without python_plugins_loader
-%bcond_without plugin_local
 
+%if 0%{?rhel} >= 10
+%bcond_with plugin_local
+%else
+%bcond_without plugin_local
+%endif
+
+%bcond_without acl
 %bcond_without comps
 %bcond_without modulemd
 %bcond_without systemd
@@ -125,11 +131,7 @@ Provides:       dnf5-command(versionlock)
 
 %global libmodulemd_version 2.5.0
 %global librepo_version 1.20.0
-%if %{with focus_new}
-    %global libsolv_version 0.7.30
-%else
-    %global libsolv_version 0.7.25
-%endif
+%global libsolv_version 0.7.35
 %global sqlite_version 3.35.0
 %global swig_version 4
 
@@ -151,10 +153,14 @@ BuildRequires:  pkgconfig(libcrypto)
 BuildRequires:  pkgconfig(librepo) >= %{librepo_version}
 BuildRequires:  pkgconfig(libsolv) >= %{libsolv_version}
 BuildRequires:  pkgconfig(libsolvext) >= %{libsolv_version}
-BuildRequires:  pkgconfig(rpm) >= 4.17.0
+BuildRequires:  pkgconfig(rpm) >= 4.19.0
 BuildRequires:  pkgconfig(sqlite3) >= %{sqlite_version}
 BuildRequires:  toml11-static
 BuildRequires:  zlib-devel
+
+%if %{with acl}
+BuildRequires:  pkgconfig(libacl)
+%endif
 
 %if %{with clang}
 BuildRequires:  clang
@@ -363,7 +369,7 @@ It supports RPM packages, modulemd modules, and comps groups & environments.
 %{_mandir}/man7/dnf*-system-state.7.*
 %{_mandir}/man7/dnf*-changes-from-dnf4.7.*
 %{_mandir}/man5/dnf*.conf.5.*
-%{_mandir}/man5/dnf*.conf-vendorpolicy.5.*
+%{_mandir}/man5/dnf*.conf-vendorpolicy*.5.*
 %{_mandir}/man5/dnf*.conf-todo.5.*
 %{_mandir}/man5/dnf*.conf-deprecated.5.*
 %endif
@@ -411,6 +417,7 @@ Package management library.
 %dir %{_datadir}/dnf5/repos.d
 %dir %{_datadir}/dnf5/vars.d
 %dir %{_datadir}/dnf5/vendors.d
+%dir %{_datadir}/dnf5/libdnf.plugins.conf.d
 %dir %{_sysconfdir}/dnf/vendors.d
 %dir %{_libdir}/libdnf5
 %{_libdir}/libdnf5.so.2*
@@ -429,6 +436,7 @@ Package management library.
 %verify(not md5 size mtime) %attr(0644, root, root) %ghost %{_prefix}/lib/sysimage/libdnf5/packages.toml
 %verify(not md5 size mtime) %attr(0644, root, root) %ghost %{_prefix}/lib/sysimage/libdnf5/system.toml
 %verify(not md5 size mtime) %attr(0644, root, root) %ghost %{_prefix}/lib/sysimage/libdnf5/transaction_history.sqlite{,-shm,-wal}
+%verify(not md5 size mtime) %attr(0664, root, root) %ghost %{_prefix}/lib/sysimage/libdnf5/system-repo.lock
 %license lgpl-2.1.txt
 %ghost %attr(0755, root, root) %dir %{_var}/cache/libdnf5
 %ghost %attr(0755, root, root) %dir %{_sharedstatedir}/dnf
@@ -925,7 +933,6 @@ License:        LGPL-2.1-or-later
 Requires:       dnf5%{?_isa} = %{version}-%{release}
 Requires:       libdnf5%{?_isa} = %{version}-%{release}
 Requires:       libdnf5-cli%{?_isa} = %{version}-%{release}
-Requires:       pkgconfig(libpkgmanifest)
 Provides:       dnf5-command(manifest)
 
 %description plugin-manifest
@@ -967,6 +974,7 @@ DNF5 plugin for working with RPM package manifest files.
     -DWITH_PLUGIN_MANIFEST=%{?with_plugin_manifest:ON}%{!?with_plugin_manifest:OFF} \
     -DWITH_PYTHON_PLUGINS_LOADER=%{?with_python_plugins_loader:ON}%{!?with_python_plugins_loader:OFF} \
     \
+    -DWITH_ACL=%{?with_acl:ON}%{!?with_acl:OFF} \
     -DWITH_COMPS=%{?with_comps:ON}%{!?with_comps:OFF} \
     -DWITH_MODULEMD=%{?with_modulemd:ON}%{!?with_modulemd:OFF} \
     -DWITH_SYSTEMD=%{?with_systemd:ON}%{!?with_systemd:OFF} \
@@ -1027,7 +1035,8 @@ for file in \
     environments.toml groups.toml modules.toml nevras.toml packages.toml \
     system.toml \
     transaction_history.sqlite transaction_history.sqlite-shm \
-    transaction_history.sqlite-wal
+    transaction_history.sqlite-wal \
+    system-repo.lock
 do
     touch %{buildroot}%{_prefix}/lib/sysimage/libdnf5/$file
 done
@@ -1082,139 +1091,11 @@ mkdir -p %{buildroot}%{_libdir}/libdnf5/plugins
 %ldconfig_scriptlets
 
 %changelog
-* Mon Jan 26 2026 Thomas <temp.mail@hispeed.ch> 5.3.0.0-1
-- Release 5.3.0.0 (kontura@users.noreply.github.com)
-- Update translations from weblate (github-actions@github.com)
-- Document 5.3.0.0 API changes (amatej@redhat.com)
-- copr: support '$distname' replacement in baseurls (praiskup@redhat.com)
-- advisory: Add JSON documentation, standardize timestamps, and suppress error
-  messages in JSON format (userfrom1995@gmail.com)
-- fix: unify epoch display across all DNF5 commands (me@fhbash.com)
-- doc: mention libpkgmanifest in the CONTRIBUTING.md (mfocko@redhat.com)
-- Add JSON output support to history list and info commands
-  (userfrom1995@gmail.com)
-- manifest docs: mark as experimental (mail@evangoo.de)
-- comps: Store comps xml files in groups and environments subdirectories
-  (pkratoch@redhat.com)
-- comps: Add environment install, remove and upgrade commands
-  (pkratoch@redhat.com)
-- comps: Add CompsTypePreferred to set preference for comps operations
-  (pkratoch@redhat.com)
-- comps: Fix descriptions of group and environment specs (pkratoch@redhat.com)
-- needs-restarting: use std::string to own pid (mail@evangoo.de)
-- needs-restarting: Drop unnecessary logging; display PID and cmdline for -p
-  (dcantrell@redhat.com)
-- needs-restarting: Correctly use sdbus_compat (mail@evangoo.de)
-- needs-restarting: use org.freedesktop.systemd1.Service interface
-  (mail@evangoo.de)
-- test: Add framework for needs-restarting plugin tests (dcantrell@redhat.com)
-- needs-restarting: Update the man page to reflect current options
-  (dcantrell@redhat.com)
-- needs-restarting: Implement the --processes and --exclude-services options
-  (dcantrell@redhat.com)
-- doc: document output of `--json` for `repo` command (mfocko@redhat.com)
-- docs: Use only multiline comments in RST files (jrohel@redhat.com)
-- docs: Document vendor change policy TOML config (jrohel@redhat.com)
-- Add directories for vendor change policies configuration to the package
-  (jrohel@redhat.com)
-- Load vendor change policies from configuration files (jrohel@redhat.com)
-- solv::VendorChangeManager: Remove limit on vendor change policies
-  (jrohel@redhat.com)
-- Add unit test for "solv::SolvMap::is_intersection_empty" (jrohel@redhat.com)
-- Add "solv::SolvMap::is_intersection_empty" for optimized bitwise checks
-  (jrohel@redhat.com)
-- New VendorChangeManager: Supports vendor change policies. (jrohel@redhat.com)
-- Pool: Set appdata pointer in libsolv pool to its managing solv::Pool
-  (jrohel@redhat.com)
-- packit: move getting dnf5 version to package config (amatej@redhat.com)
-- Fix typo in DNF4 and DNF5 documentation (termim@gmail.com)
-- Drop mentions of dnf5-testing-nightly and dnf5-testing (amatej@redhat.com)
-- offline: Store downloaded packages in /var/lib/dnf (pkratoch@redhat.com)
-- libdnf5::base::transaction::serialize: don't prefix system repo
-  (amatej@redhat.com)
-- doc: describe repo mangling for `--store` option (amatej@redhat.com)
-- Prefix repository names for `--store`ed transactions (amatej@redhat.com)
-- Simplify a help text for package arguments (ppisar@redhat.com)
-- manifest: remove BOOTSTRAP_REPO_ID logic (mail@evangoo.de)
-- manifest: descriptive error for duplicate repository IDs (mail@evangoo.de)
-- manifest: split new and resolve subcommands (mail@evangoo.de)
-- manifest: error when srpm is missing (mail@evangoo.de)
-- manifest: s/source/srpm, s/archs/arch, cleanup (mail@evangoo.de)
-- spec: add `%%bcond_without plugin_manifest` (mail@evangoo.de)
-- manifest: port documentation from dnf-plugins-core (mail@evangoo.de)
-- manifest: add --source argument (mail@evangoo.de)
-- manifest: implement existing commands from DNF4 plugin (mail@evangoo.de)
-- manifest: create plugin skeleton (mail@evangoo.de)
-- Fix too long line of new `max_downloads_per_mirror` (amatej@redhat.com)
-- Expose librepo max_downloads_per_mirror configuration
-  (stewart@flamingspork.com)
-- vars: add doc comments for detect_release, detect_releasevers
-  (mail@evangoo.de)
-- Add --releasever-{major,minor} options (mail@evangoo.de)
-- Override releasever_{major,minor} with provides (mail@evangoo.de)
-- vars: make releasever_{major,minor} writable (mail@evangoo.de)
-- tutorial: libdnf5 plugins: fix `enable` options (amatej@redhat.com)
-- Add `local` plugin (amatej@redhat.com)
-- libdnf5 actions plugin: Document "json" communication mode, polishing
-  (jrohel@redhat.com)
-- python_plugins_loader: require and read config files for python plugins
-  (amatej@redhat.com)
-- python_plugins_loader: add `python_plugins_loader.d` config directory
-  (amatej@redhat.com)
-- libdnf5::Base: add back similar API for loading plugins (amatej@redhat.com)
-- Inline `Plugins::load_plugin`, its too small to be worth a separate method
-  (amatej@redhat.com)
-- libdnf5::Base: Separate plugin config loading into a new Base API
-  (amatej@redhat.com)
-- Extend unused `libdnf5::plugin::Plugin` constructor with cfg parser
-  (amatej@redhat.com)
-- python_plugins_loader: Fix invalid path read bug (amatej@redhat.com)
-- python_plugins_loader: update example plugin.py (amatej@redhat.com)
-- python_plugins_loader: pass wrapped `libdnf5::plugin::IPluginData`
-  (amatej@redhat.com)
-- python_plugins_loader: store `libdnf5::plugin::IPluginData`
-  (amatej@redhat.com)
-- python_plugins_loader: the library module is now called `libdnf5`
-  (amatej@redhat.com)
-- python_plugins_loader: fix the name to match the rest of code and rpm pkg
-  (amatej@redhat.com)
-- python_plugins_loader: add default config to enable the plugin
-  (amatej@redhat.com)
-- GHA: Fix weblate-sync-pot workflow (mail@evangoo.de)
-- RepoSack: only attempt fix_group_missing_xml if system_repo loaded
-  (mail@evangoo.de)
-- ConfigMain: deprecate `enabled` option (mail@evangoo.de)
-- daemon: Protect libdnf5 access in D-Bus services with mutex
-  (mblaha@redhat.com)
-- libdnf5 actions plugin: Reply with actual values after set configuration
-  (jrohel@redhat.com)
-- Add .mailmap to set preferred user names and email addresses
-  (dcantrell@redhat.com)
-- libdnf5 actions plugin: Add snapshot description in snapper impl example
-  (jrohel@redhat.com)
-- doc: Add Tutorial: API changes in callbacks between DNF and DNF5
-  (pkratoch@redhat.com)
-- test: Add tests for code examples for API changes in callbacks tutorial
-  (pkratoch@redhat.com)
-- test ConfigMain::load_from_config (mail@evangoo.de)
-- ConfigMain: add load_from_config (mail@evangoo.de)
-- pre-commit: Increase autopep8 line length (pkratoch@redhat.com)
-- Bump libdnf5-cli rpm and so version (mblaha@redhat.com)
-- Add unit tests for long progress bar messages (mblaha@redhat.com)
-- cli: Clear the screen instead of padding messages (mblaha@redhat.com)
-- progressbar: Do not trim messages to terminal width (mblaha@redhat.com)
-- cli: Add pImpl to libdnf5::cli::progressbar::DownloadProgressBar
-  (mblaha@redhat.com)
-- cli: Add pImpl to libdnf5::cli::progressbar::ProgressBar (mblaha@redhat.com)
-- cli: Add pImpl to libdnf5::cli::progressbar::MultiProgressBar
-  (mblaha@redhat.com)
-- feat: add field-specific search options (--name-only, --summary-only)
-  (me@fhbash.com)
-- Add license header requirement to CONTRIBUTING.md (jrohel@redhat.com)
-- Add "Copyright Contributors to the DNF5 project." (jrohel@redhat.com)
-- Add SPDX-License-Identifier (jrohel@redhat.com)
-- repo: When repo age matches `metadata_expire` exactly expire it
-  (amatej@redhat.com)
+* Mon Feb 16 2026 Packit Team <hello@packit.dev> - 5.4.0.0-1
+- New upstream release 5.4.0.0
+
+* Fri Nov 21 2025 Petr Pisar <ppisar@redhat.com> - 5.3.1.0-2
+- Postrelease version bump
 
 * Tue Nov 04 2025 Packit Team <hello@packit.dev> - 5.3.0.0-1
 - New upstream release 5.3.0.0

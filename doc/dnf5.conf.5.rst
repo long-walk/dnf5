@@ -523,6 +523,17 @@ repository configuration file should aside from repo ID consists of baseurl, met
 
     Default: ``False``.
 
+.. _skip_system_repo_lock_options-label:
+
+``skip_system_repo_lock``
+    :ref:`boolean <boolean-label>`
+
+    Skip acquiring a lock on the system repository (equivalent to the RPM
+    database). The lock is used to prevent processes from reading the system
+    repository while another process is running a transaction. Unprivileged
+    users are allowed to acquire a read lock on the system repository, so
+    ``skip_system_repo_lock=true`` may be used to ignore their lock.
+
 .. _skip_unavailable_options-label:
 
 ``skip_unavailable``
@@ -683,7 +694,7 @@ repository configuration file should aside from repo ID consists of baseurl, met
 
 .. _color_update_local_options-label:
 
-``color_update_label``
+``color_update_local``
     :ref:`color <color-label>`
 
     Color of local packages that are installed from the @commandline repository.
@@ -1334,6 +1345,9 @@ Types of Options
 
 ``list``
     String representing one or more strings separated by space or comma characters.
+    The backslash ``'\'`` can be used to escape any character, allowing it to be included literally in the individual strings.
+
+    Example: ``'item1,item2\,with\,commas,item3\ with\ spaces item4'``
 
 .. _storage_size-label:
 
@@ -1474,25 +1488,25 @@ This example shows the order in which override files are processed.
 
 Files with user repos overrides:
 
-- /etc/dnf/repos.overide.d/20-user-overrides.repo
-- /etc/dnf/repos.overide.d/60-something2.repo
-- /etc/dnf/repos.overide.d/80-user-overrides.repo
-- /etc/dnf/repos.overide.d/99-config-manager.repo
+- /etc/dnf/repos.override.d/20-user-overrides.repo
+- /etc/dnf/repos.override.d/60-something2.repo
+- /etc/dnf/repos.override.d/80-user-overrides.repo
+- /etc/dnf/repos.override.d/99-config-manager.repo
 
 Files with distribution repos overrides:
 
-- /usr/share/dnf5/repos.overide.d/50-something2.repo
-- /usr/share/dnf5/repos.overide.d/60-something2.repo
-- /usr/share/dnf5/repos.overide.d/90-something2.repo
+- /usr/share/dnf5/repos.override.d/50-something2.repo
+- /usr/share/dnf5/repos.override.d/60-something2.repo
+- /usr/share/dnf5/repos.override.d/90-something2.repo
 
 Resulting file processing order:
 
-1. /etc/dnf/repos.overide.d/20-user-overrides.repo
-2. /usr/share/dnf5/repos.overide.d/50-something2.repo
-3. /etc/dnf/repos.overide.d/60-something2.repo
-4. /etc/dnf/repos.overide.d/80-user-overrides.repo
-5. /usr/share/dnf5/repos.overide.d/90-something2.repo
-6. /etc/dnf/repos.overide.d/99-config-manager.repo
+1. /etc/dnf/repos.override.d/20-user-overrides.repo
+2. /usr/share/dnf5/repos.override.d/50-something2.repo
+3. /etc/dnf/repos.override.d/60-something2.repo
+4. /etc/dnf/repos.override.d/80-user-overrides.repo
+5. /usr/share/dnf5/repos.override.d/90-something2.repo
+6. /etc/dnf/repos.override.d/99-config-manager.repo
 
 
 .. _repo_files_and_directories-label:

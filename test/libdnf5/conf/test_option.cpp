@@ -494,6 +494,69 @@ void OptionTest::test_options_string_list_custom_delimiters() {
     CPPUNIT_ASSERT_EQUAL((std::vector<std::string>{"Dfirstx", "DsecondX"}), option3.get_value());
 }
 
+void OptionTest::test_options_string_list_escape() {
+    OptionStringList option("Dfirstx\\,DsecondX");
+    CPPUNIT_ASSERT_EQUAL((std::vector<std::string>{"Dfirstx,DsecondX"}), option.get_value());
+
+    option.set(Option::Priority::RUNTIME, "Dfirstx\\ DsecondX");
+    CPPUNIT_ASSERT_EQUAL((std::vector<std::string>{"Dfirstx DsecondX"}), option.get_value());
+
+    option.set(Option::Priority::RUNTIME, "\\ , DsecondX");
+    CPPUNIT_ASSERT_EQUAL((std::vector<std::string>{" ", "DsecondX"}), option.get_value());
+
+    option.set(Option::Priority::RUNTIME, "asdasd,\\ ,DsecondX");
+    CPPUNIT_ASSERT_EQUAL((std::vector<std::string>{"asdasd", " ", "DsecondX"}), option.get_value());
+
+    option.set(Option::Priority::RUNTIME, "asdasd,\\,,DsecondX");
+    CPPUNIT_ASSERT_EQUAL((std::vector<std::string>{"asdasd", ",", "DsecondX"}), option.get_value());
+
+    option.set(Option::Priority::RUNTIME, "\\ asdasd\\,\\ , DsecondX");
+    CPPUNIT_ASSERT_EQUAL((std::vector<std::string>{" asdasd, ", "DsecondX"}), option.get_value());
+
+    option.set(Option::Priority::RUNTIME, " \\ asdasd\\,\\   DsecondX");
+    CPPUNIT_ASSERT_EQUAL((std::vector<std::string>{" asdasd, ", "DsecondX"}), option.get_value());
+}
+
+void OptionTest::test_options_string_list_custom_delimiters_escape() {
+    OptionStringList option3((std::vector<std::string>){"dval1X", "dval2X"}, "", true, ";");
+    option3.set(Option::Priority::RUNTIME, "   aa\\; b;    ccc,;  \n");
+    CPPUNIT_ASSERT_EQUAL((std::vector<std::string>{"aa; b", "ccc,"}), option3.get_value());
+
+    option3.set(Option::Priority::RUNTIME, " \\ aa\\; b ;    ccc,   ;  \n");
+    CPPUNIT_ASSERT_EQUAL((std::vector<std::string>{" aa; b", "ccc,"}), option3.get_value());
+
+    option3.set(Option::Priority::RUNTIME, " \\ aa\\; b \\   ;    ccc,;  \n");
+    CPPUNIT_ASSERT_EQUAL((std::vector<std::string>{" aa; b  ", "ccc,"}), option3.get_value());
+}
+
+void OptionTest::test_options_string_list_to_string() {
+    OptionStringList option(std::vector<std::string>{"Dfirstx", "DsecondX"});
+    CPPUNIT_ASSERT_EQUAL(std::string{"Dfirstx,DsecondX"}, option.get_value_string());
+
+    option.set(Option::Priority::RUNTIME, std::vector<std::string>{" ", "DsecondX"});
+    CPPUNIT_ASSERT_EQUAL(std::string{"\\ ,DsecondX"}, option.get_value_string());
+
+    option.set(Option::Priority::RUNTIME, std::vector<std::string>{"asdasd", " ", "DsecondX"});
+    CPPUNIT_ASSERT_EQUAL(std::string{"asdasd,\\ ,DsecondX"}, option.get_value_string());
+
+    option.set(Option::Priority::RUNTIME, std::vector<std::string>{"asdasd", ",", "\\DsecondX"});
+    CPPUNIT_ASSERT_EQUAL(std::string{"asdasd,\\,,\\\\DsecondX"}, option.get_value_string());
+
+    option.set(Option::Priority::RUNTIME, std::vector<std::string>{" asdasd, ", "DsecondX"});
+    CPPUNIT_ASSERT_EQUAL(std::string{"\\ asdasd\\,\\ ,DsecondX"}, option.get_value_string());
+}
+
+void OptionTest::test_options_string_list_custom_delimiters_to_string() {
+    OptionStringList option(std::vector<std::string>{"aa; b", "ccc,"}, "", true, ";");
+    CPPUNIT_ASSERT_EQUAL(std::string{"aa\\; b;ccc,"}, option.get_value_string());
+
+    option.set(Option::Priority::RUNTIME, std::vector<std::string>{"", ";aa; :b", "ccc,"});
+    CPPUNIT_ASSERT_EQUAL(std::string{";\\;aa\\; :b;ccc,"}, option.get_value_string());
+
+    OptionStringList option2(std::vector<std::string>{"", ";a\\a; :b", "ccc,"}, "", true, ";:");
+    CPPUNIT_ASSERT_EQUAL(std::string{";\\;a\\\\a\\; \\:b;ccc,"}, option2.get_value_string());
+}
+
 void OptionTest::test_options_string_set() {
     const OptionStringSet::ValueType initial{"x", "y", "z"};
     OptionStringSet option(initial);

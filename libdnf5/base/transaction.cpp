@@ -56,6 +56,7 @@
 #include <filesystem>
 #include <iostream>
 #include <ranges>
+#include <sstream>
 #include <string_view>
 #include <thread>
 
@@ -902,15 +903,6 @@ void Transaction::Impl::process_scriptlets_output(int fd) {
     close(fd);
 }
 
-static bool contains_any_inbound_package(std::vector<TransactionPackage> & packages) {
-    for (const auto & package : packages) {
-        if (transaction_item_action_is_inbound(package.get_action())) {
-            return true;
-        }
-    }
-    return false;
-}
-
 Transaction::TransactionRunResult Transaction::Impl::test() {
     return this->_run(std::make_unique<libdnf5::rpm::TransactionCallbacks>(), "", std::nullopt, "", true);
 }
@@ -1062,8 +1054,26 @@ Transaction::TransactionRunResult Transaction::Impl::_run(
         db_transaction.fill_transaction_groups(groups, installed_names);
     }
 
-    auto time = std::chrono::system_clock::now().time_since_epoch();
-    db_transaction.set_dt_start(std::chrono::duration_cast<std::chrono::seconds>(time).count());
+    int64_t source_date_epoch = -1;
+    const char * sde = std::getenv("SOURCE_DATE_EPOCH");
+    if (sde != nullptr) {
+        std::istringstream iss(sde);
+        iss >> source_date_epoch;
+        if (iss.fail() || !iss.eof() || source_date_epoch < 0) {
+            auto logger = base->get_logger().get();
+            logger->warning("Invalid SOURCE_DATE_EPOCH value '{}', using current time", sde);
+            source_date_epoch = -1;
+        }
+    }
+
+    int64_t dt_start;
+    if (source_date_epoch >= 0) {
+        dt_start = source_date_epoch;
+    } else {
+        auto time = std::chrono::system_clock::now().time_since_epoch();
+        dt_start = std::chrono::duration_cast<std::chrono::seconds>(time).count();
+    }
+    db_transaction.set_dt_start(dt_start);
     db_transaction.start();
 
 
@@ -1158,11 +1168,31 @@ Transaction::TransactionRunResult Transaction::Impl::_run(
                 system_state.remove_package_nevra_state(pkg.get_nevra());
             } else if (tspkg.get_action() == TransactionPackage::Action::REASON_CHANGE) {
                 if (tspkg_reason == transaction::TransactionItemReason::GROUP) {
+                    // group packages are not stored in packages.toml but in groups.toml using its name
+                    system_state.set_package_reason(pkg.get_na(), transaction::TransactionItemReason::DEPENDENCY);
                     auto group_id = *tspkg.get_reason_change_group_id();
                     auto state = system_state.get_group_state(group_id);
-                    state.packages.emplace_back(pkg.get_name());
-                    system_state.set_group_state(group_id, state);
+                    auto pkg_name = pkg.get_name();
+                    // add package name to the list of group packages if it's not there yet
+                    if (std::find(state.packages.begin(), state.packages.end(), pkg_name) == state.packages.end()) {
+                        state.packages.emplace_back(pkg_name);
+                        system_state.set_group_state(group_id, state);
+                    }
                 } else {
+                    if (tspkg_reason <= transaction::TransactionItemReason::DEPENDENCY) {
+                        // remove package from all group lists in groups.toml
+                        auto pkg_name = pkg.get_name();
+                        for (const auto & group_id : system_state.get_package_groups(pkg_name)) {
+                            try {
+                                auto state = system_state.get_group_state(group_id);
+                                if (std::erase(state.packages, pkg_name) != 0) {
+                                    system_state.set_group_state(group_id, state);
+                                }
+                            } catch (const system::StateNotFoundError &) {
+                                // group state doesn't exist, skip it
+                            }
+                        }
+                    }
                     system_state.set_package_reason(pkg.get_na(), tspkg_reason);
                 }
             }
@@ -1177,7 +1207,8 @@ Transaction::TransactionRunResult Transaction::Impl::_run(
         for (const auto & tsgroup : groups) {
             auto group = tsgroup.get_group();
             auto group_xml_path = comps_xml_dir_groups / (group.get_groupid() + ".xml");
-            if (transaction_item_action_is_inbound(tsgroup.get_action())) {
+            if (transaction_item_action_is_inbound(tsgroup.get_action()) ||
+                tsgroup.get_action() == transaction::TransactionItemAction::REASON_CHANGE) {
                 libdnf5::system::GroupState state;
                 state.userinstalled = tsgroup.get_reason() == transaction::TransactionItemReason::USER;
                 state.package_types = tsgroup.get_package_types();
@@ -1247,8 +1278,14 @@ Transaction::TransactionRunResult Transaction::Impl::_run(
     }
 
     // finish history db transaction
-    time = std::chrono::system_clock::now().time_since_epoch();
-    db_transaction.set_dt_end(std::chrono::duration_cast<std::chrono::seconds>(time).count());
+    int64_t dt_end;
+    if (source_date_epoch >= 0) {
+        dt_end = source_date_epoch;
+    } else {
+        auto time = std::chrono::system_clock::now().time_since_epoch();
+        dt_end = std::chrono::duration_cast<std::chrono::seconds>(time).count();
+    }
+    db_transaction.set_dt_end(dt_end);
     // TODO(jrohel): Also save the rpm db cookie to system state.
     //               Possibility to detect rpm database change without the need for a history database.
     db_transaction.set_rpmdb_version_end(rpm_transaction.get_db_cookie());
@@ -1258,14 +1295,27 @@ Transaction::TransactionRunResult Transaction::Impl::_run(
     plugins.post_transaction(*transaction);
 
     if (ret == 0) {
-        // removes any temporarily stored packages from the system
-        // only if any inbound action takes place
+        // Remove any temporarily stored packages that are no longer needed
         auto keepcache = config.get_keepcache_option().get_value();
-        auto any_inbound_action_present = contains_any_inbound_package(packages);
-        if (!keepcache && any_inbound_action_present) {
-            libdnf5::repo::TempFilesMemory temp_files_memory(base, config.get_cachedir_option().get_value());
-            auto temp_files = temp_files_memory.get_files();
-            for (auto & file : temp_files) {
+
+        std::set<std::string> package_files_to_remove;
+        if (!keepcache) {
+            // All package files for inbound packages should be marked for removal
+            for (const auto & tspkg : packages) {
+                if (transaction_item_action_is_inbound(tspkg.get_action())) {
+                    package_files_to_remove.insert(tspkg.get_package().get_package_path());
+                }
+            }
+        }
+
+        // Get all temp files
+        libdnf5::repo::TempFilesMemory temp_files_memory(base, config.get_cachedir_option().get_value());
+        const auto & temp_files = temp_files_memory.get_files();
+
+        std::vector<std::string> removed;
+        for (const auto & file : temp_files) {
+            // If a file was marked for removal, remove it from the filesystem
+            if (package_files_to_remove.contains(file)) {
                 try {
                     if (!std::filesystem::remove(file)) {
                         logger->debug("Temporary file \"{}\" doesn't exist.", file);
@@ -1275,6 +1325,20 @@ Transaction::TransactionRunResult Transaction::Impl::_run(
                         "An error occurred when trying to remove a temporary file \"{}\": {}", file, ex.what());
                 }
             }
+            try {
+                // All temp files that no longer exist should be removed from the temp_files_memory,
+                // whether they were removed just now or by someone else.
+                if (!std::filesystem::exists(file)) {
+                    removed.push_back(file);
+                }
+            } catch (const std::filesystem::filesystem_error &) {
+                // Silently continue if we can't determine whether a file still exists.
+            }
+        }
+        // Remove all nonexistent files from the temp_files_memory
+        temp_files_memory.remove_files(removed);
+        // Remove the temp_files_memory file if it's empty
+        if (temp_files_memory.get_files().empty()) {
             temp_files_memory.clear();
         }
 

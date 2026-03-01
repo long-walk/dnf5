@@ -28,6 +28,7 @@
 #include <libdnf5/base/transaction_package.hpp>
 #include <libdnf5/repo/package_downloader.hpp>
 #include <libdnf5/rpm/transaction_callbacks.hpp>
+#include <libdnf5/transaction/transaction_history.hpp>
 
 #include <filesystem>
 
@@ -76,6 +77,23 @@ public:
 
     int progress_cnt{0};
     int mirror_failure_cnt{0};
+};
+
+class OrderCapturingCallbacks : public libdnf5::rpm::TransactionCallbacks {
+public:
+    explicit OrderCapturingCallbacks(std::vector<std::string> expected) : expected_order(std::move(expected)) {}
+
+    void install_start(const libdnf5::base::TransactionPackage & item, [[maybe_unused]] uint64_t total) override {
+        auto nevra = item.get_package().get_nevra();
+        if (current_index >= expected_order.size() || nevra != expected_order[current_index]) {
+            order_correct = false;
+        }
+        current_index++;
+    }
+
+    std::vector<std::string> expected_order;
+    size_t current_index = 0;
+    bool order_correct = true;
 };
 
 }  // namespace
@@ -160,4 +178,101 @@ void RpmTransactionTest::test_transaction_temp_files_cleanup() {
     } else {
         CPPUNIT_ASSERT(!std::filesystem::exists(package_path));
     }
+}
+
+void RpmTransactionTest::test_source_date_epoch_sorting() {
+    add_repo_rpm("rpm-repo1", /* load */ false);
+    add_repo_rpm("rpm-repo2", /* load */ false);
+    add_repo_rpm("rpm-repo3", /* load */ true);
+
+    // NB: thread safety alert! if we ever run tests in parallel, this can cause issues
+    setenv("SOURCE_DATE_EPOCH", "1234567890", 1);
+
+    std::vector<std::string> packages = {"one", "two", "three"};
+    // The exact final install order chosen by librpm doesn't matter. What
+    // matters is that it's consistent across all permutations. An alternative
+    // approach resilient to potential librpm changes is to capture the order on
+    // the first iteration and then compare future iterations against that.
+    std::vector<std::string> expected_order = {"two-2-2.noarch", "three-1-1.noarch", "one-2-1.noarch"};
+    auto installroot = base.get_config().get_installroot_option().get_value();
+
+    std::sort(packages.begin(), packages.end());
+    do {
+        // recreate the installroot each time so we start from scratch
+        std::filesystem::remove_all(installroot);
+        std::filesystem::create_directory(installroot);
+
+        libdnf5::Goal goal(base);
+        for (const auto & pkg : packages) {
+            goal.add_rpm_install(pkg);
+        }
+
+        auto transaction = goal.resolve();
+        transaction.download();
+
+        auto callbacks = std::make_unique<OrderCapturingCallbacks>(expected_order);
+        auto callbacks_ptr = callbacks.get();
+        transaction.set_callbacks(std::move(callbacks));
+
+        // TODO(jkolarik): Temporarily disable the test to allow further investigation of issues on the RISC-V arch
+        //                 See https://github.com/rpm-software-management/dnf5/issues/503
+        auto res = transaction.run();
+        if (res != libdnf5::base::Transaction::TransactionRunResult::SUCCESS) {
+            std::cout << std::endl << "WARNING: Transaction was not successful" << std::endl;
+            std::cout << libdnf5::utils::string::join(transaction.get_transaction_problems(), ", ") << std::endl;
+            break;  // no point in trying more permutations if arch is broken
+        }
+
+        CPPUNIT_ASSERT(callbacks_ptr->order_correct);
+        CPPUNIT_ASSERT_EQUAL(expected_order.size(), callbacks_ptr->current_index);
+
+        // verify the history db transaction pkg list is also sorted by NEVRA
+        libdnf5::transaction::TransactionHistory history(base.get_weak_ptr());
+        auto transactions = history.list_all_transactions();
+        CPPUNIT_ASSERT_EQUAL(static_cast<size_t>(1), transactions.size());
+
+        auto trans_packages = transactions[0].get_packages();
+        CPPUNIT_ASSERT(std::is_sorted(trans_packages.begin(), trans_packages.end(), [](const auto & a, const auto & b) {
+            return a.to_string() < b.to_string();
+        }));
+
+    } while (std::next_permutation(packages.begin(), packages.end()));
+
+    unsetenv("SOURCE_DATE_EPOCH");
+}
+
+void RpmTransactionTest::test_source_date_epoch_history_timestamps() {
+    add_repo_rpm("rpm-repo1", /* load */ true);
+
+    const int64_t sde_value = 1234567890;
+    // NB: thread safety alert! if we ever run tests in parallel, this can cause issues
+    setenv("SOURCE_DATE_EPOCH", "1234567890", 1);
+
+    // install one
+    libdnf5::Goal goal(base);
+    goal.add_rpm_install("one");
+
+    auto transaction = goal.resolve();
+    transaction.download();
+
+    // TODO(jkolarik): Temporarily disable the test to allow further investigation of issues on the RISC-V arch
+    //                 See https://github.com/rpm-software-management/dnf5/issues/503
+    auto res = transaction.run();
+    if (res != libdnf5::base::Transaction::TransactionRunResult::SUCCESS) {
+        std::cout << std::endl << "WARNING: Transaction was not successful" << std::endl;
+        std::cout << libdnf5::utils::string::join(transaction.get_transaction_problems(), ", ") << std::endl;
+        unsetenv("SOURCE_DATE_EPOCH");
+        return;
+    }
+
+    // verify the timestamps on the install
+    libdnf5::transaction::TransactionHistory history(base.get_weak_ptr());
+    auto transactions = history.list_all_transactions();
+    CPPUNIT_ASSERT_EQUAL(static_cast<size_t>(1), transactions.size());
+
+    auto & trans = transactions[0];
+    CPPUNIT_ASSERT_EQUAL(sde_value, trans.get_dt_start());
+    CPPUNIT_ASSERT_EQUAL(sde_value, trans.get_dt_end());
+
+    unsetenv("SOURCE_DATE_EPOCH");
 }

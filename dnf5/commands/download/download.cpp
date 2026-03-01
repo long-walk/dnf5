@@ -58,7 +58,7 @@ void DownloadCommand::set_argument_parser() {
         parser.add_init_value(std::unique_ptr<libdnf5::Option>(new libdnf5::OptionString(nullptr))),
         patterns_to_download_options);
     keys->set_description("List of package-spec-NPFB to download");
-    keys->set_complete_hook_func([&ctx](const char * arg) { return match_specs(ctx, arg, false, true, false, false); });
+    keys->set_complete_hook_func([&ctx](const char * arg) { return ctx.match_specs(arg, false, true, false, false); });
 
     resolve_option = dynamic_cast<libdnf5::OptionBool *>(
         parser.add_init_value(std::unique_ptr<libdnf5::OptionBool>(new libdnf5::OptionBool(false))));
@@ -73,6 +73,12 @@ void DownloadCommand::set_argument_parser() {
         parser.add_init_value(std::unique_ptr<libdnf5::OptionBool>(new libdnf5::OptionBool(false))));
 
     srpm_option = dynamic_cast<libdnf5::OptionBool *>(
+        parser.add_init_value(std::unique_ptr<libdnf5::OptionBool>(new libdnf5::OptionBool(false))));
+
+    debuginfo_option = dynamic_cast<libdnf5::OptionBool *>(
+        parser.add_init_value(std::unique_ptr<libdnf5::OptionBool>(new libdnf5::OptionBool(false))));
+
+    debugsource_option = dynamic_cast<libdnf5::OptionBool *>(
         parser.add_init_value(std::unique_ptr<libdnf5::OptionBool>(new libdnf5::OptionBool(false))));
 
     auto resolve = parser.add_new_named_arg("resolve");
@@ -93,6 +99,18 @@ void DownloadCommand::set_argument_parser() {
     srpm->set_description("Download the src.rpm instead");
     srpm->set_const_value("true");
     srpm->link_value(srpm_option);
+
+    auto debuginfo = parser.add_new_named_arg("debuginfo");
+    debuginfo->set_long_name("debuginfo");
+    debuginfo->set_description("Download the -debuginfo package instead");
+    debuginfo->set_const_value("true");
+    debuginfo->link_value(debuginfo_option);
+
+    auto debugsource = parser.add_new_named_arg("debugsource");
+    debugsource->set_long_name("debugsource");
+    debugsource->set_description("Download the -debugsource package instead");
+    debugsource->set_const_value("true");
+    debugsource->link_value(debugsource_option);
 
     auto url = parser.add_new_named_arg("url");
     url->set_long_name("url");
@@ -158,9 +176,12 @@ void DownloadCommand::set_argument_parser() {
     cmd.register_named_arg(resolve);
     cmd.register_named_arg(alldeps);
     create_from_repo_option(*this, from_repos, true);
+    create_from_vendor_option(*this, from_vendors, true);
     create_destdir_option(*this);
     auto skip_unavailable = std::make_unique<SkipUnavailableOption>(*this);
     cmd.register_named_arg(srpm);
+    cmd.register_named_arg(debuginfo);
+    cmd.register_named_arg(debugsource);
     cmd.register_named_arg(url);
     cmd.register_named_arg(urlprotocol);
     cmd.register_named_arg(allmirrors);
@@ -191,6 +212,14 @@ void DownloadCommand::configure() {
         context.get_base().get_repo_sack()->enable_source_repos();
     }
 
+    if (debuginfo_option->get_value()) {
+        context.get_base().get_repo_sack()->enable_debug_repos();
+    }
+
+    if (debugsource_option->get_value()) {
+        context.get_base().get_repo_sack()->enable_debug_repos();
+    }
+
     context.set_load_available_repos(Context::LoadAvailableRepos::ENABLED);
     // Default destination for downloaded rpms is the current directory
     context.get_base().get_config().get_destdir_option().set(libdnf5::Option::Priority::PLUGINDEFAULT, ".");
@@ -201,7 +230,10 @@ void DownloadCommand::run() {
 
     auto create_nevra_pkg_pair = [](const libdnf5::rpm::Package & pkg) { return std::make_pair(pkg.get_nevra(), pkg); };
 
-    std::map<std::string, libdnf5::rpm::Package> download_pkgs;
+    std::map<std::string, libdnf5::rpm::Package> original_binary_pkgs;
+    // Container to collect all packages to download
+    std::map<std::string, libdnf5::rpm::Package> packages_to_download;
+
     libdnf5::rpm::PackageQuery full_pkg_query(ctx.get_base(), libdnf5::sack::ExcludeFlags::IGNORE_VERSIONLOCK);
     for (auto & pattern : *patterns_to_download_options) {
         libdnf5::rpm::PackageQuery pkg_query(full_pkg_query);
@@ -211,6 +243,9 @@ void DownloadCommand::run() {
             pkg_query.filter_available();
         } else {
             pkg_query.filter_repo_id(from_repos, libdnf5::sack::QueryCmp::GLOB);
+        }
+        if (!from_vendors.empty()) {
+            pkg_query.filter_vendor(from_vendors, libdnf5::sack::QueryCmp::GLOB);
         }
         pkg_query.filter_priority();
         pkg_query.filter_latest_evr();
@@ -227,7 +262,7 @@ void DownloadCommand::run() {
         }
 
         for (const auto & pkg : pkg_query) {
-            download_pkgs.insert(create_nevra_pkg_pair(pkg));
+            original_binary_pkgs.insert(create_nevra_pkg_pair(pkg));
 
             if (resolve_option->get_value()) {
                 auto goal = std::make_unique<libdnf5::Goal>(ctx.get_base());
@@ -243,25 +278,23 @@ void DownloadCommand::run() {
                 for (auto & tspkg : transaction.get_transaction_packages()) {
                     if (transaction_item_action_is_inbound(tspkg.get_action()) &&
                         tspkg.get_package().get_repo()->get_type() != libdnf5::repo::Repo::Type::COMMANDLINE) {
-                        download_pkgs.insert(create_nevra_pkg_pair(tspkg.get_package()));
+                        original_binary_pkgs.insert(create_nevra_pkg_pair(tspkg.get_package()));
                     }
                 }
             }
         }
     }
 
-    if (download_pkgs.empty()) {
+    if (original_binary_pkgs.empty()) {
         return;
     }
 
     if (srpm_option->get_value()) {
-        std::map<std::string, libdnf5::rpm::Package> source_pkgs;
-
         libdnf5::rpm::PackageQuery source_pkg_query(ctx.get_base());
         source_pkg_query.filter_arch("src");
         source_pkg_query.filter_available();
 
-        for (auto & [nevra, pkg] : download_pkgs) {
+        for (auto & [nevra, pkg] : original_binary_pkgs) {
             auto sourcerpm = pkg.get_sourcerpm();
 
             if (!sourcerpm.empty()) {
@@ -273,17 +306,79 @@ void DownloadCommand::run() {
                 pkg_query.resolve_pkg_spec(sourcerpm, {}, true);
 
                 for (const auto & spkg : pkg_query) {
-                    source_pkgs.insert(create_nevra_pkg_pair(spkg));
+                    packages_to_download.insert(create_nevra_pkg_pair(spkg));
                 }
             } else if (pkg.get_arch() == "src") {
-                source_pkgs.insert(create_nevra_pkg_pair(pkg));
+                packages_to_download.insert(create_nevra_pkg_pair(pkg));
             } else {
                 ctx.get_base().get_logger()->info("No source rpm defined for package: \"{}\"", pkg.get_name());
-                continue;
+            }
+        }
+    }
+
+    if (debuginfo_option->get_value()) {
+        libdnf5::rpm::PackageQuery debuginfo_pkg_query(ctx.get_base());
+        debuginfo_pkg_query.filter_available();
+
+        bool found_any_debuginfo = false;
+        for (auto & [nevra, pkg] : original_binary_pkgs) {
+            libdnf5::rpm::PackageQuery pkg_query(debuginfo_pkg_query);
+
+            std::string debuginfo_name = pkg.get_debuginfo_name();
+            pkg_query.filter_name({debuginfo_name});
+            pkg_query.filter_version({pkg.get_version()});
+            pkg_query.filter_release({pkg.get_release()});
+            pkg_query.filter_arch({pkg.get_arch()});
+            pkg_query.filter_epoch(pkg.get_epoch());
+
+            if (pkg_query.size() > 0) {
+                found_any_debuginfo = true;
+                for (const auto & dpkg : pkg_query) {
+                    packages_to_download.insert(create_nevra_pkg_pair(dpkg));
+                }
+            } else {
+                ctx.get_base().get_logger()->info("No debuginfo package found for: \"{}\"", pkg.get_name());
             }
         }
 
-        download_pkgs = source_pkgs;
+        if (!found_any_debuginfo) {
+            ctx.get_base().get_logger()->warning("No debuginfo packages found for any of the specified packages");
+        }
+    }
+
+    if (debugsource_option->get_value()) {
+        libdnf5::rpm::PackageQuery debugsource_pkg_query(ctx.get_base());
+        debugsource_pkg_query.filter_available();
+
+        bool found_any_debugsource = false;
+        for (auto & [nevra, pkg] : original_binary_pkgs) {
+            libdnf5::rpm::PackageQuery pkg_query(debugsource_pkg_query);
+
+            std::string debugsource_name = pkg.get_debugsource_name();
+            pkg_query.filter_name({debugsource_name});
+            pkg_query.filter_version({pkg.get_version()});
+            pkg_query.filter_release({pkg.get_release()});
+            pkg_query.filter_arch({pkg.get_arch()});
+            pkg_query.filter_epoch(pkg.get_epoch());
+
+            if (pkg_query.size() > 0) {
+                found_any_debugsource = true;
+                for (const auto & dpkg : pkg_query) {
+                    packages_to_download.insert(create_nevra_pkg_pair(dpkg));
+                }
+            } else {
+                ctx.get_base().get_logger()->info("No debugsource package found for: \"{}\"", pkg.get_name());
+            }
+        }
+
+        if (!found_any_debugsource) {
+            ctx.get_base().get_logger()->warning("No debugsource packages found for any of the specified packages");
+        }
+    }
+
+    // If neither option is enabled, use original binary packages
+    if (!srpm_option->get_value() && !debuginfo_option->get_value() && !debugsource_option->get_value()) {
+        packages_to_download = std::move(original_binary_pkgs);
     }
 
     if (url_option->get_value()) {
@@ -291,7 +386,7 @@ void DownloadCommand::run() {
         if (urlprotocol_option.empty()) {
             urlprotocol_option = urlprotocol_valid_options;
         }
-        for (auto & [nerva, pkg] : download_pkgs) {
+        for (auto & [nerva, pkg] : packages_to_download) {
             auto urls = pkg.get_remote_locations(urlprotocol_option);
             if (urls.empty()) {
                 ctx.get_base().get_logger()->warning("Failed to get mirror for package: \"{}\"", pkg.get_name());
@@ -312,7 +407,7 @@ void DownloadCommand::run() {
     // for download command, we don't want to mark the packages for removal
     downloader.force_keep_packages(true);
 
-    for (auto & [nevra, pkg] : download_pkgs) {
+    for (auto & [nevra, pkg] : packages_to_download) {
         downloader.add(pkg);
     }
 

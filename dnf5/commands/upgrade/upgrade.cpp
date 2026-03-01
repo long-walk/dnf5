@@ -61,7 +61,7 @@ void UpgradeCommand::set_argument_parser() {
             }
             return true;
         });
-    keys->set_complete_hook_func([&ctx](const char * arg) { return match_specs(ctx, arg, true, false, true, false); });
+    keys->set_complete_hook_func([&ctx](const char * arg) { return ctx.match_specs(arg, true, false, true, false); });
     cmd.register_positional_arg(keys);
 
     allow_erasing = std::make_unique<AllowErasingOption>(*this);
@@ -69,6 +69,7 @@ void UpgradeCommand::set_argument_parser() {
     create_allow_downgrade_options(*this);
     create_installed_from_repo_option(*this, installed_from_repos, true);
     create_from_repo_option(*this, from_repos, true);
+    create_from_vendor_option(*this, from_vendors, true);
     create_destdir_option(*this);
     create_downloadonly_option(*this);
     auto & destdir = parser.get_named_arg("upgrade.destdir", false);
@@ -150,6 +151,9 @@ void UpgradeCommand::run() {
         // The "--from-repo" option only applies to packages explicitly listed on the command line.
         // Other packages can be used from any enabled repository.
         settings.set_to_repo_ids(from_repos);
+        // The "--from-vendor" option only applies to packages explicitly listed on the command line.
+        // For other packages, vendor change policies are applied, or the vendor is ignored if allow_vendor_change=1.
+        settings.set_to_vendors(from_vendors);
 
         for (const auto & spec : pkg_specs) {
             goal->add_upgrade(spec, settings, minimal->get_value());

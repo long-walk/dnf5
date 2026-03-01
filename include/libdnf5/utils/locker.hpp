@@ -20,19 +20,34 @@
 #ifndef LIBDNF5_UTILS_LOCKER_HPP
 #define LIBDNF5_UTILS_LOCKER_HPP
 
+#include "libdnf5/common/impl_ptr.hpp"
 #include "libdnf5/defs.h"
 
-#include <string>
+#include <filesystem>
 
 namespace libdnf5::utils {
+
+enum class LIBDNF_API LockAccess { READ, WRITE };
+enum class LIBDNF_API LockBlocking { NON_BLOCKING, BLOCKING };
 
 /// Object for implementing a simple file mutex mechanism
 /// or checking read/write access on a given path.
 class LIBDNF_API Locker {
 public:
     /// Create a Locker object at a given path
-    explicit Locker(const std::string & path);
+    Locker(const std::filesystem::path & path, bool keep_file = false);
     ~Locker();
+
+    Locker(const Locker &) = delete;
+    Locker & operator=(const Locker &) = delete;
+
+    Locker(Locker &&) noexcept;
+    Locker & operator=(Locker &&) noexcept;
+
+    /// @brief Acquire a read or write lock on a given file path, either blocking or non-blocking.
+    /// @return True if lock acquisition was successful, otherwise false
+    /// @throws libdnf5::SystemError if an unexpected error occurs when checking the lock state, like insufficient privileges
+    bool lock(LockAccess type, LockBlocking blocking);
 
     /// @brief Try to acquire read lock on a given file path
     /// @return True if lock acquisition was successful, otherwise false
@@ -48,11 +63,16 @@ public:
     /// @throws libdnf5::SystemError if an unexpected error occurs when unlocking
     void unlock();
 
-private:
-    LIBDNF_LOCAL bool lock(short int type);
+    /// @brief Open the file but don't acquire a lock yet. Useful for checking permissions.
+    /// @throws libdnf5::SystemError if an unexpected error occurs when opening the file
+    void open_file(LockAccess type);
 
-    std::string path;
-    int lock_fd{-1};
+    /// @brief Get the path being locked
+    const std::filesystem::path & get_path() const noexcept;
+
+private:
+    class LIBDNF_LOCAL Impl;
+    ImplPtr<Impl> p_impl;
 };
 
 }  // namespace libdnf5::utils

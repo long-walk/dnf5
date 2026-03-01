@@ -7,9 +7,6 @@ if (NOT WITH_MODULEMD)
     list(REMOVE_ITEM LIBDNF5_SOURCES ${LIBDNF5_SOURCES_MODULES})
 endif()
 
-# create config header file
-configure_file("config.h.in" ${CMAKE_CURRENT_SOURCE_DIR}/conf/config.h)
-
 # gather all pkg-config requires and write them to a .pc file later
 list(APPEND LIBDNF5_PC_REQUIRES)
 list(APPEND LIBDNF5_PC_REQUIRES_PRIVATE)
@@ -74,6 +71,14 @@ include_directories(${JSONC_INCLUDE_DIRS})
 target_link_libraries(libdnf5 PRIVATE ${JSONC_LIBRARIES})
 target_link_libraries(libdnf5_iface INTERFACE ${JSONC_LIBRARIES})
 
+if (WITH_ACL)
+    pkg_check_modules(LIBACL REQUIRED libacl)
+    add_definitions("-DHAVE_LIBACL")
+    list(APPEND LIBDNF5_PC_REQUIRES "${LIBACL_MODULE_NAME}")
+    target_link_libraries(libdnf5 PRIVATE ${LIBACL_LIBRARIES})
+    target_link_libraries(libdnf5_iface INTERFACE ${LIBACL_LIBRARIES})
+endif()
+
 if (WITH_MODULEMD)
     pkg_check_modules(LIBMODULEMD REQUIRED modulemd-2.0>=2.11.2)
     list(APPEND LIBDNF5_PC_REQUIRES "${LIBMODULEMD_MODULE_NAME}")
@@ -81,11 +86,7 @@ if (WITH_MODULEMD)
     target_link_libraries(libdnf5_iface INTERFACE ${LIBMODULEMD_LIBRARIES})
 endif()
 
-if (ENABLE_SOLV_FOCUSNEW)
-    pkg_check_modules(LIBSOLV REQUIRED libsolv>=0.7.30)
-else()
-    pkg_check_modules(LIBSOLV REQUIRED libsolv>=0.7.25)
-endif()
+pkg_check_modules(LIBSOLV REQUIRED libsolv>=0.7.35)
 list(APPEND LIBDNF5_PC_REQUIRES "${LIBSOLV_MODULE_NAME}")
 target_link_libraries(libdnf5 PRIVATE ${LIBSOLV_LIBRARIES})
 target_link_libraries(libdnf5_iface INTERFACE ${LIBSOLV_LIBRARIES})
@@ -95,7 +96,7 @@ list(APPEND LIBDNF5_PC_REQUIRES_PRIVATE "${LIBSOLVEXT_MODULE_NAME}")
 target_link_libraries(libdnf5 PRIVATE ${LIBSOLVEXT_LIBRARIES})
 target_link_libraries(libdnf5_iface INTERFACE ${LIBSOLVEXT_LIBRARIES})
 
-pkg_check_modules(RPM REQUIRED rpm>=4.17.0)
+pkg_check_modules(RPM REQUIRED rpm>=4.19.0)
 list(APPEND LIBDNF5_PC_REQUIRES "${RPM_MODULE_NAME}")
 target_link_libraries(libdnf5 PRIVATE ${RPM_LIBRARIES})
 target_link_libraries(libdnf5_iface INTERFACE ${RPM_LIBRARIES})
@@ -133,6 +134,8 @@ list(JOIN LIBDNF5_PC_REQUIRES ", " LIBDNF5_PC_REQUIRES_STRING)
 list(SORT LIBDNF5_PC_REQUIRES_PRIVATE)
 list(JOIN LIBDNF5_PC_REQUIRES_PRIVATE ", " LIBDNF5_PC_REQUIRES_PRIVATE_STRING)
 
+# create config header file after feature detection is complete
+configure_file("config.h.in" ${CMAKE_CURRENT_SOURCE_DIR}/conf/config.h)
 
 # create a .pc file
 configure_file("libdnf5.pc.in" ${CMAKE_CURRENT_BINARY_DIR}/libdnf5.pc @ONLY)
@@ -155,6 +158,9 @@ install(DIRECTORY DESTINATION "${CMAKE_INSTALL_FULL_SYSCONFDIR}/dnf/libdnf5-plug
 
 # Creates an empty directory for distribution-supplied vendor change policies configuration files
 install(DIRECTORY DESTINATION "${CMAKE_INSTALL_PREFIX}/share/dnf5/vendors.d")
+
+# Creates an empty directory for distribution-supplied plugin configuration files
+install(DIRECTORY DESTINATION "${CMAKE_INSTALL_PREFIX}/share/dnf5/libdnf.plugins.conf.d")
 
 # Creates an empty directory for user-defined vendor change policies configuration files
 install(DIRECTORY DESTINATION "${CMAKE_INSTALL_FULL_SYSCONFDIR}/dnf/vendors.d")

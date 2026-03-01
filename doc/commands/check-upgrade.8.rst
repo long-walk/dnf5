@@ -36,9 +36,13 @@ Description
 Non-interactively checks for available updates of specified packages. If no ``<package-spec-N>``
 is provided, it checks for updates for the entire system.
 
-``DNF5`` will exit with code `100`` if updates are available and list them; `0` if no updates
+``DNF5`` will exit with code `100` if updates are available and list them; `0` if no updates
 are available.
 
+If terminal is available, list of the packages is colored, packages available for reinstall are
+(by default) colored with bold green and packages available for upgrade with bold blue. This
+behavior can be adjusted in :manpage:`dnf5.conf(5)` via `color_list_available_upgrade` and
+`color_list_available_reinstall` options.
 
 Options
 =======
@@ -67,6 +71,9 @@ Options
     | newpackage. In case that any option limiting advisories is used it reports the lowest versions of packages
     | that fix advisories matching selected advisory properties"
 
+``--json``
+    | Request JSON output format.
+
 
 Examples
 ========
@@ -76,6 +83,24 @@ Examples
 
 ``dnf5 check-upgrade --changelogs``
     | Print changelogs for all packages with pending updates.
+
+
+JSON Output
+===========
+
+``dnf5 check-upgrade --json``
+
+The command returns a JSON object with the following structure:
+
+- keys represent a section of the “pretty” CLI output
+- values represent the packages in that section as an array of objects with the following structure:
+
+    - ``name`` (string): package name
+    - ``arch`` (string): package architecture
+    - ``evr`` (string): available update version
+    - ``repository`` (string): repository ID from which the update is available
+    - ``obsoletes`` (array): (only for the “Obsoleting packages” section) list of the packages that
+      obsolete this package (they have the same structure as above, omitting ``obsoletes``)
 
 
 See Also

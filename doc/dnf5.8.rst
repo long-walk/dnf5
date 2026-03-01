@@ -323,6 +323,10 @@ Following options are applicable in the general context for any ``dnf5`` command
 ``--setvar=VAR_NAME=VALUE``
     | Override a ``DNF5`` variable value, like ``arch``, ``releasever``, etc.
 
+``--skip-file-locks``
+    | Skip acquiring file locks, such as the lock on the system repository.
+    | See :ref:`skip_sytem_repo_lock <skip_system_repo_lock_options-label>` for more info.
+
 ``--show-new-leaves``
     | Show newly installed leaf packages and packages that became leaves after a transaction.
 
@@ -430,6 +434,12 @@ Environment
 
 ``LIBDNF_PLUGINS_CONFIG_DIR``
     Override a directory with libdnf5 plugin's configuration files.
+
+``SOURCE_DATE_EPOCH``
+    Specifies a timestamp given as number of seconds since UNIX epoch. When set,
+    transaction timestamps in the history database are set to the specified time
+    instead of the current time. Additionally, packages are ordered to ensure
+    consistent transaction order.
 
 ``TEMP``,
 ``TEMPDIR``,

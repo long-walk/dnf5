@@ -19,6 +19,7 @@
 
 #include "dnf5/context.hpp"
 
+#include "context_impl.hpp"
 #include "download_callbacks.hpp"
 #include "plugins.hpp"
 #include "utils/string.hpp"
@@ -32,6 +33,7 @@
 #include <libdnf5-cli/utils/userconfirm.hpp>
 #include <libdnf5/base/base.hpp>
 #include <libdnf5/base/goal.hpp>
+#include <libdnf5/common/proc.hpp>
 #include <libdnf5/conf/const.hpp>
 #include <libdnf5/rpm/package_query.hpp>
 #include <libdnf5/rpm/package_set.hpp>
@@ -124,161 +126,6 @@ private:
 
 }  // namespace
 
-class Context::Impl {
-public:
-    explicit Impl(Context & owner, std::vector<std::unique_ptr<libdnf5::Logger>> && loggers)
-        : owner(owner),
-          base(std::move(loggers)),
-          plugins(std::make_unique<Plugins>(owner)) {}
-
-    void apply_repository_setopts();
-
-    void update_repo_metadata_from_specs(const std::vector<std::string> & pkg_specs);
-
-    void update_repo_metadata_from_advisory_options(
-        const std::vector<std::string> & names,
-        bool security,
-        bool bugfix,
-        bool enhancement,
-        bool newpackage,
-        const std::vector<std::string> & severity,
-        const std::vector<std::string> & bzs,
-        const std::vector<std::string> & cves);
-
-    void load_repos(bool load_system);
-
-    void store_offline(libdnf5::base::Transaction & transaction);
-
-    const char * get_comment() const noexcept { return comment; }
-
-    void set_comment(const char * comment) noexcept { this->comment = comment; }
-
-    std::string get_cmdline() { return cmdline; }
-
-    void set_cmdline(std::string & cmdline) { this->cmdline = cmdline; }
-
-    void download_and_run(libdnf5::base::Transaction & transaction);
-
-    void set_quiet(bool quiet) { this->quiet = quiet; }
-
-    bool get_quiet() const { return quiet; }
-
-    void set_dump_main_config(bool enable) { this->dump_main_config = enable; }
-
-    bool get_dump_main_config() const { return dump_main_config; }
-
-    void set_dump_repo_config_id_list(const std::vector<std::string> & repo_id_list) {
-        this->dump_repo_config_id_list = repo_id_list;
-    }
-
-    const std::vector<std::string> & get_dump_repo_config_id_list() const { return dump_repo_config_id_list; }
-
-    void set_dump_variables(bool enable) { this->dump_variables = enable; }
-
-    bool get_dump_variables() const { return dump_variables; }
-
-    void set_show_new_leaves(bool show_new_leaves) { this->show_new_leaves = show_new_leaves; }
-
-    bool get_show_new_leaves() const { return show_new_leaves; }
-
-    Plugins & get_plugins() { return *plugins; }
-
-    libdnf5::Goal * get_goal(bool new_if_not_exist);
-
-    void set_transaction(libdnf5::base::Transaction && transaction) {
-        this->transaction = std::make_unique<libdnf5::base::Transaction>(std::move(transaction));
-    }
-
-    libdnf5::base::Transaction * get_transaction() { return transaction.get(); }
-
-    void set_load_system_repo(bool on) { load_system_repo = on; }
-    bool get_load_system_repo() const noexcept { return load_system_repo; }
-
-    void set_load_available_repos(LoadAvailableRepos which) { load_available_repos = which; }
-    LoadAvailableRepos get_load_available_repos() const noexcept { return load_available_repos; }
-
-    void print_output(std::string_view msg) const;
-    void print_info(std::string_view msg) const;
-    void print_error(std::string_view msg) const;
-
-    void set_output_stream(std::ostream & new_output_stream) { out_stream = new_output_stream; }
-    void set_error_stream(std::ostream & new_error_stream) { err_stream = new_error_stream; }
-
-    void set_transaction_store_path(std::filesystem::path path) { transaction_store_path = path; }
-    const std::filesystem::path & get_transaction_store_path() const { return transaction_store_path; }
-
-    void set_should_store_offline(bool should_store_offline) { this->should_store_offline = should_store_offline; }
-    bool get_should_store_offline() const { return should_store_offline; }
-
-    void set_json_output_requested(bool json_output) {
-        this->json_output = json_output;
-        if (json_output) {
-            set_quiet(true);
-        }
-    }
-    bool get_json_output_requested() const { return json_output; }
-
-    void set_create_repos(bool create_repos) { this->create_repos = create_repos; }
-    bool get_create_repos() const { return create_repos; }
-
-    libdnf5::Base & get_base() { return base; };
-
-    std::vector<std::pair<std::string, std::string>> & get_setopts() { return setopts; }
-    const std::vector<std::pair<std::string, std::string>> & get_setopts() const { return setopts; }
-
-    std::vector<std::pair<std::string, std::string>> & get_repos_from_path() { return repos_from_path; }
-    const std::vector<std::pair<std::string, std::string>> & get_repos_from_path() const { return repos_from_path; }
-
-    std::vector<std::pair<std::vector<std::string>, bool>> & get_libdnf_plugins_enablement() {
-        return libdnf_plugins_enablement;
-    }
-    const std::vector<std::pair<std::vector<std::string>, bool>> & get_libdnf_plugins_enablement() const {
-        return libdnf_plugins_enablement;
-    }
-
-    void set_show_version(bool enable) { this->show_version = enable; }
-    bool get_show_version() const { return this->show_version; }
-
-private:
-    Context & owner;
-
-    std::filesystem::path transaction_store_path;
-
-    libdnf5::Base base;
-    std::vector<std::pair<std::string, std::string>> setopts;
-    std::vector<std::pair<std::string, std::string>> repos_from_path;
-
-    /// list of lists of libdnf plugin names (global patterns) that we want to enable (true) or disable (false)
-    std::vector<std::pair<std::vector<std::string>, bool>> libdnf_plugins_enablement;
-
-    std::string cmdline;
-
-    /// Points to user comment.
-    const char * comment{nullptr};
-
-    bool should_store_offline = false;
-    bool json_output = false;
-    bool create_repos = true;
-
-    bool quiet{false};
-    bool dump_main_config{false};
-    std::vector<std::string> dump_repo_config_id_list;
-    bool dump_variables{false};
-    bool show_new_leaves{false};
-    std::string get_cmd_line();
-
-    std::reference_wrapper<std::ostream> out_stream = std::cout;
-    std::reference_wrapper<std::ostream> err_stream = std::cerr;
-
-    std::unique_ptr<Plugins> plugins;
-    std::unique_ptr<libdnf5::Goal> goal;
-    std::unique_ptr<libdnf5::base::Transaction> transaction;
-
-    bool load_system_repo{false};
-    LoadAvailableRepos load_available_repos{LoadAvailableRepos::NONE};
-    bool show_version{false};
-};
-
 // TODO(jrohel): Move logic into libdnf?
 void Context::Impl::apply_repository_setopts() {
     std::vector<std::string> missing_repo_ids;
@@ -349,26 +196,74 @@ void Context::Impl::update_repo_metadata_from_advisory_options(
     }
 }
 
-void Context::Impl::load_repos(bool load_system) {
-    libdnf5::repo::RepoQuery repos(base);
-    repos.filter_enabled(true);
-    repos.filter_type(libdnf5::repo::Repo::Type::SYSTEM, libdnf5::sack::QueryCmp::NEQ);
+void Context::Impl::load_repos(bool load_system, bool load_available) {
+    if (load_available) {
+        libdnf5::repo::RepoQuery repos(base);
+        repos.filter_enabled(true);
+        repos.filter_type(libdnf5::repo::Repo::Type::SYSTEM, libdnf5::sack::QueryCmp::NEQ);
 
-    for (auto & repo : repos) {
-        repo->set_callbacks(std::make_unique<dnf5::KeyImportRepoCB>(base.get_config()));
+        for (auto & repo : repos) {
+            repo->set_callbacks(std::make_unique<dnf5::KeyImportRepoCB>(base.get_config()));
+        }
     }
 
-    print_info(_("Updating and loading repositories:"));
-    if (load_system) {
+    const auto skip_system_repo_lock = base.get_config().get_skip_system_repo_lock_option().get_value();
+    if (load_system && !skip_system_repo_lock) {
+        const auto lock_access_type =
+            cmd_requires_privileges() ? libdnf5::utils::LockAccess::WRITE : libdnf5::utils::LockAccess::READ;
+        if (!base.lock_system_repo(lock_access_type, libdnf5::utils::LockBlocking::NON_BLOCKING)) {
+            // A lock on the system repo could not immediately be acquired.
+            // Gather and display information about other processes in line for the lock, then wait.
+            const auto & lock_file_path = base.get_system_repo_lock()->get_path();
+            std::set<pid_t> pids;
+            try {
+                pids = libdnf5::fuser(lock_file_path);
+            } catch (const libdnf5::SystemError &) {
+                // The lock could have been released immediately after lock_system_repo fails,
+                // or we might not have permission to read procfs.
+            }
+            pids.erase(getpid());
+            if (pids.empty()) {
+                print_info(
+                    _("Waiting for a lock on the system repository; another process is currently accessing it. Use the "
+                      "\"--skip-file-locks\" option to bypass the lock."));
+            } else {
+                print_info(
+                    _("Waiting for a lock on the system repository. The following processes are currently accessing "
+                      "it:"));
+                for (const auto & pid : pids) {
+                    try {
+                        const auto & cmdline = libdnf5::pid_cmdline(pid);
+                        print_info(libdnf5::utils::sformat("{}\t{}", pid, libdnf5::utils::string::join(cmdline, " ")));
+                    } catch (const libdnf5::SystemError &) {
+                        print_info(libdnf5::utils::sformat("{}", pid));
+                    }
+                }
+                print_info(_("Use the \"--skip-file-locks\" option to bypass the lock."));
+            }
+            base.lock_system_repo(lock_access_type, libdnf5::utils::LockBlocking::BLOCKING);
+        }
+    }
+
+    if (load_available) {
+        // If we're only loading the system repo, we can skip the message.
+        print_info(_("Updating and loading repositories:"));
+    }
+
+    if (load_system && load_available) {
         base.get_repo_sack()->load_repos();
-    } else {
+    } else if (load_system) {
+        base.get_repo_sack()->load_repos(libdnf5::repo::Repo::Type::SYSTEM);
+    } else if (load_available) {
         base.get_repo_sack()->load_repos(libdnf5::repo::Repo::Type::AVAILABLE);
     }
 
     if (auto download_callbacks = dynamic_cast<DownloadCallbacks *>(base.get_download_callbacks())) {
         download_callbacks->reset_progress_bar();
     }
-    print_info(_("Repositories loaded."));
+    if (load_available) {
+        print_info(_("Repositories loaded."));
+    }
 }
 
 void Context::Impl::store_offline(libdnf5::base::Transaction & transaction) {
@@ -568,6 +463,46 @@ void Context::Impl::print_error(std::string_view msg) const {
     err_stream.get() << msg << std::endl;
 }
 
+bool Context::Impl::cmd_requires_privileges() const {
+    // the main, dnf5 command, is allowed
+    auto cmd = owner.get_selected_command();
+    auto arg_cmd = cmd->get_argument_parser_command();
+    if (arg_cmd->get_parent() == nullptr) {
+        return false;
+    }
+
+    // first a hard-coded list of commands that always need to be run with elevated privileges
+    auto main_arg_cmd = cmd->get_parent_command() != owner.get_root_command() ? arg_cmd->get_parent() : arg_cmd;
+    std::vector<std::string> privileged_cmds = {"automatic", "offline", "system-upgrade", "replay"};
+    if (std::find(privileged_cmds.begin(), privileged_cmds.end(), main_arg_cmd->get_id()) != privileged_cmds.end()) {
+        return true;
+    }
+
+    // when assumeno is set, system should not be modified
+    auto & config = owner.get_base().get_config();
+    if (config.get_assumeno_option().get_value()) {
+        return false;
+    }
+
+    auto all_cmd_args = arg_cmd->get_named_args();
+    if (main_arg_cmd != arg_cmd) {
+        all_cmd_args.insert(
+            all_cmd_args.end(), main_arg_cmd->get_named_args().begin(), main_arg_cmd->get_named_args().end());
+    }
+
+    // when downloadonly is defined and set, system should not be modified
+    auto it_downloadonly = std::find_if(
+        all_cmd_args.begin(), all_cmd_args.end(), [](auto arg) { return arg->get_long_name() == "downloadonly"; });
+    if (it_downloadonly != all_cmd_args.end() &&
+        ((libdnf5::OptionBool *)(*it_downloadonly)->get_linked_value())->get_value()) {
+        return false;
+    }
+
+    // otherwise, transactional cmds with store option defined are expected to modify the system
+    auto it_store = std::find_if(
+        all_cmd_args.begin(), all_cmd_args.end(), [](auto arg) { return arg->get_long_name() == "store"; });
+    return it_store != all_cmd_args.end();
+}
 
 Context::Context(std::vector<std::unique_ptr<libdnf5::Logger>> && loggers)
     : p_impl{new Impl(*this, std::move(loggers))} {}
@@ -599,10 +534,6 @@ void Context::update_repo_metadata_from_advisory_options(
     const std::vector<std::string> & cves) {
     p_impl->update_repo_metadata_from_advisory_options(
         names, security, bugfix, enhancement, newpackage, severity, bzs, cves);
-}
-
-void Context::load_repos(bool load_system) {
-    p_impl->load_repos(load_system);
 }
 
 void Context::store_offline(libdnf5::base::Transaction & transaction) {
@@ -1133,18 +1064,17 @@ static std::pair<std::vector<std::string>, std::vector<std::string>> complete_pa
     return ret;
 }
 
-std::vector<std::string> match_specs(
-    Context & ctx,
+std::vector<std::string> Context::match_specs(
     const std::string & pattern,
     bool installed,
     bool available,
     bool paths,
     bool only_nevras,
     const char * file_name_regex) {
-    auto & base = ctx.get_base();
+    auto & base = get_base();
 
     base.get_config().get_assumeno_option().set(libdnf5::Option::Priority::RUNTIME, true);
-    ctx.set_quiet(true);
+    set_quiet(true);
 
     base.load_config();
     base.setup();
@@ -1161,7 +1091,7 @@ std::vector<std::string> match_specs(
             base.get_config().get_optional_metadata_types_option().set(
                 libdnf5::Option::Priority::RUNTIME, libdnf5::OptionStringSet::ValueType{});
 
-            ctx.apply_repository_setopts();
+            apply_repository_setopts();
 
             libdnf5::repo::RepoQuery enabled_repos(base);
             enabled_repos.filter_enabled(true);
@@ -1171,13 +1101,13 @@ std::vector<std::string> match_specs(
                 repo->get_config().get_skip_if_unavailable_option().set(libdnf5::Option::Priority::RUNTIME, true);
             }
 
-            ctx.load_repos(installed);
+            p_impl->load_repos(installed, true);
         } catch (...) {
             // Ignores errors when completing available packages, other completions may still work.
         }
     } else if (installed) {
         try {
-            base.get_repo_sack()->load_repos(libdnf5::repo::Repo::Type::SYSTEM);
+            p_impl->load_repos(true, false);
         } catch (...) {
             // Ignores errors when completing installed packages, other completions may still work.
         }

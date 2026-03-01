@@ -56,8 +56,14 @@ public:
     const OptionBool & get_plugins_option() const;
     OptionPath & get_pluginpath_option();
     const OptionPath & get_pluginpath_option() const;
+    /// @deprecated Use get_plugin_conf_dir_option() instead. The new method allows defining a list of directories.
+    [[deprecated("Use get_plugin_conf_dir_option() instead. The new method allows defining a list of directories.")]]
     OptionPath & get_pluginconfpath_option();
+    /// @deprecated Use get_plugin_conf_dir_option() instead. The new method allows defining a list of directories.
+    [[deprecated("Use get_plugin_conf_dir_option() instead. The new method allows defining a list of directories.")]]
     const OptionPath & get_pluginconfpath_option() const;
+    OptionStringList & get_plugin_conf_dir_option();
+    const OptionStringList & get_plugin_conf_dir_option() const;
     OptionPath & get_persistdir_option();
     const OptionPath & get_persistdir_option() const;
     OptionPath & get_system_state_dir_option();
@@ -222,6 +228,8 @@ public:
     const OptionBool & get_protect_running_kernel_option() const;
     OptionBool & get_build_cache_option();
     const OptionBool & get_build_cache_option() const;
+    OptionBool & get_skip_system_repo_lock_option();
+    const OptionBool & get_skip_system_repo_lock_option() const;
 
     // Repo main config
     /// @deprecated The option does nothing

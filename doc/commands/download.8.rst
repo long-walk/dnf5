@@ -51,6 +51,8 @@ Options
 
 .. include:: ../_shared/options/from-repo.rst
 
+.. include:: ../_shared/options/from-vendor.rst
+
 ``--destdir=<path>``
     | Set directory used for downloading packages to. Default location is to the current working directory.
 
@@ -59,6 +61,12 @@ Options
 
 ``--srpm``
     | Download the source rpm. Enables source repositories of all enabled binary repositories.
+
+``--debuginfo``
+    | Download the debuginfo rpm. Enables debuginfo repositories of all enabled binary repositories.
+
+``--debugsource``
+    | Download the debugsource rpm. Enables debugsource repositories of all enabled binary repositories.
 
 ``--url``
     | Prints the list of URLs where the rpms can be downloaded instead of downloading.
@@ -93,6 +101,9 @@ Examples
 
 ``dnf5 download dnf5 --srpm``
     | Download the ``dnf5`` source rpm.
+
+``dnf5 download kernel --debuginfo``
+    | Download the ``kernel`` debuginfo rpm.
 
 See Also
 ========

@@ -5,6 +5,7 @@
 
 #include "download_callbacks.hpp"
 
+#include <dnf5/context.hpp>
 #include <libdnf5-cli/utils/userconfirm.hpp>
 #include <libdnf5/logger/logger.hpp>
 #include <libdnf5/repo/repo_errors.hpp>
@@ -91,7 +92,7 @@ std::filesystem::path get_manifest_path(libdnf5::OptionPath & option, const std:
     std::string path{option.get_value()};
 
     if (option.get_priority() <= libdnf5::Option::Priority::DEFAULT) {
-        const auto & arch_path = std::regex_replace(path, std::regex("\\.yaml$"), std::format(".{}.yaml", arch));
+        const auto & arch_path = std::regex_replace(path, std::regex("\\.yaml$"), fmt::format(".{}.yaml", arch));
         const bool path_exists = std::filesystem::exists(path);
         const bool arch_path_exists = std::filesystem::exists(arch_path);
         if (path_exists && arch_path_exists) {
@@ -110,6 +111,19 @@ std::filesystem::path get_manifest_path(libdnf5::OptionPath & option, const std:
         }
     }
     return path;
+}
+
+void load_host_repos(dnf5::Context & ctx, libdnf5::Base & base) {
+    auto repo_sack = base.get_repo_sack();
+    repo_sack->create_repos_from_system_configuration();
+
+    std::vector<std::pair<std::string, std::string>> repos_from_path{ctx.get_repos_from_path()};
+    auto vars = base.get_vars();
+    for (auto & [id, path] : repos_from_path) {
+        id = vars->substitute(id);
+        path = vars->substitute(path);
+    }
+    repo_sack->create_repos_from_paths(repos_from_path, libdnf5::Option::Priority::COMMANDLINE);
 }
 
 class KeyImportRepoCB : public libdnf5::repo::RepoCallbacks2_1 {
