@@ -84,7 +84,7 @@ Subcommands
 
     The ``setopt`` command writes the repositories configuration overrides to a file named ``99-config_manager.repo``
     located in the system repository override directory. Repository settings are written only to this override file.
-    The original repository configuration file is not changed. Reposiory ID may contain globs.
+    The original repository configuration file is not changed. Repository ID may contain globs.
     Override files also support globs. But the ``setopt`` command resolves the ``repoid`` pattern, and overrides are set
     for each matching repository independently. This means repositories added later will not be affected by these overrides.
 
@@ -119,9 +119,25 @@ Subcommands
     The ``unsetvar`` command removes variables from the last directory in the list (by default ``/etc/dnf/vars``).
     So, the variable may still exist in another directory in the list (for example, the default distribution value).
 
+``enable [--create-missing-dir] <repoid>+``
+    Enables one or more repositories.
+
+    The ``enable`` command enables the repositories via a file named ``99-config_manager.repo`` located in the system
+    repository override directory. The original repository configuration file is not changed. Repository ID may contain
+    globs. ``enable`` command resolves the ``repoid`` pattern, and each matching repository is enabled independently.
+    This means repositories added later will not be affected by this command.
+
+``disable [--create-missing-dir] <repoid>+``
+    Disables one or more repositories.
+
+    The ``disable`` command disables the repositories via a file named ``99-config_manager.repo`` located in the system
+    repository override directory. The original repository configuration file is not changed. Repository ID may contain
+    globs. ``disable`` command resolves the ``repoid`` pattern, and each matching repository is disabled independently.
+    This means repositories added later will not be affected by this command.
 
 .. note::
    Override directories are also listed with examples in :ref:`Drop-in repo directories<drop_in_repo_directories-label>`.
+
 
 Options
 =======
@@ -183,6 +199,7 @@ Examples
 
 ``dnf5 config-manager unsetvar myvar1 myvar2``
     Removes ``myvar1`` and ``myvar2`` variables.
+
 
 See Also
 ========

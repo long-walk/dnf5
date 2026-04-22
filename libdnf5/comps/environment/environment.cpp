@@ -20,10 +20,12 @@
 #include "libdnf5/comps/environment/environment.hpp"
 
 #include "solv/pool.hpp"
+#include "utils/string.hpp"
 #include "utils/xml.hpp"
 
 #include "libdnf5/base/base.hpp"
 #include "libdnf5/base/base_weak.hpp"
+#include "libdnf5/comps/environment/group_type.hpp"
 #include "libdnf5/comps/environment/query.hpp"
 #include "libdnf5/utils/bgettext/bgettext-mark-domain.h"
 
@@ -37,6 +39,7 @@ extern "C" {
 #include <libxml/tree.h>
 #include <limits.h>
 
+#include <memory>
 #include <set>
 #include <string>
 #include <string_view>
@@ -64,6 +67,7 @@ private:
     std::vector<EnvironmentId> environment_ids;
 
     std::vector<std::string> groups;
+    std::vector<std::string> default_groups;
     std::vector<std::string> optional_groups;
 };
 
@@ -93,6 +97,9 @@ Environment & Environment::operator=(Environment && src) noexcept = default;
 Environment & Environment::operator+=(const Environment & rhs) {
     p_impl->environment_ids.insert(
         p_impl->environment_ids.begin(), rhs.p_impl->environment_ids.begin(), rhs.p_impl->environment_ids.end());
+    p_impl->groups.clear();
+    p_impl->default_groups.clear();
+    p_impl->optional_groups.clear();
     return *this;
 }
 
@@ -171,20 +178,27 @@ int Environment::get_order_int() const {
 
 
 std::vector<std::string> load_groups_from_pool(
-    libdnf5::solv::CompsPool & pool, const std::vector<EnvironmentId> & environment_ids, bool required = true) {
+    libdnf5::solv::CompsPool & pool,
+    const std::vector<EnvironmentId> & environment_ids,
+    GroupType types = GroupType::MANDATORY) {
     std::set<std::string> groups;
     std::string_view group_solvable_name;
 
-    for (auto environment_id : environment_ids) {
+    for (const auto & environment_id : environment_ids) {
         Solvable * solvable = pool.id2solvable(environment_id.id);
-        Offset offset;
-        if (required) {
-            offset = solvable->dep_requires;
-        } else {
-            offset = solvable->dep_suggests;
+
+        std::vector<Offset> offsets;
+        if (any(types & GroupType::MANDATORY) && solvable->dep_requires) {
+            offsets.push_back(solvable->dep_requires);
+        }
+        if (any(types & GroupType::DEFAULT) && solvable->dep_recommends) {
+            offsets.push_back(solvable->dep_recommends);
+        }
+        if (any(types & GroupType::OPTIONAL) && solvable->dep_suggests) {
+            offsets.push_back(solvable->dep_suggests);
         }
 
-        if (offset) {
+        for (const auto offset : offsets) {
             for (Id * r_id = solvable->repo->idarraydata + offset; *r_id; ++r_id) {
                 group_solvable_name = pool.id2str(*r_id);
                 groups.emplace(solv::CompsPool::split_solvable_name(group_solvable_name).second);
@@ -204,9 +218,19 @@ std::vector<std::string> Environment::get_groups() {
 }
 
 
+std::vector<std::string> Environment::get_default_groups() {
+    if (p_impl->default_groups.empty()) {
+        p_impl->default_groups =
+            load_groups_from_pool(get_comps_pool(p_impl->base), p_impl->environment_ids, GroupType::DEFAULT);
+    }
+    return p_impl->default_groups;
+}
+
+
 std::vector<std::string> Environment::get_optional_groups() {
     if (p_impl->optional_groups.empty()) {
-        p_impl->optional_groups = load_groups_from_pool(get_comps_pool(p_impl->base), p_impl->environment_ids, false);
+        p_impl->optional_groups =
+            load_groups_from_pool(get_comps_pool(p_impl->base), p_impl->environment_ids, GroupType::OPTIONAL);
     }
     return p_impl->optional_groups;
 }
@@ -246,14 +270,20 @@ bool Environment::get_installed() const {
 
 
 void Environment::serialize(const std::string & path) {
+    std::vector<std::string> xml_errors;
+    utils::xml::GenericErrorFuncGuard error_guard(&xml_errors, &utils::xml::error_to_strings);
+
     // Create doc with root node "comps"
-    xmlDocPtr doc = xmlNewDoc(BAD_CAST "1.0");
-    xmlNodePtr node_comps = xmlNewNode(NULL, BAD_CAST "comps");
-    xmlDocSetRootElement(doc, node_comps);
+    std::unique_ptr<xmlDoc, utils::xml::XmlDocDeleter> doc(xmlNewDoc(BAD_CAST "1.0"));
+    if (!doc) {
+        throw std::bad_alloc();
+    }
+    xmlNodePtr node_comps = utils::xml::new_node("comps");
+    xmlDocSetRootElement(doc.get(), node_comps);
 
     // Create "environment" node
-    xmlNodePtr node_environment = xmlNewNode(NULL, BAD_CAST "environment");
-    xmlAddChild(node_comps, node_environment);
+    xmlNodePtr node_environment = utils::xml::new_node("environment");
+    utils::xml::add_child(node_comps, node_environment);
 
     // Add id, name, description, display_order
     utils::xml::add_subnode_with_text(node_environment, "id", get_environmentid());
@@ -289,7 +319,7 @@ void Environment::serialize(const std::string & path) {
                 // If it's successful (wasn't already present), create an XML node for this translation
                 if (name_langs.insert(lang).second) {
                     node = utils::xml::add_subnode_with_text(node_environment, "name", std::string(di.kv.str));
-                    xmlNewProp(node, BAD_CAST "xml:lang", BAD_CAST lang.c_str());
+                    utils::xml::new_prop(node, "xml:lang", lang);
                 }
             }
             // If keyname starts with "solvable:description:", it's a description translation
@@ -299,7 +329,7 @@ void Environment::serialize(const std::string & path) {
                 // If it's successful (wasn't already present), create an XML node for this translation
                 if (description_langs.insert(lang).second) {
                     node = utils::xml::add_subnode_with_text(node_environment, "description", std::string(di.kv.str));
-                    xmlNewProp(node, BAD_CAST "xml:lang", BAD_CAST lang.c_str());
+                    utils::xml::new_prop(node, "xml:lang", lang);
                 }
             }
         }
@@ -307,30 +337,39 @@ void Environment::serialize(const std::string & path) {
     }
 
     // Add grouplist
-    xmlNodePtr node_grouplist = xmlNewNode(NULL, BAD_CAST "grouplist");
-    xmlAddChild(node_environment, node_grouplist);
+    xmlNodePtr node_grouplist = utils::xml::new_node("grouplist");
+    utils::xml::add_child(node_environment, node_grouplist);
     for (const auto & group : get_groups()) {
-        // Create an XML node for this package
+        // Create an XML node for this group
         node = utils::xml::add_subnode_with_text(node_grouplist, "groupid", group);
     }
-    xmlNodePtr node_optionlist = xmlNewNode(NULL, BAD_CAST "optionlist");
-    xmlAddChild(node_environment, node_optionlist);
+    xmlNodePtr node_optionlist = utils::xml::new_node("optionlist");
+    utils::xml::add_child(node_environment, node_optionlist);
+    for (const auto & group : get_default_groups()) {
+        // Create an XML node for this group
+        node = utils::xml::add_subnode_with_text(node_optionlist, "groupid", group);
+        utils::xml::new_prop(node, "default", "true");
+    }
     for (const auto & group : get_optional_groups()) {
-        // Create an XML node for this package
+        // Create an XML node for this group
         node = utils::xml::add_subnode_with_text(node_optionlist, "groupid", group);
     }
 
     // Save the document
-    if (xmlSaveFormatFileEnc(path.c_str(), doc, "utf-8", 1) == -1) {
-        throw utils::xml::XMLSaveError(M_("failed to save xml document for comps"));
+    if (xmlSaveFormatFileEnc(path.c_str(), doc.get(), "utf-8", 1) == -1) {
+        throw utils::xml::XMLSaveError(
+            M_("Failed to save xml document for environment \"{}\" to file \"{}\": {}"),
+            get_environmentid(),
+            path,
+            libdnf5::utils::string::join(utils::xml::make_errors_unique(std::move(xml_errors)), ", "));
     }
-
-    // Memory free
-    xmlFreeDoc(doc);
 }
 
 void Environment::add_environment_id(const EnvironmentId & environment_id) {
     p_impl->environment_ids.push_back(environment_id);
+    p_impl->groups.clear();
+    p_impl->default_groups.clear();
+    p_impl->optional_groups.clear();
 }
 
 }  // namespace libdnf5::comps

@@ -39,6 +39,7 @@
 #include <libdnf5/rpm/package_set.hpp>
 #include <libdnf5/rpm/rpm_signature.hpp>
 #include <libdnf5/transaction/offline.hpp>
+#include <libdnf5/transaction/transaction_item_action.hpp>
 #include <libdnf5/utils/bgettext/bgettext-lib.h>
 #include <libdnf5/utils/bgettext/bgettext-mark-domain.h>
 #include <libdnf5/utils/fs/file.hpp>
@@ -47,6 +48,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <csignal>
 #include <iostream>
 #include <regex>
 #include <set>
@@ -61,6 +63,47 @@ namespace dnf5 {
 namespace {
 
 constexpr const char * STORED_REPO_PREFIX = "@stored_transaction";
+
+// Helper function to format active transaction information for error messages
+std::string format_active_transaction_info(const libdnf5::base::ActiveTransactionInfo & info) {
+    std::string result;
+
+    if (!info.get_description().empty()) {
+        result += libdnf5::utils::sformat(_("Command: {}"), info.get_description());
+    }
+
+    if (info.get_pid() > 0) {
+        if (!result.empty()) {
+            result += "\n";
+        }
+        if (kill(info.get_pid(), 0) == 0) {
+            result += libdnf5::utils::sformat(_("Process ID: {} (still running)"), info.get_pid());
+        } else {
+            result += libdnf5::utils::sformat(_("Process ID: {}"), info.get_pid());
+        }
+    }
+
+    if (info.get_start_time() > 0) {
+        if (!result.empty()) {
+            result += "\n";
+        }
+        result +=
+            libdnf5::utils::sformat(_("Started: {}"), libdnf5::utils::string::format_epoch(info.get_start_time()));
+    }
+
+    if (!info.get_comment().empty()) {
+        if (!result.empty()) {
+            result += "\n";
+        }
+        result += libdnf5::utils::sformat(_("Comment: {}"), info.get_comment());
+    }
+
+    if (!result.empty()) {
+        result = _("Details about the currently running transaction:\n") + result;
+    }
+
+    return result;
+}
 
 // The `KeyImportRepoCB` class implements callback only for importing repository key.
 class KeyImportRepoCB : public libdnf5::repo::RepoCallbacks2_1 {
@@ -274,6 +317,14 @@ void Context::Impl::store_offline(libdnf5::base::Transaction & transaction) {
     if (result != libdnf5::base::Transaction::TransactionRunResult::SUCCESS) {
         print_error(libdnf5::utils::sformat(
             _("Transaction failed: {}"), libdnf5::base::Transaction::transaction_result_to_string(result)));
+
+        if (auto * active_info = transaction.get_concurrent_transaction(); active_info) {
+            auto info_str = format_active_transaction_info(*active_info);
+            if (!info_str.empty()) {
+                print_error(info_str);
+            }
+        }
+
         for (auto const & entry : transaction.get_gpg_signature_problems()) {
             print_error(entry);
         }
@@ -337,6 +388,37 @@ void Context::Impl::store_offline(libdnf5::base::Transaction & transaction) {
     state.write();
 }
 
+/// Prepopulate the offline destdir with already-cached packages from the repo
+/// cache to avoid re-downloading them.  Must be called before setting destdir,
+/// so that get_package_path() / is_available_locally() still resolve to the
+/// repo cache.
+static void prepopulate_offline_cache(
+    libdnf5::base::Transaction & transaction, const std::filesystem::path & packages_dir) {
+    bool packages_dir_created = false;
+    for (auto & tspkg : transaction.get_transaction_packages()) {
+        if (!libdnf5::transaction::transaction_item_action_is_inbound(tspkg.get_action())) {
+            continue;
+        }
+        auto pkg = tspkg.get_package();
+        if (pkg.get_repo()->get_type() == libdnf5::repo::Repo::Type::COMMANDLINE) {
+            continue;
+        }
+        if (!pkg.is_available_locally()) {
+            continue;
+        }
+        if (!packages_dir_created) {
+            std::filesystem::create_directories(packages_dir);
+            packages_dir_created = true;
+        }
+        auto cached_path = std::filesystem::path(pkg.get_package_path());
+        auto dest_path = packages_dir / cached_path.filename();
+        std::error_code ec;
+        if (!std::filesystem::exists(dest_path, ec)) {
+            std::filesystem::copy_file(cached_path, dest_path, ec);
+        }
+    }
+}
+
 void Context::Impl::download_and_run(libdnf5::base::Transaction & transaction) {
     if (!transaction_store_path.empty()) {
         auto & config = base.get_config();
@@ -356,9 +438,10 @@ void Context::Impl::download_and_run(libdnf5::base::Transaction & transaction) {
                 throw libdnf5::cli::AbortedByUserError();
             }
         }
+        std::filesystem::create_directories(transaction_store_path);
+        prepopulate_offline_cache(transaction, packages_location);
         auto & destdir_opt = config.get_destdir_option();
         destdir_opt.set(packages_location);
-        std::filesystem::create_directories(transaction_store_path);
         // Override keepcache option because stored transaction packages should be always kept.
         // Following transactions should never remove them.
         auto & keepcache_opt = config.get_keepcache_option();
@@ -389,7 +472,9 @@ void Context::Impl::download_and_run(libdnf5::base::Transaction & transaction) {
                 throw libdnf5::cli::AbortedByUserError();
             }
         }
-        base.get_config().get_destdir_option().set(offline_destdir / "packages");
+        const auto & packages_dir = offline_destdir / "packages";
+        prepopulate_offline_cache(transaction, packages_dir);
+        base.get_config().get_destdir_option().set(packages_dir);
         transaction.set_download_local_pkgs(true);
     }
 
@@ -429,6 +514,14 @@ void Context::Impl::download_and_run(libdnf5::base::Transaction & transaction) {
     if (result != libdnf5::base::Transaction::TransactionRunResult::SUCCESS) {
         print_error(libdnf5::utils::sformat(
             _("Transaction failed: {}"), libdnf5::base::Transaction::transaction_result_to_string(result)));
+
+        if (auto * active_info = transaction.get_concurrent_transaction(); active_info) {
+            auto info_str = format_active_transaction_info(*active_info);
+            if (!info_str.empty()) {
+                print_error(info_str);
+            }
+        }
+
         for (auto const & entry : transaction.get_gpg_signature_problems()) {
             print_error(entry);
         }
@@ -464,9 +557,14 @@ void Context::Impl::print_error(std::string_view msg) const {
 }
 
 bool Context::Impl::cmd_requires_privileges() const {
-    // the main, dnf5 command, is allowed
     auto cmd = owner.get_selected_command();
+    // During bash completion the selected command in session is not set.
+    // Privileges are not required during completion.
+    if (!cmd) {
+        return false;
+    }
     auto arg_cmd = cmd->get_argument_parser_command();
+    // the main, dnf5 command, is allowed
     if (arg_cmd->get_parent() == nullptr) {
         return false;
     }

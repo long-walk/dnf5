@@ -37,9 +37,9 @@ extern "C" {
 }
 
 #include <libxml/tree.h>
-#include <libxml/xmlerror.h>
 #include <limits.h>
 
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>
@@ -93,6 +93,7 @@ Group & Group::operator=(Group && src) noexcept = default;
 
 Group & Group::operator+=(const Group & rhs) {
     p_impl->group_ids.insert(p_impl->group_ids.begin(), rhs.p_impl->group_ids.begin(), rhs.p_impl->group_ids.end());
+    p_impl->packages.clear();
     return *this;
 }
 
@@ -265,31 +266,21 @@ bool Group::get_installed() const {
 }
 
 
-// libxml2 error handler. By default libxml2 prints errors directly to stderr which
-// makes a mess of the outputs.
-// This stores the errors in a vector of strings;
-__attribute__((__format__(printf, 2, 0))) static void error_to_strings(void * ctx, const char * fmt, ...) {
-    auto xml_errors = static_cast<std::vector<std::string> *>(ctx);
-    char buffer[256];
-    va_list args;
-    va_start(args, fmt);
-    vsnprintf(buffer, 256, fmt, args);
-    va_end(args);
-    xml_errors->push_back(buffer);
-}
-
 void Group::serialize(const std::string & path) {
     std::vector<std::string> xml_errors;
-    xmlSetGenericErrorFunc(&xml_errors, &error_to_strings);
+    utils::xml::GenericErrorFuncGuard error_guard(&xml_errors, &utils::xml::error_to_strings);
 
     // Create doc with root node "comps"
-    xmlDocPtr doc = xmlNewDoc(BAD_CAST "1.0");
-    xmlNodePtr node_comps = xmlNewNode(NULL, BAD_CAST "comps");
-    xmlDocSetRootElement(doc, node_comps);
+    std::unique_ptr<xmlDoc, utils::xml::XmlDocDeleter> doc(xmlNewDoc(BAD_CAST "1.0"));
+    if (!doc) {
+        throw std::bad_alloc();
+    }
+    xmlNodePtr node_comps = utils::xml::new_node("comps");
+    xmlDocSetRootElement(doc.get(), node_comps);
 
     // Create "group" node
-    xmlNodePtr node_group = xmlNewNode(NULL, BAD_CAST "group");
-    xmlAddChild(node_comps, node_group);
+    xmlNodePtr node_group = utils::xml::new_node("group");
+    utils::xml::add_child(node_comps, node_group);
 
     // Add id, name, description, default, uservisible, display_order, langonly
     utils::xml::add_subnode_with_text(node_group, "id", get_groupid());
@@ -328,7 +319,7 @@ void Group::serialize(const std::string & path) {
                 // If it's successful (wasn't already present), create an XML node for this translation
                 if (name_langs.insert(lang).second) {
                     node = utils::xml::add_subnode_with_text(node_group, "name", std::string(di.kv.str));
-                    xmlNewProp(node, BAD_CAST "xml:lang", BAD_CAST lang.c_str());
+                    utils::xml::new_prop(node, "xml:lang", lang);
                 }
             }
             // If keyname starts with "solvable:description:", it's a description translation
@@ -338,7 +329,7 @@ void Group::serialize(const std::string & path) {
                 // If it's successful (wasn't already present), create an XML node for this translation
                 if (description_langs.insert(lang).second) {
                     node = utils::xml::add_subnode_with_text(node_group, "description", std::string(di.kv.str));
-                    xmlNewProp(node, BAD_CAST "xml:lang", BAD_CAST lang.c_str());
+                    utils::xml::new_prop(node, "xml:lang", lang);
                 }
             }
         }
@@ -346,34 +337,24 @@ void Group::serialize(const std::string & path) {
     }
 
     // Add packagelist
-    xmlNodePtr node_packagelist = xmlNewNode(NULL, BAD_CAST "packagelist");
-    xmlAddChild(node_group, node_packagelist);
+    xmlNodePtr node_packagelist = utils::xml::new_node("packagelist");
+    utils::xml::add_child(node_group, node_packagelist);
     for (const auto & pkg : get_packages()) {
         // Create an XML node for this package
         node = utils::xml::add_subnode_with_text(node_packagelist, "packagereq", pkg.get_name());
-        xmlNewProp(node, BAD_CAST "type", BAD_CAST pkg.get_type_string().c_str());
+        utils::xml::new_prop(node, "type", pkg.get_type_string());
         if (pkg.get_type() == PackageType::CONDITIONAL) {
-            xmlNewProp(node, BAD_CAST "requires", BAD_CAST pkg.get_condition().c_str());
+            utils::xml::new_prop(node, "requires", pkg.get_condition());
         }
     }
 
     // Save the document
-    auto save_result = xmlSaveFormatFileEnc(path.c_str(), doc, "utf-8", 1);
-
-    // Memory free
-    xmlFreeDoc(doc);
-    // reset the error handler to default
-    xmlSetGenericErrorFunc(NULL, NULL);
-
-    if (save_result == -1) {
-        // There can be duplicit messages in the libxml2 errors so make them unique
-        auto it = unique(xml_errors.begin(), xml_errors.end());
-        xml_errors.resize(static_cast<size_t>(distance(xml_errors.begin(), it)));
+    if (xmlSaveFormatFileEnc(path.c_str(), doc.get(), "utf-8", 1) == -1) {
         throw utils::xml::XMLSaveError(
             M_("Failed to save xml document for group \"{}\" to file \"{}\": {}"),
             get_groupid(),
             path,
-            libdnf5::utils::string::join(xml_errors, ", "));
+            libdnf5::utils::string::join(utils::xml::make_errors_unique(std::move(xml_errors)), ", "));
     }
 }
 
@@ -396,6 +377,7 @@ libdnf5::transaction::TransactionItemReason Group::get_reason() const {
 
 void Group::add_group_id(const GroupId & group_id) {
     p_impl->group_ids.push_back(group_id);
+    p_impl->packages.clear();
 }
 
 }  // namespace libdnf5::comps

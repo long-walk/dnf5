@@ -422,11 +422,11 @@ int Transaction::ts_change_callback(int event, rpmte te, rpmte other, void * dat
         rpmteSetUserdata(te, transaction->last_added_item);
         transaction->last_item_added_ts_element = true;
 #if defined(HAVE_RPMTE_SETVFYLEVEL)
-        // honor per-repo pkg_gpgcheck=0 in rpm's enforcing signature mode
-        auto pkg = transaction->last_added_item->get_package();
-        auto gpgcheck = pkg.get_repo()->get_config().get_pkg_gpgcheck_option();
-        if (gpgcheck.get_value() == false) {
-            rpmteSetVfyLevel(te, RPMSIG_DIGEST_TYPE);
+        if (!transaction->last_added_item->get_package().is_pkg_gpgcheck_enabled()) {
+            // When nocrypto tsflag is set, skip digest verification as well
+            auto & tsflags = transaction->base->get_config().get_tsflags_option().get_value();
+            bool nocrypto = std::find(tsflags.begin(), tsflags.end(), "nocrypto") != tsflags.end();
+            rpmteSetVfyLevel(te, nocrypto ? RPMSIG_NONE_TYPE : RPMSIG_DIGEST_TYPE);
         }
 #endif
     } else {

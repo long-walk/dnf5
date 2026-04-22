@@ -188,7 +188,8 @@ void AdvisoryQuery::filter_name(const std::string & pattern, sack::QueryCmp cmp_
 
 void AdvisoryQuery::filter_name(const std::vector<std::string> & patterns, sack::QueryCmp cmp_type) {
     std::vector<std::string> prefixed_patterns;
-    for (std::string pattern : patterns) {
+    prefixed_patterns.reserve(patterns.size());
+    for (const auto & pattern : patterns) {
         prefixed_patterns.push_back(std::string(libdnf5::solv::SOLVABLE_NAME_ADVISORY_PREFIX) + pattern);
     }
     filter_dataiterator_internal(
@@ -294,11 +295,10 @@ void AdvisoryQuery::filter_packages(const libdnf5::rpm::PackageSet & package_set
         case libdnf5::sack::QueryCmp::LT:
         case libdnf5::sack::QueryCmp::GTE:
         case libdnf5::sack::QueryCmp::LTE: {
-            for (libdnf5::rpm::PackageSet::iterator package = package_set.begin(); package != package_set.end();
-                 package++) {
-                Solvable * solvable = pool.id2solvable((*package).get_id().id);
+            for (const auto & package : package_set) {
+                Solvable * solvable = pool.id2solvable(package.get_id().id);
                 auto low = std::lower_bound(
-                    adv_pkgs.begin(), adv_pkgs.end(), *package, AdvisoryPackage::Impl::name_arch_compare_lower_id);
+                    adv_pkgs.begin(), adv_pkgs.end(), package, AdvisoryPackage::Impl::name_arch_compare_lower_id);
                 while (low != adv_pkgs.end() && low->p_impl.get()->get_name_id() == solvable->name &&
                        low->p_impl.get()->get_arch_id() == solvable->arch) {
                     int libsolv_cmp = pool.evrcmp(low->p_impl.get()->get_evr_id(), solvable->evr, EVRCMP_COMPARE);
@@ -338,11 +338,10 @@ std::vector<AdvisoryPackage> AdvisoryQuery::get_advisory_packages_sorted(
         case libdnf5::sack::QueryCmp::LT:
         case libdnf5::sack::QueryCmp::GTE:
         case libdnf5::sack::QueryCmp::LTE: {
-            for (libdnf5::rpm::PackageSet::iterator package = package_set.begin(); package != package_set.end();
-                 package++) {
-                Solvable * solvable = pool.id2solvable((*package).get_id().id);
+            for (const auto & package : package_set) {
+                Solvable * solvable = pool.id2solvable(package.get_id().id);
                 auto low = std::lower_bound(
-                    adv_pkgs.begin(), adv_pkgs.end(), *package, AdvisoryPackage::Impl::name_arch_compare_lower_id);
+                    adv_pkgs.begin(), adv_pkgs.end(), package, AdvisoryPackage::Impl::name_arch_compare_lower_id);
                 while (low != adv_pkgs.end() && low->p_impl.get()->get_name_id() == solvable->name &&
                        low->p_impl.get()->get_arch_id() == solvable->arch) {
                     int libsolv_cmp = pool.evrcmp(low->p_impl.get()->get_evr_id(), solvable->evr, EVRCMP_COMPARE);

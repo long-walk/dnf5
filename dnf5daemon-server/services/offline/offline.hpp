@@ -22,15 +22,17 @@
 
 #include "session.hpp"
 
+#include <libdnf5/transaction/offline.hpp>
 #include <sdbus-c++/sdbus-c++.h>
 
 #include <filesystem>
+#include <optional>
 
 class Offline : public IDbusSessionService {
 public:
     using IDbusSessionService::IDbusSessionService;
     ~Offline() = default;
-    void dbus_register();
+    void dbus_register() override;
     void dbus_deregister();
 
 private:
@@ -45,6 +47,9 @@ private:
         sdbus::MethodCall & call, const std::string & action, const dnfdaemon::KeyValueMap & options);
     sdbus::MethodReply set_finish_action_with_options(sdbus::MethodCall & call);
     sdbus::MethodReply set_finish_action(sdbus::MethodCall & call);
+    sdbus::MethodReply schedule_for_next_boot(sdbus::MethodCall & call);
+
+    std::optional<libdnf5::offline::OfflineTransactionState> read_transaction_state(std::string & error_msg);
 
     enum class Scheduled { NOT_SCHEDULED, ANOTHER_TOOL, SCHEDULED };
     Scheduled offline_transaction_scheduled();

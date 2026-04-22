@@ -96,8 +96,8 @@ repository configuration file should aside from repo ID consists of baseurl, met
     Default: ``True``.
 
     .. NOTE::
-       This option in particular :ref:`can be set in your configuration file by
-       your distribution <conf_distribution_specific_options-label>`.
+       This option in particular can be overriden by a distribution-specific
+       configuration. For more details see :ref:`drop-in configuration directories <drop_in_configuration_directories-label>`.
 
 .. _cachedir_options-label:
 
@@ -111,7 +111,7 @@ repository configuration file should aside from repo ID consists of baseurl, met
 
     Regular user default: ``~/.cache/libdnf5``.
 
-    For superuser the value is overwritten by :ref:`system_cachedir <_system_cachedir_options-label>` option.
+    For superuser the value is overwritten by :ref:`system_cachedir <system_cachedir_options-label>` option.
 
 .. _cacheonly_options-label:
 
@@ -165,7 +165,7 @@ repository configuration file should aside from repo ID consists of baseurl, met
     :ref:`string <string-label>`
 
     Location where libsolv debug files will be created when enabled
-    by :ref:`debug_solver <_debug_solver_options-label>`.
+    by :ref:`debug_solver <debug_solver_options-label>`.
 
     Default `./debugdata`.
 
@@ -175,7 +175,7 @@ repository configuration file should aside from repo ID consists of baseurl, met
     :ref:`boolean <boolean-label>`
 
     If enabled, libsolv debug files will be created when solving the
-    transaction. The debug files are created in the :ref:`debugdir <_debugdir_options-label>` directory.
+    transaction. The debug files are created in the :ref:`debugdir <debugdir_options-label>` directory.
 
     Default: ``False``.
 
@@ -573,7 +573,7 @@ repository configuration file should aside from repo ID consists of baseurl, met
 
     History database location.
 
-    By default it has the same value as :ref:`system_state_dir <_system_state_dir_options-label>`.
+    By default it has the same value as :ref:`system_state_dir <system_state_dir_options-label>`.
 
 .. _tsflags_options-label:
 
@@ -594,6 +594,7 @@ repository configuration file should aside from repo ID consists of baseurl, met
     ``nocaps``        ``RPMTRANS_FLAG_NOCAPS``
     ``nocrypto``      ``RPMTRANS_FLAG_NOFILEDIGEST``
     ``deploops``      ``RPMTRANS_FLAG_DEPLOOPS``
+    ``noplugins``     ``RPMTRANS_FLAG_NOPLUGINS``
     ================  ===============================
 
     The ``nocrypto`` option will also set the ``_RPMVSF_NOSIGNATURES`` and
@@ -603,8 +604,7 @@ repository configuration file should aside from repo ID consists of baseurl, met
     It includes downloading of packages, OpenPGP keys check (including permanent import of
     additional keys if necessary), and rpm check to prevent file conflicts.
 
-    The ``nocaps`` is supported with rpm-4.14 or later. When ``nocaps`` is used but rpm
-    doesn't support it, DNF5 only reports it as an invalid tsflag.
+    The ``noplugins`` option disables use of rpm plugins.
 
     Default: empty.
 
@@ -816,6 +816,8 @@ Repo Options
 
     Default: empty.
 
+
+.. _repo_names-label:
 
 Source and debuginfo repository names
 =====================================
@@ -1216,13 +1218,13 @@ configuration.
     If enabled, DNF5 will continue running and disable the repository that couldn't be synchronized
     for any reason. This option doesn't affect skipping of unavailable packages after dependency
     resolution. To check inaccessibility of repository use it in combination with
-    :ref:`refresh command line option <refresh_command_options-label>`.
+    :ref:`refresh command line option <refresh_option-label>`.
 
     Default: ``False``.
 
     .. NOTE::
-       this option in particular :ref:`can be set in your configuration file
-       by your distribution <conf_distribution_specific_options-label>`.
+       This option in particular can be overriden by a distribution-specific
+       configuration. For more details see :ref:`drop-in configuration directories <drop_in_configuration_directories-label>`.
 
 .. _sslcacert_options-label:
 
@@ -1380,7 +1382,7 @@ files<distro_configuration_files-label>`.
 The configuration files are processed following this order:
 
 1. Configuration files are alphabetically sorted in a list of names from the
-   :ref:`distribution configuration directory<distro_configuration_dir-label>.
+   :ref:`distribution configuration directory<distro_configuration_dir-label>`
    and the :ref:`user configuration directory<user_configuration_dir-label>`. If
    a file with the same name is present in both directories, only the file from
    the user configuration directory is added to the list. The

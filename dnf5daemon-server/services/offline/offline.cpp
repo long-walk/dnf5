@@ -30,6 +30,26 @@
 
 const char * const ERR_ANOTHER_TOOL = "Offline transaction was initiated by another tool.";
 
+std::optional<libdnf5::offline::OfflineTransactionState> Offline::read_transaction_state(std::string & error_msg) {
+    const std::filesystem::path state_path{get_datadir() / libdnf5::offline::TRANSACTION_STATE_FILENAME};
+    std::error_code ec;
+    if (!std::filesystem::exists(state_path, ec)) {
+        error_msg = "No offline transaction is stored.";
+        return std::nullopt;
+    }
+    libdnf5::offline::OfflineTransactionState state{state_path};
+    const auto & read_exception = state.get_read_exception();
+    if (read_exception != nullptr) {
+        try {
+            std::rethrow_exception(read_exception);
+        } catch (const std::exception & ex) {
+            error_msg = ex.what();
+        }
+        return std::nullopt;
+    }
+    return state;
+}
+
 std::filesystem::path Offline::get_datadir() {
     auto base = session.get_base();
     const auto & installroot = base->get_config().get_installroot_option().get_value();
@@ -135,6 +155,17 @@ void Offline::dbus_register() {
                     session.get_threads_manager().handle_method(
                         *this, &Offline::set_finish_action, call, session.session_locale);
                 },
+                {}},
+            sdbus::MethodVTableItem{
+                sdbus::MethodName{"schedule_for_next_boot"},
+                sdbus::Signature{"a{sv}"},
+                {"options"},
+                sdbus::Signature{"bs"},
+                {"success", "error_msg"},
+                [this](sdbus::MethodCall call) -> void {
+                    session.get_threads_manager().handle_method(
+                        *this, &Offline::schedule_for_next_boot, call, session.session_locale);
+                },
                 {}})
         .forInterface(dnfdaemon::INTERFACE_OFFLINE);
 #else
@@ -212,17 +243,27 @@ void Offline::dbus_register() {
             session.get_threads_manager().handle_method(
                 *this, &Offline::set_finish_action, call, session.session_locale);
         });
+    dbus_object->registerMethod(
+        dnfdaemon::INTERFACE_OFFLINE,
+        "schedule_for_next_boot",
+        {"a{sv}"},
+        {"options"},
+        "bs",
+        {"success", "error_msg"},
+        [this](sdbus::MethodCall call) -> void {
+            session.get_threads_manager().handle_method(
+                *this, &Offline::schedule_for_next_boot, call, session.session_locale);
+        });
 #endif
 }
 
 sdbus::MethodReply Offline::get_status(sdbus::MethodCall & call) {
     dnfdaemon::KeyValueMap transaction_state;
 
-    const std::filesystem::path state_path{get_datadir() / libdnf5::offline::TRANSACTION_STATE_FILENAME};
-    // try load the offline transaction state
-    libdnf5::offline::OfflineTransactionState state{state_path};
-    if (!state.get_read_exception()) {
-        const auto & state_data = state.get_data();
+    std::string state_error;
+    auto state = read_transaction_state(state_error);
+    if (state) {
+        const auto & state_data = state->get_data();
         transaction_state["status"] = sdbus::Variant(state_data.get_status());
         transaction_state["cachedir"] = sdbus::Variant(state_data.get_cachedir());
         transaction_state["target_releasever"] = sdbus::Variant(state_data.get_target_releasever());
@@ -253,6 +294,15 @@ sdbus::MethodReply Offline::impl_cancel(sdbus::MethodCall & call, const dnfdaemo
             if (!std::filesystem::remove(libdnf5::offline::MAGIC_SYMLINK, ec) && ec) {
                 success = false;
                 error_msg = ec.message();
+            } else {
+                // Reset the status back to download-complete since the transaction
+                // is no longer scheduled for the next boot.
+                std::string state_error;
+                auto state = read_transaction_state(state_error);
+                if (state && state->get_data().get_status() == libdnf5::offline::STATUS_READY) {
+                    state->get_data().set_status(libdnf5::offline::STATUS_DOWNLOAD_COMPLETE);
+                    state->write();
+                }
             }
         } break;
         case Scheduled::ANOTHER_TOOL:
@@ -345,28 +395,13 @@ sdbus::MethodReply Offline::impl_set_finish_action(
         error_msg =
             fmt::format("Unsupported finish action \"{}\". Valid options are \"reboot\", or \"poweroff\".", action);
     } else {
-        const std::filesystem::path state_path{get_datadir() / libdnf5::offline::TRANSACTION_STATE_FILENAME};
-        std::error_code ec;
-        // check presence of transaction state file
-        if (!std::filesystem::exists(state_path, ec)) {
-            error_msg = "No offline transaction is configured. Cannot set the finish action.";
-        } else {
-            // try load the offline transaction state
-            libdnf5::offline::OfflineTransactionState state{state_path};
-            const auto & read_exception = state.get_read_exception();
-            if (read_exception == nullptr) {
-                // set the poweroff_after item accordingly
-                state.get_data().set_poweroff_after(action == "poweroff");
-                // write the new state
-                state.write();
-                success = true;
-            } else {
-                try {
-                    std::rethrow_exception(read_exception);
-                } catch (const std::exception & ex) {
-                    error_msg = ex.what();
-                }
-            }
+        auto state = read_transaction_state(error_msg);
+        if (state) {
+            // set the poweroff_after item accordingly
+            state->get_data().set_poweroff_after(action == "poweroff");
+            // write the new state
+            state->write();
+            success = true;
         }
     }
     auto reply = call.createReply();
@@ -387,4 +422,49 @@ sdbus::MethodReply Offline::set_finish_action(sdbus::MethodCall & call) {
     dnfdaemon::KeyValueMap options{};
     call >> action;
     return impl_set_finish_action(call, action, options);
+}
+
+sdbus::MethodReply Offline::schedule_for_next_boot(sdbus::MethodCall & call) {
+    dnfdaemon::KeyValueMap options;
+    call >> options;
+
+    bool interactive = dnfdaemon::key_value_map_get<bool>(options, "interactive", true);
+    if (!session.check_authorization(
+            dnfdaemon::POLKIT_EXECUTE_RPM_TRUSTED_TRANSACTION, call.getSender(), interactive)) {
+        throw std::runtime_error("Not authorized");
+    }
+    bool success{false};
+    std::string error_msg{};
+
+    auto state = read_transaction_state(error_msg);
+    if (state) {
+        const auto & status = state->get_data().get_status();
+        if (status != libdnf5::offline::STATUS_DOWNLOAD_COMPLETE && status != libdnf5::offline::STATUS_READY) {
+            error_msg =
+                fmt::format("Cannot schedule offline transaction for next boot. Transaction status is \"{}\".", status);
+        } else {
+            const auto scheduled = offline_transaction_scheduled();
+            if (scheduled == Scheduled::ANOTHER_TOOL) {
+                error_msg = ERR_ANOTHER_TOOL;
+            } else {
+                // Handle both NOT_SCHEDULED (create symlink) and
+                // SCHEDULED (symlink already exists)
+                std::error_code ec;
+                if (scheduled == Scheduled::NOT_SCHEDULED) {
+                    std::filesystem::create_symlink(get_datadir(), libdnf5::offline::MAGIC_SYMLINK, ec);
+                }
+                if (ec) {
+                    error_msg = ec.message();
+                } else {
+                    state->get_data().set_status(libdnf5::offline::STATUS_READY);
+                    state->write();
+                    success = true;
+                }
+            }
+        }
+    }
+    auto reply = call.createReply();
+    reply << success;
+    reply << error_msg;
+    return reply;
 }
