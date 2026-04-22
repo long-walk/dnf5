@@ -6,7 +6,7 @@
 %bcond dnf5_obsoletes_dnf %[0%{?fedora} > 40 || 0%{?rhel} > 10]
 
 Name:           dnf5
-Version:        %{project_version_prime}.%{project_version_major}.%{project_version_minor}.%{project_version_micro}
+Version:        5.4.2.0
 Release:        1%{?dist}
 Summary:        Command-line package manager
 License:        GPL-2.0-or-later
@@ -1143,6 +1143,160 @@ mkdir -p %{buildroot}%{_libdir}/libdnf5/plugins
 %ldconfig_scriptlets
 
 %changelog
+* Wed Apr 22 2026 Thomas <temp.mail@hispeed.ch> 5.4.2.0-1
+- Release 5.4.2.0 (m-blaha@users.noreply.github.com)
+- Update translations from weblate (github-actions@github.com)
+- dnf5daemon: Use read_transaction_state helper in existing methods
+  (mblaha@redhat.com)
+- dnf5daemon: Add schedule_for_next_boot method to Offline interface
+  (mblaha@redhat.com)
+- dnf5daemon: Reset offline transaction status to download-complete on cancel
+  (mblaha@redhat.com)
+- refactor: pass by const reference (65706193+vil02@users.noreply.github.com)
+- refactor(transaction): pass by const reference
+  (65706193+vil02@users.noreply.github.com)
+- refactor(plugin_info_impl): pass by const reference
+  (65706193+vil02@users.noreply.github.com)
+- refactor: pass by const reference (65706193+vil02@users.noreply.github.com)
+- docs(GoalJobSettings): document set_from_repo_ids and set_to_repo_ids
+  (jrohel@redhat.com)
+- python libdnf5 plugins: Export libpython symbols globally (mblaha@redhat.com)
+- Release 5.4.1.0 (pkratoch@users.noreply.github.com)
+- Update translations from weblate (github-actions@github.com)
+- local plugin: Use separate repo for packages from nogpgcheck repos
+  (mblaha@redhat.com)
+- package: Add is_pkg_gpgcheck_enabled() method (mblaha@redhat.com)
+- GH workflow: Fix permission syntax in "Upload *.pot files to dnf5-l10n
+  repository" (ppisar@redhat.com)
+- refactor(advisory_query): optimise `AdvisoryQuery::filter_name`
+  (65706193+vil02@users.noreply.github.com)
+- spec: Require rpm-libs >= 5.99.90 because of rpmteSetVfyLevel()
+  (ppisar@redhat.com)
+- Fix typos and non-standard variable names found by codespell
+  (crawfordxx@users.noreply.github.com)
+- style(dnf5daemon-server): add missing `override`
+  (65706193+vil02@users.noreply.github.com)
+- refactor(fs): simplify and correct logic of `File::read`
+  (65706193+vil02@users.noreply.github.com)
+- refactor: remove some unread variables
+  (65706193+vil02@users.noreply.github.com)
+- comps: Throw bad_alloc when memory allocation fails in a libxml function
+  (pkratoch@redhat.com)
+- comps: Make sure the doc is always freed at the end of serialization
+  (pkratoch@redhat.com)
+- comps: Make sure the xml error handler is restored when destroyed
+  (pkratoch@redhat.com)
+- comps: Handle errors while serializing environments (pkratoch@redhat.com)
+- transaction: Respect nocrypto tsflag per-element (mblaha@redhat.com)
+- refactor: avoid using `substr` on prefixes as this involves a full copy
+  (65706193+vil02@users.noreply.github.com)
+- state: Don't delete .new files in State::load() (mblaha@redhat.com)
+- refactor: remove unused variables (65706193+vil02@users.noreply.github.com)
+- Handle TOML parsing errors for ActiveTransactionInfo (mblaha@redhat.com)
+- dnf5: Print details about concurrent running transaction (mblaha@redhat.com)
+- transaction: Store info about concurrently running transaction
+  (mblaha@redhat.com)
+- transaction: Use TransactionLocker instead of Locker (mblaha@redhat.com)
+- Specialized TransactionLocker class (mblaha@redhat.com)
+- Add ActiveTransactionInfo class (mblaha@redhat.com)
+- Add unit tests for the Locker class (mblaha@redhat.com)
+- locker: Add methods to read/write lock file content (mblaha@redhat.com)
+- fix(python_plugins_loader): suppress -Wconversion for SWIG-generated code
+  (tchaikov@gmail.com)
+- refactor(advisory_query): prefer range-based for loop
+  (65706193+vil02@users.noreply.github.com)
+- comps: Clear package and group lists when adding new group or environment ids
+  (pkratoch@redhat.com)
+- comps: List default groups of environments in the info command
+  (pkratoch@redhat.com)
+- comps: Install and upgrade also default groups of environments
+  (pkratoch@redhat.com)
+- comps: Test default groups in environments (pkratoch@redhat.com)
+- comps: Differentiate between optional and default groups in environments
+  (pkratoch@redhat.com)
+- Configure packit to use caret notation for postrelease snapshots
+  (amatej@redhat.com)
+- Drop duplicit cmake var `PACKAGE_VERSION` and its check (amatej@redhat.com)
+- refactor(offline): remove redundant `.c_str()` call
+  (65706193+vil02@users.noreply.github.com)
+- Clarify packages provides pattern specification (amatej@redhat.com)
+- Add '--noplugins' tsflag config value (jeremy.james@gmail.com)
+- dnf5: Reuse cached packages for offline and store transactions
+  (mblaha@redhat.com)
+- docs(config-manager): fix typo (mfocko@redhat.com)
+- docs(config-manager): add enable/disable (mfocko@redhat.com)
+- fix(spec): adjust the license for the plugins (mfocko@redhat.com)
+- docs(config-manager): keep consistent spacing between sections
+  (mfocko@redhat.com)
+- feat(config-manager): implement ‹enable›/‹disable› (mfocko@redhat.com)
+- fix(config-manager): factor out config functions (mfocko@redhat.com)
+- docs(builddep): add warning about enabling repos (mfocko@redhat.com)
+- fix(completion): parse descriptions properly in zsh completion
+  (stefano@amorelli.tech)
+- feat(completion): add native zsh completion support (stefano@amorelli.tech)
+- do: fix duplicate reinstall goal entry and typos (pran.lawate@gmail.com)
+- dnf5daemon-server: enhance transaction_action_* docs (amatej@redhat.com)
+- tests: Fix a type mismatch in libdnf5-cli/test_progressbar
+  (ppisar@redhat.com)
+- needs-restarting: Remove unused variable `updated_packages`
+  (userfrom1995@gmail.com)
+- needs-restarting: Add JSON output support and documentation
+  (userfrom1995@gmail.com)
+- fix: prevent UB in repo sorting (lleyton@fyralabs.com)
+- doc: Name manual pages for versioned vendorpolicies (ppisar@redhat.com)
+- spec: Escape macros in spec comments (ppisar@redhat.com)
+- Remove unused old dnf4 transaction history code (amatej@redhat.com)
+- libdnf5-cli: fix clang-format (kanru@kanru.info)
+- libdnf5-cli: handle C or POSIX locale gracefully in progressbar width
+  calculation (kanru@kanru.info)
+- libdnf5-cli: remove unused utils::utf8 module (kanru@kanru.info)
+- dnf5daemon-server: Fix daemon crash for invalid locale (jrohel@redhat.com)
+- subprocess: Bind /dev/null to child stdin (mail@evangoo.de)
+- test: Test libdnf5::utils::subprocess::run (mail@evangoo.de)
+- bootc: Handle read-only /usr on non-bootc system (mail@evangoo.de)
+- bootc: Check for bootc system by calling bootc status (mail@evangoo.de)
+- Add libdnf5::utils::subprocess::run (mail@evangoo.de)
+- bootc: check /usr mounted read-only, not permissions (mail@evangoo.de)
+- bootc: Check filesystem writability before permissions (mail@evangoo.de)
+- tests: Set LC_ALL=C to prevent locale-dependent test failures
+  (jrohel@redhat.com)
+- repoclosure: Add JSON output support and documentation
+  (userfrom1995@gmail.com)
+- spec: Do not build-require long unused libcomps-devel (ppisar@redhat.com)
+- Fix segmentation fault in cmd_requires_privileges (mblaha@redhat.com)
+- doc: repo: Add --json option and a link to --dump-repo-config option
+  (ppisar@redhat.com)
+- tests: Disable plugins in tutorial tests to prevent host dependency
+  (jrohel@redhat.com)
+- automatic: fail if libcurl lacks smtp support (mblaha@redhat.com)
+- automatic: relax libcurl-full dependency (mblaha@redhat.com)
+- automatic: document SMTP requirement for email emitter (mblaha@redhat.com)
+- docs: add remarks from review (mfocko@redhat.com)
+- doc(manifest): use correct “See Also” header (mfocko@redhat.com)
+- doc(manifest): add missing ref to reference (mfocko@redhat.com)
+- doc: add missing backtick to reference (mfocko@redhat.com)
+- doc: fix the references to labels (mfocko@redhat.com)
+- doc(json): indent for different formats (mfocko@redhat.com)
+- doc(api): fix the headers and references (mfocko@redhat.com)
+- Add --oldinstallonly option to remove command (me@fhbash.com)
+- dnfdaemon: Increase the number of concurrent sessions (mblaha@redhat.com)
+- only install systemd service files if WITH_SYSTEMD is set
+  (adam.duskett@amarulasolutions.com)
+- tests: Add unit test verifying tutorial plugins load correctly
+  (jrohel@redhat.com)
+- libdnf5 plugin template: use newer API, libdnf_plugin_get_last_exception
+  (jrohel@redhat.com)
+- Move plugin templates to test directory and ensure they compile
+  (jrohel@redhat.com)
+- spec: split dnf5 and dnf manpage entries (userfrom1995@gmail.com)
+- Add dnf5-debuginfo-install(8) manual page and package provides
+  (userfrom1995@gmail.com)
+- local plugin: propagate spec local plugin build option to cmake
+  (amatej@redhat.com)
+- dnf-automatic: use /bin/sh (adam.duskett@amarulasolutions.com)
+- Honor localpkg_gpgcheck in RPM transaction per-element policy
+  (ppisar@redhat.com)
+
 * Wed Apr 22 2026 Packit Team <hello@packit.dev> - 5.4.2.0-1
 - New upstream release 5.4.2.0
 
