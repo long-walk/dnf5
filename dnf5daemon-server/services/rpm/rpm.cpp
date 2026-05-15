@@ -383,7 +383,8 @@ std::vector<std::string> get_filter_patterns(dnfdaemon::KeyValueMap options, con
     return filter_patterns;
 }
 
-libdnf5::rpm::PackageQuery resolve_nevras(libdnf5::rpm::PackageQuery base_query, std::vector<std::string> nevras) {
+libdnf5::rpm::PackageQuery resolve_nevras(
+    libdnf5::rpm::PackageQuery base_query, const std::vector<std::string> & nevras) {
     libdnf5::rpm::PackageQuery result(base_query.get_base(), libdnf5::sack::ExcludeFlags::APPLY_EXCLUDES, true);
     libdnf5::ResolveSpecSettings settings;
     settings.set_with_provides(false);
@@ -591,7 +592,8 @@ sdbus::MethodReply Rpm::list(sdbus::MethodCall & call) {
     dnfdaemon::KeyValueMap options;
     call >> options;
 
-    session.fill_sack();
+    bool interactive = dnfdaemon::key_value_map_get<bool>(options, "interactive", false);
+    session.fill_sack(interactive);
 
     auto query = filter_packages(options);
 
@@ -619,7 +621,8 @@ void Rpm::list_fd(sdbus::MethodCall & call, const std::string & transfer_id) {
 
     int out_fd = dbus_unix_fd.get();
 
-    session.fill_sack();
+    bool interactive = dnfdaemon::key_value_map_get<bool>(options, "interactive", false);
+    session.fill_sack(interactive);
 
     auto query = filter_packages(options);
 

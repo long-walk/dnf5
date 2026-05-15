@@ -328,7 +328,7 @@ Following options are applicable in the general context for any ``dnf5`` command
 
 ``--skip-file-locks``
     | Skip acquiring file locks, such as the lock on the system repository.
-    | See :ref:`skip_sytem_repo_lock <skip_system_repo_lock_options-label>` for more info.
+    | See :ref:`skip_system_repo_lock <skip_system_repo_lock_options-label>` for more info.
 
 ``--show-new-leaves``
     | Show newly installed leaf packages and packages that became leaves after a transaction.
@@ -424,10 +424,10 @@ Environment
 ===========
 
 ``DNF5_FORCE_INTERACTIVE``
-    Override interactivity of the connected standard input/ouput. Set to `0` to pretend
+    Override interactivity of the connected standard input/output. Set to `0` to pretend
     that the input/output is not connected to an interactive terminal and DNF5
     should not ask any questions. Set to `1` to force DNF5 to ask questions
-    even if the terminal is non-interractive. See
+    even if the terminal is non-interactive. See
     :ref:`--assumeno<assumeno_option_ref-label>` and
     :ref:`--assumeyes<assumeyes_option_ref-label>` options.
 

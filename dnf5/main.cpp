@@ -1107,6 +1107,7 @@ static void print_resolve_hints(dnf5::Context & context) {
         bool conflict = false;
         bool broken_file_dep = false;
         bool best = false;
+        bool vendor_change = false;
         // walk through all solver problem to detect a conflict, missing file dependency and best
         for (const auto & resolve_log : context.get_transaction()->get_resolve_logs()) {
             if (resolve_log.get_problem() == libdnf5::GoalProblem::SOLVER_ERROR) {
@@ -1129,6 +1130,9 @@ static void print_resolve_hints(dnf5::Context & context) {
                             case libdnf5::ProblemRules::RULE_BEST_2:
                                 best = true;
                                 break;
+                            case libdnf5::ProblemRules::RULE_UPDATE:
+                                vendor_change = true;
+                                break;
                             default:
                                 break;
                         }
@@ -1149,6 +1153,11 @@ static void print_resolve_hints(dnf5::Context & context) {
                 hints.emplace_back(
                     libdnf5::utils::sformat(_("{} to allow removing of installed packages to resolve problems"), arg));
             }
+        }
+
+        if (!conf.get_allow_vendor_change_option().get_value() && vendor_change) {
+            const std::string_view arg{"--setopt=allow_vendor_change=true"};
+            hints.emplace_back(libdnf5::utils::sformat(_("{} to allow changing package vendors"), arg));
         }
 
         if (broken_file_dep) {
@@ -1217,9 +1226,9 @@ static bool user_has_privileges(dnf5::Context & context) {
     const auto & transaction_lock_path =
         installroot / std::filesystem::path{libdnf5::TRANSACTION_LOCK_FILEPATH}.relative_path();
 
-    const auto & system_state_dir = context.get_base().get_config().get_system_state_dir_option().get_value();
+    const auto & persistdir = context.get_base().get_config().get_persistdir_option().get_value();
     const auto & system_repo_lock_path =
-        installroot / std::filesystem::path{system_state_dir}.relative_path() / libdnf5::SYSTEM_REPO_LOCK_FILENAME;
+        installroot / std::filesystem::path{persistdir}.relative_path() / libdnf5::SYSTEM_REPO_LOCK_FILENAME;
 
     try {
         std::filesystem::create_directories(transaction_lock_path.parent_path());
@@ -1621,7 +1630,7 @@ int main(int argc, char * argv[]) try {
 
     log_router.info(_("DNF5 finished"));
 
-    // Print Complete! message only when transaction is created to prevent poluting output from repoquery or other command
+    // Print Complete! message only when transaction is created to prevent polluting output from repoquery or other command
     if (auto * transaction = context.get_transaction(); transaction && !transaction->empty()) {
         context.print_info(_("Complete!"));
     }
