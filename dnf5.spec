@@ -6,7 +6,7 @@
 %bcond dnf5_obsoletes_dnf %[0%{?fedora} > 40 || 0%{?rhel} > 10]
 
 Name:           dnf5
-Version:        %{project_version_prime}.%{project_version_major}.%{project_version_minor}.%{project_version_micro}
+Version:        5.4.2.1
 Release:        1%{?dist}
 Summary:        Command-line package manager
 License:        GPL-2.0-or-later
@@ -1144,6 +1144,28 @@ mkdir -p %{buildroot}%{_libdir}/libdnf5/plugins
 %ldconfig_scriptlets
 
 %changelog
+* Sat May 16 2026 Thomas <temp.mail@hispeed.ch> 5.4.2.1-1
+- Release 5.4.2.1 (evan-goode@users.noreply.github.com)
+- Update translations from weblate (github-actions@github.com)
+- Move system-repo.lock to /var/lib/dnf/system-repo.lock (mail@evangoo.de)
+- dnfdaemon: Document interactive option in D-Bus API (mblaha@redhat.com)
+- dnfdaemon: Add repo_key_imported informational signal (mblaha@redhat.com)
+- dnfdaemon: Avoid timeout on repo key import (mblaha@redhat.com)
+- dnfdaemon: Pass interactive parameter to repo key import callback
+  (mblaha@redhat.com)
+- refactor(download): preallocate memory in `DownloadCommand::configure`
+  (65706193+vil02@users.noreply.github.com)
+- Fix list --installed-from-repo to imply --installed (mblaha@redhat.com)
+- Fix typos in docs, comments, and user-facing strings (userfrom1995@gmail.com)
+- dnf5.8.rst: s/sytem/system (mail@evangoo.de)
+- Suggest allow_vendor_change=true when solver blocks vendor update
+  (me@fhbash.com)
+- Shell completion: use space for all options (userfrom1995@gmail.com)
+- doc: Annotate a fix for CVE-2026-3836 (ppisar@redhat.com)
+- refactor: pass by const reference (65706193+vil02@users.noreply.github.com)
+- Fix data loss caused by POLLHUP race in poll loop (mblaha@redhat.com)
+- test: Use POSIX octal escapes in test_binary_data (mblaha@redhat.com)
+
 * Tue May 05 2026 Packit Team <hello@packit.dev> - 5.4.2.1-1
 - New upstream release 5.4.2.1
 
