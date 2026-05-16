@@ -1,17 +1,17 @@
 %global project_version_prime 5
 %global project_version_major 4
 %global project_version_minor 2
-%global project_version_micro 1
+%global project_version_micro 2
 
 %bcond dnf5_obsoletes_dnf %[0%{?fedora} > 40 || 0%{?rhel} > 10]
 
 Name:           dnf5
-Version:        5.4.2.2
+Version:        5.4.2.3
 Release:        1%{?dist}
 Summary:        Command-line package manager
 License:        GPL-2.0-or-later
-URL:            https://github.com/rpm-software-management/dnf5
-Source0:        %{url}/archive/%{version}/dnf5-%{version}-%{release}.tar.gz
+URL:            https://github.com/long-walk/dnf5
+Source0:        %{url}/archive/refs/tags/dnf5-%{version}-%{release}.tar.gz
 
 Requires:       libdnf5%{?_isa} = %{version}-%{release}
 Requires:       libdnf5-cli%{?_isa} = %{version}-%{release}
@@ -1144,8 +1144,8 @@ mkdir -p %{buildroot}%{_libdir}/libdnf5/plugins
 %ldconfig_scriptlets
 
 %changelog
-* Sat May 16 2026 Thomas <temp.mail@hispeed.ch> 5.4.2.2-1
-- 5.4.2.1 (temp.mail@hispeed.ch)
+* Sat May 16 2026 Thomas <temp.mail@hispeed.ch> 5.4.2.3-1
+- 
 
 * Sat May 16 2026 Thomas <temp.mail@hispeed.ch> 5.4.2.1-1
 - Release 5.4.2.1 (evan-goode@users.noreply.github.com)
