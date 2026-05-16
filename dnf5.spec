@@ -7,11 +7,11 @@
 
 Name:           dnf5
 Version:        5.4.2.1
-Release:        1%{?dist}
+Release:        r%{?dist}
 Summary:        Command-line package manager
 License:        GPL-2.0-or-later
-URL:            https://github.com/rpm-software-management/dnf5
-Source0:        %{url}/archive/%{version}/dnf5-%{version}.tar.gz
+URL:            https://github.com/long-walk/dnf5
+Source0:        %{url}/archive/refs/tags/dnf5-%{version}-1.tar.gz
 
 Requires:       libdnf5%{?_isa} = %{version}-%{release}
 Requires:       libdnf5-cli%{?_isa} = %{version}-%{release}
@@ -1144,6 +1144,21 @@ mkdir -p %{buildroot}%{_libdir}/libdnf5/plugins
 %ldconfig_scriptlets
 
 %changelog
+* Sat May 16 2026 Thomas <temp.mail@hispeed.ch> 5.4.2.1-r
+- 5.4.2.1 (temp.mail@hispeed.ch)
+
+* Sat May 16 2026 Thomas <temp.mail@hispeed.ch>
+- 5.4.2.1 (temp.mail@hispeed.ch)
+
+* Sat May 16 2026 Thomas <temp.mail@hispeed.ch>
+- 5.4.2.1 (temp.mail@hispeed.ch)
+
+* Sat May 16 2026 Thomas <temp.mail@hispeed.ch>
+- 5.4.2.1 (temp.mail@hispeed.ch)
+
+* Sat May 16 2026 Thomas <temp.mail@hispeed.ch>
+- 5.4.2.1 (temp.mail@hispeed.ch)
+
 * Sat May 16 2026 Thomas <temp.mail@hispeed.ch> 5.4.2.1-1
 - Release 5.4.2.1 (evan-goode@users.noreply.github.com)
 - Update translations from weblate (github-actions@github.com)
