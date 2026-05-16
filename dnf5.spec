@@ -6,7 +6,7 @@
 %bcond dnf5_obsoletes_dnf %[0%{?fedora} > 40 || 0%{?rhel} > 10]
 
 Name:           dnf5
-Version:        5.4.2.4
+Version:        5.4.2.5
 Release:        1%{?dist}
 Summary:        Command-line package manager
 License:        GPL-2.0-or-later
@@ -1144,6 +1144,9 @@ mkdir -p %{buildroot}%{_libdir}/libdnf5/plugins
 %ldconfig_scriptlets
 
 %changelog
+* Sat May 16 2026 Thomas <temp.mail@hispeed.ch> 5.4.2.5-1
+- 
+
 * Sat May 16 2026 Thomas <temp.mail@hispeed.ch> 5.4.2.4-1
 - 
 
