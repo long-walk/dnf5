@@ -23,7 +23,6 @@
 #include "libdnf5-cli/tty.hpp"
 
 #include <algorithm>
-#include <iomanip>
 
 
 namespace libdnf5::cli::progressbar {
@@ -144,10 +143,10 @@ void DownloadProgressBar::to_stream(std::ostream & stream) {
     }
 
     std::size_t terminal_width = static_cast<std::size_t>(tty::get_width());
-
-    // if bar doesn't fit terminal width, hide progress widget
     std::size_t bar_width = get_bar_width(widgets);
-    if (bar_width > terminal_width) {
+
+    // if bar is finished or doesn't fit terminal width, hide the progress widget
+    if (get_state() != ProgressBarState::STARTED || bar_width > terminal_width) {
         widgets.erase(std::remove(widgets.begin(), widgets.end(), &p_impl->progress_widget), widgets.end());
         bar_width = get_bar_width(widgets);
     }
@@ -165,20 +164,25 @@ void DownloadProgressBar::to_stream(std::ostream & stream) {
         bar_width = get_bar_width(widgets);
     }
 
-    // if bar is finished, hide the progress widget
-    if (get_state() != ProgressBarState::STARTED) {
-        widgets.erase(std::remove(widgets.begin(), widgets.end(), &p_impl->progress_widget), widgets.end());
-        bar_width = get_bar_width(widgets);
-    }
-
     // if bar doesn't fit terminal width, reduce description width
     if (bar_width > terminal_width) {
-        p_impl->description_widget.set_total_width(
-            p_impl->description_widget.get_total_width() + terminal_width - bar_width);
-        bar_width = get_bar_width(widgets);
+        auto description_width = p_impl->description_widget.get_total_width();
+        auto overflow = bar_width - terminal_width;
+        // but only if the reduction would left something from the description,
+        // to prevent an integer overflow.
+        if (description_width > overflow) {
+            p_impl->description_widget.set_total_width(description_width - overflow);
+            bar_width = get_bar_width(widgets);
+        } else {
+            // As much as reduced, the bar cannot fit into the terminal.
+            // Just leave it as it is.
+        }
     }
-
-    if (bar_width < terminal_width) {
+    // or stretch the description width if hiding widgets reclaimed space
+    // XXX: This makes the bar span over the terminal width even if no
+    // description needs so much space. Some pople might find it wasteful and
+    // ugly.
+    else if (bar_width < terminal_width) {
         p_impl->description_widget.set_total_width(
             p_impl->description_widget.get_total_width() + terminal_width - bar_width);
         bar_width = get_bar_width(widgets);
@@ -204,11 +208,7 @@ void DownloadProgressBar::to_stream(std::ostream & stream) {
     }
 
     for (Widget * widget : widgets) {
-        stream << std::left;
-        // if string is shorter, fill the widget's space with spaces
-        stream << std::setw(static_cast<int>(widget->get_total_width()));
-        // print only the part of the string that fits the widget width
-        stream << widget->to_string().substr(0, widget->get_total_width());
+        stream << widget->to_spanned_string();
     }
 
     if (color_used) {

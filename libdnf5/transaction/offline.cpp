@@ -17,15 +17,18 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 
+#include "rpm/transaction.hpp"
+
 #include "libdnf5/common/exception.hpp"
 
+#include <libdnf5/base/base.hpp>
 #include <libdnf5/transaction/offline.hpp>
 #include <libdnf5/utils/bgettext/bgettext-mark-domain.h>
 #include <libdnf5/utils/fs/file.hpp>
 #include <toml.hpp>
 
 
-const int STATE_VERSION = 1;
+const int STATE_VERSION = 2;
 const std::string STATE_HEADER{"offline-transaction-state"};
 
 
@@ -39,6 +42,7 @@ struct OfflineTransactionStateTomlData {
     std::string cmd_line;
     bool poweroff_after = false;
     std::string module_platform_id;
+    std::string rpmdb_cookie;
 };
 
 TOML11_DEFINE_CONVERSION_NON_INTRUSIVE(
@@ -51,7 +55,11 @@ TOML11_DEFINE_CONVERSION_NON_INTRUSIVE(
     verb,
     cmd_line,
     poweroff_after,
-    module_platform_id)
+#ifdef WITH_MODULEMD
+    module_platform_id,
+#endif
+    rpmdb_cookie)
+
 
 namespace libdnf5::offline {
 
@@ -139,11 +147,20 @@ bool OfflineTransactionStateData::get_poweroff_after() const {
     return p_impl->data.poweroff_after;
 }
 
-void OfflineTransactionStateData::set_module_platform_id(const std::string & module_platform_id) {
+void OfflineTransactionStateData::set_module_platform_id([[maybe_unused]] const std::string & module_platform_id) {
+#ifdef WITH_MODULEMD
     p_impl->data.module_platform_id = module_platform_id;
+#endif
 }
 const std::string & OfflineTransactionStateData::get_module_platform_id() const {
     return p_impl->data.module_platform_id;
+}
+
+void OfflineTransactionStateData::set_rpmdb_cookie(const std::string & rpmdb_cookie) {
+    p_impl->data.rpmdb_cookie = rpmdb_cookie;
+}
+std::string OfflineTransactionStateData::get_rpmdb_cookie() const {
+    return p_impl->data.rpmdb_cookie;
 }
 
 
@@ -213,6 +230,49 @@ void OfflineTransactionState::write() {
     file.write(toml::format(toml::value{toml::table{{STATE_HEADER, p_impl->data.p_impl->data}}}));
 #endif
     file.close();
+}
+
+OfflineTransactionState OfflineTransactionState::from_base(const Base & base) {
+    return OfflineTransactionState(
+        base.get_config().get_installroot_option().get_value() / DEFAULT_DATADIR.relative_path() /
+        TRANSACTION_STATE_FILENAME);
+}
+
+bool OfflineTransactionState::is_pending() const {
+    if (p_impl->read_exception) {
+        return false;
+    }
+    const auto & status = p_impl->data.get_status();
+    return status == STATUS_DOWNLOAD_COMPLETE || status == STATUS_READY;
+}
+
+void OfflineTransactionState::invalidate() {
+    const auto datadir = p_impl->path.parent_path();
+    std::error_code ec;
+    auto target = std::filesystem::read_symlink(MAGIC_SYMLINK, ec);
+    if (ec) {
+        return;
+    }
+    std::error_code ec_target, ec_datadir;
+    auto canonical_target = std::filesystem::weakly_canonical(target, ec_target);
+    auto canonical_datadir = std::filesystem::weakly_canonical(datadir, ec_datadir);
+    if (!ec_target && !ec_datadir && canonical_target == canonical_datadir) {
+        std::filesystem::remove(MAGIC_SYMLINK, ec);
+    }
+}
+
+void OfflineTransactionState::capture_rpmdb_cookie(Base & base) {
+    rpm::Transaction rpm_ts(base);
+    p_impl->data.set_rpmdb_cookie(rpm_ts.get_db_cookie());
+}
+
+bool OfflineTransactionState::check_rpmdb_cookie(Base & base) const {
+    const auto & stored_cookie = p_impl->data.get_rpmdb_cookie();
+    if (stored_cookie.empty()) {
+        return true;
+    }
+    rpm::Transaction rpm_ts(base);
+    return rpm_ts.get_db_cookie() == stored_cookie;
 }
 
 }  // namespace libdnf5::offline

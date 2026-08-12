@@ -214,11 +214,17 @@ public:
     OptionBool & get_ignorearch_option();
     const OptionBool & get_ignorearch_option() const;
 
+    // Unused if built without modularity support
     OptionString & get_module_platform_id_option();
+    // Unused if built without modularity support
     const OptionString & get_module_platform_id_option() const;
+    // Unused if built without modularity support
     OptionBool & get_module_stream_switch_option();
+    // Unused if built without modularity support
     const OptionBool & get_module_stream_switch_option() const;
+    // Unused if built without modularity support
     OptionBool & get_module_obsoletes_option();
+    // Unused if built without modularity support
     const OptionBool & get_module_obsoletes_option() const;
     OptionString & get_user_agent_option();
     const OptionString & get_user_agent_option() const;
@@ -230,6 +236,10 @@ public:
     const OptionBool & get_build_cache_option() const;
     OptionBool & get_skip_system_repo_lock_option();
     const OptionBool & get_skip_system_repo_lock_option() const;
+    OptionEnum & get_persistence_option();
+    const OptionEnum & get_persistence_option() const;
+    OptionStringAppendList & get_usr_drift_protected_paths_option();
+    const OptionStringAppendList & get_usr_drift_protected_paths_option() const;
 
     // Repo main config
     /// @deprecated The option does nothing
@@ -276,6 +286,8 @@ public:
     const OptionBool & get_pkg_gpgcheck_option() const;
     OptionBool & get_repo_gpgcheck_option();
     const OptionBool & get_repo_gpgcheck_option() const;
+    OptionEnum & get_gpgcheck_policy_option();
+    const OptionEnum & get_gpgcheck_policy_option() const;
     /// @deprecated Use ConfigRepo::get_enabled_option()
     [[deprecated("Use ConfigRepo::get_enabled_option()")]]
     OptionBool & get_enabled_option();

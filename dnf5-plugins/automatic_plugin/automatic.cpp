@@ -365,15 +365,20 @@ void AutomaticCommand::run() {
     // setup upgrade transaction goal
     auto settings = libdnf5::GoalJobSettings();
 
+    libdnf5::Goal goal(base);
+    const auto upgrade_type = config_automatic.config_commands.upgrade_type.get_value();
     // TODO(mblaha): Use advisory_query_from_cli_input from dnf5/commands/advisory_shared.hpp?
-    if (config_automatic.config_commands.upgrade_type.get_value() == "security") {
+    if (upgrade_type == "security") {
         auto advisories = libdnf5::advisory::AdvisoryQuery(base);
         advisories.filter_type("security");
         settings.set_advisory_filter(advisories);
         // TODO(mblaha): set also minimal=true?
+        goal.add_rpm_upgrade(settings);
+    } else if (upgrade_type == "distro-sync") {
+        goal.add_rpm_distro_sync(settings);
+    } else {
+        goal.add_rpm_upgrade(settings);
     }
-    libdnf5::Goal goal(base);
-    goal.add_rpm_upgrade(settings);
 
     auto transaction = goal.resolve();
 
@@ -466,6 +471,8 @@ void AutomaticCommand::run() {
                 emitter = std::make_unique<EmitterCommandEmail>(config_automatic, transaction, output_stream, success);
             } else if (emitter_name == "email") {
                 emitter = std::make_unique<EmitterEmail>(config_automatic, transaction, output_stream, success);
+            } else if (emitter_name == "dbus") {
+                emitter = std::make_unique<EmitterDBus>(config_automatic, transaction, output_stream, success);
             } else {
                 auto & logger = *base.get_logger();
                 logger.warning(_("Unknown report emitter for dnf5 automatic: \"{}\"."), emitter_name);

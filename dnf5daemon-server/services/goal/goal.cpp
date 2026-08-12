@@ -28,6 +28,7 @@
 #include "utils.hpp"
 
 #include <fmt/format.h>
+#include <libdnf5/transaction/offline.hpp>
 #include <libdnf5/transaction/transaction_item.hpp>
 #include <libdnf5/transaction/transaction_item_action.hpp>
 #include <sdbus-c++/sdbus-c++.h>
@@ -291,6 +292,19 @@ sdbus::MethodReply Goal::resolve(sdbus::MethodCall & call) {
                 trans_item_attrs,
                 package_to_map(pkg, pkg_attrs));
         }
+        std::vector<std::string> vendor_pkg_attrs = pkg_attrs;
+        vendor_pkg_attrs.emplace_back("vendor");
+        for (const auto & [pkg, installed_vendor] : transaction.get_vendor_change_skipped_packages()) {
+            dnfdaemon::KeyValueMap trans_item_attrs{};
+            trans_item_attrs.emplace("reason_skipped", "vendor_change");
+            trans_item_attrs.emplace("installed_vendor", installed_vendor);
+            dbus_transaction.emplace_back(
+                dbus_transaction_item_type_to_string(dnfdaemon::DbusTransactionItemType::SKIPPED),
+                "",
+                "",
+                trans_item_attrs,
+                package_to_map(pkg, vendor_pkg_attrs));
+        }
     }
 
     auto reply = call.createReply();
@@ -424,6 +438,14 @@ sdbus::MethodReply Goal::do_transaction(sdbus::MethodCall & call) {
                         static_cast<std::underlying_type_t<libdnf5::base::Transaction::TransactionRunResult>>(
                             rpm_result)));
             }
+
+            auto * base = session.get_base();
+            auto state = libdnf5::offline::OfflineTransactionState::from_base(*base);
+            if (state.is_pending()) {
+                state.invalidate();
+                base->get_logger()->info("Pending offline transaction has been invalidated.");
+            }
+
             // TODO(mblaha): clean up downloaded packages after successful transaction
         }
     }

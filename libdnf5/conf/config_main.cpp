@@ -114,6 +114,7 @@ class ConfigMain::Impl {
     Config & owner;
 
     void load_from_config(const Impl & other);
+    void apply_gpgcheck_policy(const ConfigParser & parser, const std::string & section, Option::Priority priority);
 
     OptionNumber<std::int32_t> debuglevel{2, 0, 10};
     OptionNumber<std::int32_t> errorlevel{3, 0, 10};
@@ -226,15 +227,19 @@ class ConfigMain::Impl {
     OptionString comment{nullptr};
     OptionBool downloadonly{false};  // runtime only option
     OptionBool ignorearch{false};
-    OptionString module_platform_id{nullptr, ".+:.+", false};
-    OptionBool module_stream_switch{false};
-    OptionBool module_obsoletes{false};
+    OptionString module_platform_id{nullptr, ".+:.+", false};  // unused if modularity support is disabled
+    OptionBool module_stream_switch{false};                    // unused if modularity support is disabled
+    OptionBool module_obsoletes{false};                        // unused if modularity support is disabled
 
     OptionString user_agent{get_user_agent()};
     OptionBool countme{false};
     OptionBool protect_running_kernel{true};
     OptionBool build_cache{true};
     OptionBool skip_system_repo_lock{false};
+    OptionEnum persistence{"auto", {"auto", "persist", "transient"}};
+
+    OptionStringAppendList usr_drift_protected_paths{
+        std::vector<std::string>{"glob:/etc/dnf/usr-drift-protected-paths.d/*.conf"}};
 
     // Repo main config
 
@@ -254,6 +259,7 @@ class ConfigMain::Impl {
     OptionStringAppendList protected_packages{std::vector<std::string>{"dnf5", "glob:/etc/dnf/protected.d/*.conf"}};
     OptionString username{""};
     OptionString password{""};
+    OptionEnum gpgcheck_policy{"legacy", {"legacy", "full", "all"}};
     OptionBool pkg_gpgcheck{false};
     OptionBool repo_gpgcheck{false};
     OptionBool enabled{true};
@@ -406,14 +412,18 @@ ConfigMain::Impl::Impl(Config & owner) : owner(owner) {
     owner.opt_binds().add("destdir", destdir);
     owner.opt_binds().add("comment", comment);
     owner.opt_binds().add("ignorearch", ignorearch);
+#ifdef WITH_MODULEMD
     owner.opt_binds().add("module_platform_id", module_platform_id);
     owner.opt_binds().add("module_stream_switch", module_stream_switch);
     owner.opt_binds().add("module_obsoletes", module_obsoletes);
+#endif
     owner.opt_binds().add("user_agent", user_agent);
     owner.opt_binds().add("countme", countme);
     owner.opt_binds().add("protect_running_kernel", protect_running_kernel);
     owner.opt_binds().add("build_cache", build_cache);
     owner.opt_binds().add("skip_system_repo_lock", skip_system_repo_lock);
+    owner.opt_binds().add("persistence", persistence);
+    owner.opt_binds().add("usr_drift_protected_paths", usr_drift_protected_paths);
 
     // Repo main config
 
@@ -450,6 +460,7 @@ ConfigMain::Impl::Impl(Config & owner) : owner(owner) {
     owner.opt_binds().add("pkg_gpgcheck", pkg_gpgcheck);
     // Compatibility alias for pkg_gpgcheck
     owner.opt_binds().add("gpgcheck", pkg_gpgcheck);
+    owner.opt_binds().add("gpgcheck_policy", gpgcheck_policy);
     owner.opt_binds().add("repo_gpgcheck", repo_gpgcheck);
     owner.opt_binds().add("enabled", enabled);
     owner.opt_binds().add("enablegroups", enablegroups);
@@ -1072,6 +1083,20 @@ const OptionBool & ConfigMain::get_skip_system_repo_lock_option() const {
     return p_impl->skip_system_repo_lock;
 }
 
+OptionEnum & ConfigMain::get_persistence_option() {
+    return p_impl->persistence;
+}
+const OptionEnum & ConfigMain::get_persistence_option() const {
+    return p_impl->persistence;
+}
+
+OptionStringAppendList & ConfigMain::get_usr_drift_protected_paths_option() {
+    return p_impl->usr_drift_protected_paths;
+}
+const OptionStringAppendList & ConfigMain::get_usr_drift_protected_paths_option() const {
+    return p_impl->usr_drift_protected_paths;
+}
+
 // Repo main config
 OptionNumber<std::uint32_t> & ConfigMain::get_retries_option() {
     return p_impl->retries;
@@ -1208,6 +1233,13 @@ OptionBool & ConfigMain::get_repo_gpgcheck_option() {
 }
 const OptionBool & ConfigMain::get_repo_gpgcheck_option() const {
     return p_impl->repo_gpgcheck;
+}
+
+OptionEnum & ConfigMain::get_gpgcheck_policy_option() {
+    return p_impl->gpgcheck_policy;
+}
+const OptionEnum & ConfigMain::get_gpgcheck_policy_option() const {
+    return p_impl->gpgcheck_policy;
 }
 
 OptionBool & ConfigMain::get_enabled_option() {
@@ -1363,6 +1395,34 @@ const OptionBool & ConfigMain::get_skip_if_unavailable_option() const {
     return p_impl->skip_if_unavailable;
 }
 
+void ConfigMain::Impl::apply_gpgcheck_policy(
+    const ConfigParser & parser, const std::string & section, Option::Priority priority) {
+    const auto & policy = gpgcheck_policy.get_value();
+    if (policy == "legacy") {
+        return;
+    }
+
+    // Only expand when the "gpgcheck" key is present in the section.
+    // "pkg_gpgcheck" should NOT trigger expansion — it controls only package checking.
+    auto section_iter = parser.get_data().find(section);
+    if (section_iter == parser.get_data().end() ||
+        section_iter->second.find("gpgcheck") == section_iter->second.end()) {
+        return;
+    }
+
+    const auto gpgcheck_val = pkg_gpgcheck.get_value();
+    bool repo_gpgcheck_explicit = section_iter->second.find("repo_gpgcheck") != section_iter->second.end();
+    bool localpkg_gpgcheck_explicit = section_iter->second.find("localpkg_gpgcheck") != section_iter->second.end();
+
+    if (!repo_gpgcheck_explicit) {
+        repo_gpgcheck.set(priority, gpgcheck_val);
+    }
+
+    if (policy == "all" && !localpkg_gpgcheck_explicit) {
+        localpkg_gpgcheck.set(priority, gpgcheck_val);
+    }
+}
+
 void ConfigMain::load_from_parser(
     const ConfigParser & parser,
     const std::string & section,
@@ -1370,6 +1430,8 @@ void ConfigMain::load_from_parser(
     Logger & logger,
     Option::Priority priority) {
     Config::load_from_parser(parser, section, vars, logger, priority);
+
+    p_impl->apply_gpgcheck_policy(parser, section, priority);
 
     if (geteuid() == 0) {
         p_impl->cachedir.set(Option::Priority::MAINCONFIG, p_impl->system_cachedir.get_value());
@@ -1461,14 +1523,18 @@ void ConfigMain::Impl::load_from_config(const ConfigMain::Impl & other) {
     load_option(comment, other.comment);
     load_option(downloadonly, other.downloadonly);
     load_option(ignorearch, other.ignorearch);
+#ifdef WITH_MODULEMD
     load_option(module_platform_id, other.module_platform_id);
     load_option(module_stream_switch, other.module_stream_switch);
     load_option(module_obsoletes, other.module_obsoletes);
+#endif
     load_option(user_agent, other.user_agent);
     load_option(countme, other.countme);
     load_option(protect_running_kernel, other.protect_running_kernel);
     load_option(build_cache, other.build_cache);
     load_option(skip_system_repo_lock, other.skip_system_repo_lock);
+    load_option(persistence, other.persistence);
+    load_option(usr_drift_protected_paths, other.usr_drift_protected_paths);
 
     // Repo main config
     load_option(retries, other.retries);
@@ -1487,6 +1553,7 @@ void ConfigMain::Impl::load_from_config(const ConfigMain::Impl & other) {
     load_option(protected_packages, other.protected_packages);
     load_option(username, other.username);
     load_option(password, other.password);
+    load_option(gpgcheck_policy, other.gpgcheck_policy);
     load_option(pkg_gpgcheck, other.pkg_gpgcheck);
     load_option(repo_gpgcheck, other.repo_gpgcheck);
     load_option(enabled, other.enabled);

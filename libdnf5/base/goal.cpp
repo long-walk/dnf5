@@ -147,7 +147,11 @@ public:
     Impl(const BaseWeakPtr & base);
     ~Impl();
 
-    void add_rpm_ids(GoalAction action, const rpm::Package & rpm_package, const GoalJobSettings & settings);
+    void add_rpm_ids(
+        GoalAction action,
+        const rpm::Package & rpm_package,
+        const GoalJobSettings & settings,
+        const std::string & user_spec = {});
     void add_rpm_ids(GoalAction action, const rpm::PackageSet & package_set, const GoalJobSettings & settings);
 
     GoalProblem add_specs_to_goal(base::Transaction & transaction);
@@ -245,8 +249,8 @@ private:
         std::optional<std::string>,
         GoalJobSettings>>
         rpm_reason_change_specs;
-    /// <libdnf5::GoalAction, rpm Ids, libdnf5::GoalJobSettings settings>
-    std::vector<std::tuple<GoalAction, libdnf5::solv::IdQueue, GoalJobSettings>> rpm_ids;
+    /// <libdnf5::GoalAction, rpm Ids, libdnf5::GoalJobSettings settings, user-facing spec>
+    std::vector<std::tuple<GoalAction, libdnf5::solv::IdQueue, GoalJobSettings, std::string>> rpm_ids;
     /// <libdnf5::GoalAction, std::string filepath, libdnf5::GoalJobSettings settings>
     std::vector<std::tuple<GoalAction, std::string, GoalJobSettings>> rpm_filepaths;
 
@@ -493,12 +497,16 @@ void Goal::Impl::add_spec(GoalAction action, const std::string & spec, const Goa
     }
 }
 
-void Goal::Impl::add_rpm_ids(GoalAction action, const rpm::Package & rpm_package, const GoalJobSettings & settings) {
+void Goal::Impl::add_rpm_ids(
+    GoalAction action,
+    const rpm::Package & rpm_package,
+    const GoalJobSettings & settings,
+    const std::string & user_spec) {
     libdnf_assert_same_base(base, rpm_package.get_base());
 
     libdnf5::solv::IdQueue ids;
     ids.push_back(rpm_package.get_id().id);
-    rpm_ids.push_back(std::make_tuple(action, std::move(ids), settings));
+    rpm_ids.push_back(std::make_tuple(action, std::move(ids), settings, user_spec));
 }
 
 void Goal::Impl::add_rpm_ids(GoalAction action, const rpm::PackageSet & package_set, const GoalJobSettings & settings) {
@@ -508,7 +516,7 @@ void Goal::Impl::add_rpm_ids(GoalAction action, const rpm::PackageSet & package_
     for (auto package_id : *package_set.p_impl) {
         ids.push_back(package_id);
     }
-    rpm_ids.push_back(std::make_tuple(action, std::move(ids), settings));
+    rpm_ids.push_back(std::make_tuple(action, std::move(ids), settings, std::string{}));
 }
 
 // @replaces part of libdnf/sack/query.cpp:method:filterAdvisory called with HY_EQG and HY_UPGRADE
@@ -1527,6 +1535,13 @@ std::pair<GoalProblem, libdnf5::solv::IdQueue> Goal::Impl::add_install_to_goal(
             spec,
             {pool.get_nevra(package_id)},
             libdnf5::Logger::Level::WARNING);
+
+        // If the package was installed outside of DNF (e.g. via rpm), adopt it
+        // into the system state by changing its reason from EXTERNAL_USER to USER.
+        rpm::Package installed_pkg(base, rpm::PackageId(package_id));
+        if (installed_pkg.get_reason() == transaction::TransactionItemReason::EXTERNAL_USER) {
+            rpm_goal.add_reason_change(installed_pkg, transaction::TransactionItemReason::USER, std::nullopt);
+        }
     }
 
     if (!to_vendors.empty()) {
@@ -2127,7 +2142,10 @@ void Goal::Impl::add_rpms_to_goal(base::Transaction & transaction) {
 
     rpm::PackageQuery installed(base, rpm::PackageQuery::ExcludeFlags::IGNORE_EXCLUDES);
     installed.filter_installed();
-    for (auto [action, ids, settings] : rpm_ids) {
+    for (auto [action, ids, settings, user_spec] : rpm_ids) {
+        auto get_user_spec = [&user_spec, &pool](int id) -> std::string {
+            return user_spec.empty() ? pool.get_nevra(id) : user_spec;
+        };
         switch (action) {
             case GoalAction::INSTALL: {
                 bool skip_broken = settings.resolve_skip_broken(cfg_main);
@@ -2152,6 +2170,12 @@ void Goal::Impl::add_rpms_to_goal(base::Transaction & transaction) {
                         {},
                         {pool.get_nevra(package_id)},
                         log_level);
+
+                    rpm::Package installed_pkg(base, rpm::PackageId(package_id));
+                    if (installed_pkg.get_reason() == transaction::TransactionItemReason::EXTERNAL_USER) {
+                        rpm_goal.add_reason_change(
+                            installed_pkg, transaction::TransactionItemReason::USER, std::nullopt);
+                    }
                     ids.push_back(package_id);
                 }
                 rpm_goal.add_install(ids, skip_broken, best, clean_requirements_on_remove);
@@ -2170,26 +2194,45 @@ void Goal::Impl::add_rpms_to_goal(base::Transaction & transaction) {
                 bool skip_broken = settings.resolve_skip_broken(cfg_main);
                 bool best = settings.resolve_best(cfg_main);
                 bool clean_requirements_on_remove = settings.resolve_clean_requirements_on_remove();
-                solv::IdQueue ids_nevra_installed;
+                solv::IdQueue ids_available;
                 for (auto id : ids) {
-                    rpm::PackageQuery query(installed);
-                    query.filter_nevra(pool.get_nevra(id));
-                    if (query.empty()) {
-                        // Report when package with the same NEVRA is not installed
+                    auto nevra = pool.get_nevra(id);
+                    rpm::PackageQuery query_installed(installed);
+                    query_installed.filter_nevra(nevra);
+                    if (query_installed.empty()) {
                         transaction.p_impl->add_resolve_log(
                             action,
                             GoalProblem::NOT_INSTALLED,
                             settings,
                             libdnf5::transaction::TransactionItemType::PACKAGE,
-                            {pool.get_nevra(id)},
+                            get_user_spec(id),
                             {},
                             log_level);
-                    } else {
-                        // Only installed packages can be reinstalled
-                        ids_nevra_installed.push_back(id);
+                        continue;
+                    }
+                    if (!pool.is_installed(id)) {
+                        ids_available.push_back(id);
+                        continue;
+                    }
+                    rpm::PackageQuery query_available(base);
+                    query_available.filter_available();
+                    query_available.filter_nevra(nevra);
+                    if (query_available.empty()) {
+                        transaction.p_impl->add_resolve_log(
+                            action,
+                            GoalProblem::NOT_AVAILABLE,
+                            settings,
+                            libdnf5::transaction::TransactionItemType::PACKAGE,
+                            get_user_spec(id),
+                            {},
+                            log_level);
+                        continue;
+                    }
+                    for (auto available_id : *query_available.p_impl) {
+                        ids_available.push_back(available_id);
                     }
                 }
-                rpm_goal.add_install(ids_nevra_installed, skip_broken, best, clean_requirements_on_remove);
+                rpm_goal.add_install(ids_available, skip_broken, best, clean_requirements_on_remove);
             } break;
             case GoalAction::UPGRADE: {
                 bool best = settings.resolve_best(cfg_main);
@@ -2213,7 +2256,7 @@ void Goal::Impl::add_rpms_to_goal(base::Transaction & transaction) {
                             GoalProblem::NOT_INSTALLED,
                             settings,
                             libdnf5::transaction::TransactionItemType::PACKAGE,
-                            {pool.get_nevra(id)},
+                            get_user_spec(id),
                             {},
                             libdnf5::Logger::Level::WARNING);
                         continue;
@@ -2229,7 +2272,7 @@ void Goal::Impl::add_rpms_to_goal(base::Transaction & transaction) {
                                 GoalProblem::NOT_INSTALLED_FOR_ARCHITECTURE,
                                 settings,
                                 libdnf5::transaction::TransactionItemType::PACKAGE,
-                                {pool.get_nevra(id)},
+                                get_user_spec(id),
                                 {},
                                 libdnf5::Logger::Level::WARNING);
                             continue;
@@ -2243,7 +2286,7 @@ void Goal::Impl::add_rpms_to_goal(base::Transaction & transaction) {
                             GoalProblem::ALREADY_INSTALLED,
                             settings,
                             libdnf5::transaction::TransactionItemType::PACKAGE,
-                            {pool.get_nevra(id)},
+                            get_user_spec(id),
                             {pool.get_name(id) + ("." + arch)},
                             libdnf5::Logger::Level::WARNING);
                         // include installed packages with higher or equal version into transaction to prevent downgrade
@@ -2271,7 +2314,7 @@ void Goal::Impl::add_rpms_to_goal(base::Transaction & transaction) {
                             GoalProblem::NOT_INSTALLED,
                             settings,
                             libdnf5::transaction::TransactionItemType::PACKAGE,
-                            {pool.get_nevra(id)},
+                            get_user_spec(id),
                             {},
                             log_level);
                         continue;
@@ -2284,7 +2327,7 @@ void Goal::Impl::add_rpms_to_goal(base::Transaction & transaction) {
                             GoalProblem::NOT_INSTALLED_FOR_ARCHITECTURE,
                             settings,
                             libdnf5::transaction::TransactionItemType::PACKAGE,
-                            {pool.get_nevra(id)},
+                            get_user_spec(id),
                             {},
                             log_level);
                         continue;
@@ -2300,7 +2343,7 @@ void Goal::Impl::add_rpms_to_goal(base::Transaction & transaction) {
                             GoalProblem::INSTALLED_LOWEST_VERSION,
                             settings,
                             libdnf5::transaction::TransactionItemType::PACKAGE,
-                            {pool.get_nevra(id)},
+                            get_user_spec(id),
                             {name_arch},
                             log_level);
                         continue;
@@ -3311,7 +3354,7 @@ void Goal::Impl::add_paths_to_goal() {
                     continue;
                 }
             }
-            add_rpm_ids(action, pkg->second, settings);
+            add_rpm_ids(action, pkg->second, settings, path);
         }
     }
 
@@ -3557,6 +3600,7 @@ base::Transaction Goal::resolve() {
 
     auto & pool = get_rpm_pool(p_impl->base);
     pool.get_incoming_vendor_bypassed_solvables() = p_impl->incoming_vendor_bypassed_solvables;
+    pool.clear_blocked_vendor_changes();
 
     ret |= p_impl->rpm_goal.resolve();
 

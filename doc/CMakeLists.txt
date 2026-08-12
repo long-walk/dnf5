@@ -1,3 +1,33 @@
+# Collect RST files, preprocess them with ./atp.py and save the output into
+# "processed" binary directory. The output files are recorded in RST_OUTPUTS
+# variable.
+file(GLOB_RECURSE RST_SOURCES LIST_DIRECTORIES false RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *.rst)
+if (NOT WITH_MODULEMD)
+    list(REMOVE_ITEM RST_SOURCES
+        "api/c++/libdnf5_module.rst"
+        "commands/module.8.rst"
+        "misc/modularity.7.rst"
+    )
+endif()
+set(PROCESSED_DIR "${CMAKE_CURRENT_BINARY_DIR}/processed")
+file(MAKE_DIRECTORY ${PROCESSED_DIR})
+foreach(RST_SOURCE IN LISTS RST_SOURCES)
+    cmake_path(GET RST_SOURCE PARENT_PATH RST_DIRECTORY)
+    file(MAKE_DIRECTORY ${PROCESSED_DIR}/${RST_DIRECTORY})
+    add_custom_command(
+        OUTPUT ${PROCESSED_DIR}/${RST_SOURCE}
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/atp.py
+            --define "WITH_MODULEMD=${WITH_MODULEMD}"
+            ${CMAKE_CURRENT_SOURCE_DIR}/${RST_SOURCE} ${PROCESSED_DIR}/${RST_SOURCE}
+        COMMENT "Preprocessing ${RST_SOURCE}"
+        DEPENDS ${RST_SOURCE} ${CMAKE_CURRENT_SOURCE_DIR}/atp.py
+        VERBATIM
+    )
+    list(APPEND RST_OUTPUTS ${PROCESSED_DIR}/${RST_SOURCE})
+endforeach()
+
+
+LIST(JOIN DOCUMENTED_HEADERS " \\\n" DOCUMENTED_HEADERS_STRING)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile.in ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/conf.py.in ${CMAKE_CURRENT_BINARY_DIR}/conf.py)
 
@@ -17,9 +47,10 @@ add_custom_target(doxygen
 if(WITH_HTML)
     add_custom_target(doc-html
         sphinx-build -c ${CMAKE_CURRENT_BINARY_DIR} -b html
-        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${PROCESSED_DIR}
         ${CMAKE_CURRENT_BINARY_DIR}/html
         COMMENT "Building html documentation"
+        DEPENDS ${RST_OUTPUTS}
     )
     add_dependencies(doc doc-html)
     add_dependencies(doc-html doxygen)
@@ -31,9 +62,10 @@ endif()
 if(WITH_MAN)
     add_custom_target(doc-man
         sphinx-build -c ${CMAKE_CURRENT_BINARY_DIR} -b man
-        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${PROCESSED_DIR}
         ${CMAKE_CURRENT_BINARY_DIR}/man
         COMMENT "Building man documentation"
+        DEPENDS ${RST_OUTPUTS}
     )
     add_dependencies(doc doc-man)
 
@@ -89,7 +121,9 @@ if(WITH_MAN)
         install(FILES ${CMAKE_CURRENT_BINARY_DIR}/man/dnf5-list.8 DESTINATION share/man/man8)
         install(FILES ${CMAKE_CURRENT_BINARY_DIR}/man/dnf5-makecache.8 DESTINATION share/man/man8)
         install(FILES ${CMAKE_CURRENT_BINARY_DIR}/man/dnf5-mark.8 DESTINATION share/man/man8)
+    if(WITH_MODULEMD)
         install(FILES ${CMAKE_CURRENT_BINARY_DIR}/man/dnf5-module.8 DESTINATION share/man/man8)
+    endif()
         install(FILES ${CMAKE_CURRENT_BINARY_DIR}/man/dnf5-offline.8 DESTINATION share/man/man8)
         install(FILES ${CMAKE_CURRENT_BINARY_DIR}/man/dnf5-provides.8 DESTINATION share/man/man8)
         install(FILES ${CMAKE_CURRENT_BINARY_DIR}/man/dnf5-reinstall.8 DESTINATION share/man/man8)
@@ -108,7 +142,9 @@ if(WITH_MAN)
         install(FILES ${CMAKE_CURRENT_BINARY_DIR}/man/dnf5-filtering.7 DESTINATION share/man/man7)
         install(FILES ${CMAKE_CURRENT_BINARY_DIR}/man/dnf5-forcearch.7 DESTINATION share/man/man7)
         install(FILES ${CMAKE_CURRENT_BINARY_DIR}/man/dnf5-installroot.7 DESTINATION share/man/man7)
-         install(FILES ${CMAKE_CURRENT_BINARY_DIR}/man/dnf5-modularity.7 DESTINATION share/man/man7)
+    if(WITH_MODULEMD)
+        install(FILES ${CMAKE_CURRENT_BINARY_DIR}/man/dnf5-modularity.7 DESTINATION share/man/man7)
+    endif()
         install(FILES ${CMAKE_CURRENT_BINARY_DIR}/man/dnf5-specs.7 DESTINATION share/man/man7)
         install(FILES ${CMAKE_CURRENT_BINARY_DIR}/man/dnf5-system-state.7 DESTINATION share/man/man7)
         install(FILES ${CMAKE_CURRENT_BINARY_DIR}/man/dnf5-changes-from-dnf4.7 DESTINATION share/man/man7)

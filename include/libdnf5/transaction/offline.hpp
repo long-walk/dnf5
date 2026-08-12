@@ -26,6 +26,10 @@
 #include <filesystem>
 #include <memory>
 
+namespace libdnf5 {
+class Base;
+}
+
 namespace libdnf5::offline {
 
 // Unique identifiers used to mark and identify system-upgrade boots in
@@ -101,8 +105,13 @@ public:
     bool get_poweroff_after() const;
 
     /// Set module_platform_id for the offline transaction.
+    /// Unused if built without modularity support.
     void set_module_platform_id(const std::string & module_platform_id);
     const std::string & get_module_platform_id() const;
+
+    /// Set the rpmdb cookie captured at offline transaction preparation time.
+    void set_rpmdb_cookie(const std::string & rpmdb_cookie);
+    std::string get_rpmdb_cookie() const;
 
 private:
     class LIBDNF_LOCAL Impl;
@@ -120,6 +129,12 @@ public:
     /// @param path Path to the state file (default location is /usr/lib/sysimage/libdnf5/offline/offline-transaction-state.toml).
     OfflineTransactionState(std::filesystem::path path);
 
+    /// Creates a new OfflineTransactionState deriving the state file path
+    /// from the Base installroot configuration.
+    /// @param base The Base instance to derive the state file path from.
+    /// @return A new OfflineTransactionState instance.
+    static OfflineTransactionState from_base(const libdnf5::Base & base);
+
     OfflineTransactionState(const OfflineTransactionState & src);
     OfflineTransactionState & operator=(const OfflineTransactionState & src);
     OfflineTransactionState(OfflineTransactionState && src) noexcept;
@@ -133,6 +148,22 @@ public:
     const std::exception_ptr & get_read_exception() const;
     /// Returns path to the state file.
     std::filesystem::path get_path() const;
+
+    /// Returns true if a pending offline transaction exists — the state file
+    /// was read successfully and the status is not download-incomplete.
+    bool is_pending() const;
+
+    /// Remove the /system-update magic symlink (if it points to the state
+    /// file's directory) to prevent booting into offline transaction mode.
+    void invalidate();
+
+    /// Capture the current rpmdb cookie and store it in the state data.
+    /// The cookie is persisted when write() is called.
+    void capture_rpmdb_cookie(libdnf5::Base & base);
+
+    /// Returns true if the stored rpmdb cookie matches the current rpmdb,
+    /// or if no cookie was stored (backward compatibility).
+    bool check_rpmdb_cookie(libdnf5::Base & base) const;
 
 private:
     class LIBDNF_LOCAL Impl;

@@ -4,6 +4,7 @@
 #include "manifest.hpp"
 
 #include <dnf5/shared_options.hpp>
+#include <libdnf5/common/exception.hpp>
 #include <libdnf5/repo/package_downloader.hpp>
 #include <libdnf5/rpm/package_query.hpp>
 #include <libdnf5/utils/bgettext/bgettext-lib.h>
@@ -18,6 +19,34 @@
 
 using namespace libdnf5::cli;
 
+
+namespace {
+
+libdnf5::rpm::Checksum::Type checksum_method_manifest_to_dnf(libpkgmanifest::manifest::ChecksumMethod method) {
+    switch (method) {
+        case libpkgmanifest::manifest::ChecksumMethod::SHA1:
+            return libdnf5::rpm::Checksum::Type::SHA1;
+        case libpkgmanifest::manifest::ChecksumMethod::SHA224:
+            return libdnf5::rpm::Checksum::Type::SHA224;
+        case libpkgmanifest::manifest::ChecksumMethod::SHA256:
+            return libdnf5::rpm::Checksum::Type::SHA256;
+        case libpkgmanifest::manifest::ChecksumMethod::SHA384:
+            return libdnf5::rpm::Checksum::Type::SHA384;
+        case libpkgmanifest::manifest::ChecksumMethod::SHA512:
+            return libdnf5::rpm::Checksum::Type::SHA512;
+        case libpkgmanifest::manifest::ChecksumMethod::MD5:
+            return libdnf5::rpm::Checksum::Type::MD5;
+        case libpkgmanifest::manifest::ChecksumMethod::CRC32:
+        case libpkgmanifest::manifest::ChecksumMethod::CRC64:
+            throw libdnf5::RuntimeError(M_("Manifest checksum method (CRC) is not supported for RPM package lookup"));
+        default:
+            throw libdnf5::RuntimeError(M_("Unsupported manifest checksum method for RPM package lookup"));
+    }
+}
+
+}  // namespace
+
+
 namespace dnf5 {
 
 void ManifestDownloadCommand::set_argument_parser() {
@@ -28,6 +57,15 @@ void ManifestDownloadCommand::set_argument_parser() {
     auto & cmd = *get_argument_parser_command();
 
     cmd.set_description(_("Download all packages specified in the manifest file to disk."));
+
+    per_arch_option =
+        dynamic_cast<libdnf5::OptionBool *>(parser.add_init_value(std::make_unique<libdnf5::OptionBool>(false)));
+    auto * per_arch_arg = parser.add_new_named_arg("per-arch");
+    per_arch_arg->set_long_name("per-arch");
+    per_arch_arg->set_description(_("Separate packages by basearch into individual directories"));
+    per_arch_arg->set_const_value("true");
+    per_arch_arg->link_value(per_arch_option);
+    cmd.register_named_arg(per_arch_arg);
 
     arch_option = dynamic_cast<libdnf5::OptionStringList *>(
         parser.add_init_value(std::make_unique<libdnf5::OptionStringList>(std::vector<std::string>())));
@@ -81,7 +119,6 @@ void ManifestDownloadCommand::download_packages(
     auto & ctx = get_context();
 
     auto base = create_base_for_arch(arch);
-    const auto & manifest_path_base = std::filesystem::path{manifest_path_option->get_value()}.stem();
     base->get_config().get_destdir_option().set(libdnf5::Option::Priority::PLUGINDEFAULT, default_destdir);
 
     // Load repositories
@@ -107,8 +144,23 @@ void ManifestDownloadCommand::download_packages(
         if (query.empty()) {
             throw libdnf5::cli::CommandExitError(1, M_("No package {} available."), to_nevra_string(nevra));
         }
+        const auto & checksum = manifest_pkg.get_checksum();
+        const auto & checksum_digest = checksum.get_digest();
+        if (!checksum_digest.empty()) {
+            query.filter_checksum(checksum_digest, checksum_method_manifest_to_dnf(checksum.get_method()));
+            if (query.empty()) {
+                throw libdnf5::cli::CommandExitError(
+                    1, M_("No package {} with checksum {} available."), to_nevra_string(nevra), checksum_digest);
+            }
+        }
         const auto & pkg = *query.begin();
-        downloader.add(*query.begin());
+        const auto & pkg_arch = pkg.get_arch();
+        // If split per arch, download noarch/src packages into separate subdirectories.
+        if (per_arch_option->get_value()) {
+            downloader.add(pkg, default_destdir / ((pkg_arch == "noarch" || pkg_arch == "src") ? pkg_arch : arch));
+        } else {
+            downloader.add(pkg);
+        }
     }
     downloader.download();
 }

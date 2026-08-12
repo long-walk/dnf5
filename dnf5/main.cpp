@@ -57,9 +57,11 @@
 #include "download_callbacks.hpp"
 #include "plugins.hpp"
 #include "signal_handlers.hpp"
+#include "utils/auth.hpp"
 
 #include <fcntl.h>
 #include <fmt/format.h>
+#include <fnmatch.h>
 #include <libdnf5-cli/argument_parser.hpp>
 #include <libdnf5-cli/exception.hpp>
 #include <libdnf5-cli/exit-codes.hpp>
@@ -79,6 +81,7 @@
 #include <libdnf5/repo/repo_cache.hpp>
 #include <libdnf5/rpm/arch.hpp>
 #include <libdnf5/rpm/package_query.hpp>
+#include <libdnf5/transaction/offline.hpp>
 #include <libdnf5/utils/bgettext/bgettext-mark-domain.h>
 #include <libdnf5/utils/bootc.hpp>
 #include <libdnf5/utils/locker.hpp>
@@ -91,6 +94,7 @@
 #include <cstring>
 #include <filesystem>
 #include <iostream>
+#include <map>
 #include <utility>
 
 constexpr const char * DNF5_LOGGER_FILENAME = "dnf5.log";
@@ -330,6 +334,22 @@ void RootCommand::set_argument_parser() {
     global_options_group->register_argument(no_best);
 
     no_best->add_conflict_argument(*best);
+
+    auto allow_vendor_change = parser.add_new_named_arg("allow-vendor-change");
+    allow_vendor_change->set_long_name("allow-vendor-change");
+    allow_vendor_change->set_description(_("allow automatic package replacements from different vendors"));
+    allow_vendor_change->set_const_value("true");
+    allow_vendor_change->link_value(&config.get_allow_vendor_change_option());
+    global_options_group->register_argument(allow_vendor_change);
+
+    auto no_allow_vendor_change = parser.add_new_named_arg("no-allow-vendor-change");
+    no_allow_vendor_change->set_long_name("no-allow-vendor-change");
+    no_allow_vendor_change->set_description(_("do not allow automatic package replacements from different vendors"));
+    no_allow_vendor_change->set_const_value("false");
+    no_allow_vendor_change->link_value(&config.get_allow_vendor_change_option());
+    global_options_group->register_argument(no_allow_vendor_change);
+
+    no_allow_vendor_change->add_conflict_argument(*allow_vendor_change);
 
     {
         auto no_docs = parser.add_new_named_arg("no-docs");
@@ -1060,6 +1080,22 @@ static bool has_named_arg(libdnf5::cli::ArgumentParser::Command * command, std::
     return false;
 }
 
+static void print_vendor_change_skipped(dnf5::Context & context) {
+    if (context.get_transaction() == nullptr) {
+        return;
+    }
+    const auto & skipped = context.get_transaction()->get_vendor_change_skipped_packages();
+    if (skipped.empty()) {
+        return;
+    }
+    std::vector<std::pair<std::string, std::string>> pairs;
+    pairs.reserve(skipped.size());
+    for (const auto & [pkg, installed_vendor] : skipped) {
+        pairs.emplace_back(installed_vendor, pkg.get_vendor());
+    }
+    libdnf5::cli::output::print_vendor_change_skipped(pairs);
+}
+
 static void print_resolve_hints(dnf5::Context & context) {
     auto & conf = context.get_base().get_config();
     std::vector<std::string> hints;
@@ -1103,11 +1139,15 @@ static void print_resolve_hints(dnf5::Context & context) {
         }
     }
 
+    // vendor_change is set from RULE_UPDATE solver errors (e.g. a reinstall whose only
+    // available copy is from a different vendor). Hoisted here so it can be combined
+    // with has_vendor_change_skipped below, which fires even without a SOLVER_ERROR.
+    bool vendor_change = false;
+
     if ((transaction_problems & libdnf5::GoalProblem::SOLVER_ERROR) == libdnf5::GoalProblem::SOLVER_ERROR) {
         bool conflict = false;
         bool broken_file_dep = false;
         bool best = false;
-        bool vendor_change = false;
         // walk through all solver problem to detect a conflict, missing file dependency and best
         for (const auto & resolve_log : context.get_transaction()->get_resolve_logs()) {
             if (resolve_log.get_problem() == libdnf5::GoalProblem::SOLVER_ERROR) {
@@ -1155,11 +1195,6 @@ static void print_resolve_hints(dnf5::Context & context) {
             }
         }
 
-        if (!conf.get_allow_vendor_change_option().get_value() && vendor_change) {
-            const std::string_view arg{"--setopt=allow_vendor_change=true"};
-            hints.emplace_back(libdnf5::utils::sformat(_("{} to allow changing package vendors"), arg));
-        }
-
         if (broken_file_dep) {
             const std::string_view arg{"--setopt=optional_metadata_types=filelists"};
             auto optional_metadata = conf.get_optional_metadata_types_option().get_value();
@@ -1175,6 +1210,19 @@ static void print_resolve_hints(dnf5::Context & context) {
                 hints.emplace_back(libdnf5::utils::sformat(_("{} to skip uninstallable packages"), arg));
             }
         }
+    }
+
+    // Two sources trigger this hint:
+    // - vendor_change: a RULE_UPDATE solver error (e.g. reinstall where only a different-vendor
+    //   copy is available). Requires SOLVER_ERROR, set above.
+    // - has_vendor_change_skipped: upgrades/downgrades silently dropped by the solver because
+    //   the only candidate would require a vendor change. The solver succeeds without them so
+    //   there is no SOLVER_ERROR; checking only inside that block would miss this case.
+    bool has_vendor_change_skipped =
+        context.get_transaction() && !context.get_transaction()->get_vendor_change_skipped_packages().empty();
+    if (!conf.get_allow_vendor_change_option().get_value() && (vendor_change || has_vendor_change_skipped)) {
+        const std::string_view arg{"--allow-vendor-change"};
+        hints.emplace_back(libdnf5::utils::sformat(_("{} to allow changing package vendors"), arg));
     }
 
     if (hints.size() > 0) {
@@ -1520,27 +1568,82 @@ int main(int argc, char * argv[]) try {
                 dump_repository_configuration(context, repo_id_list);
             }
 
-            if (context.p_impl->cmd_requires_privileges()) {
-                const auto & installroot = base.get_config().get_installroot_option().get_value();
+            // std::nullopt == Unknown whether system is bootc
+            std::optional<bool> is_bootc_system;
 
-                if (installroot == "/" && !libdnf5::utils::bootc::is_writable()) {
-                    if (libdnf5::utils::bootc::is_bootc_system()) {
-                        throw libdnf5::cli::ReadOnlySystemError(
-                            M_("Error: this bootc system is configured to be read-only. For more information, run "
-                               "`bootc --help`."));
+            const bool cmd_requires_privileges = context.p_impl->cmd_requires_privileges();
+            if (cmd_requires_privileges) {
+                const auto & insufficient_privileges_error = libdnf5::cli::InsufficientPrivilegesError(
+                    M_("The requested operation requires superuser privileges. Please log in as a user with elevated "
+                       "rights, or use the \"--assumeno\" or \"--downloadonly\" options to run the command without "
+                       "modifying the system state."));
+
+                // If the installroot is /, we care whether the system is bootc.
+                const auto & installroot = base.get_config().get_installroot_option().get_value();
+                if (installroot == "/") {
+                    if (libdnf5::utils::bootc::is_writable()) {
+                        // If the system is writable, we shouldn't error if
+                        // `bootc status` could not be determined.
+                        if (libdnf5::utils::am_i_root()) {
+                            try {
+                                is_bootc_system = libdnf5::utils::bootc::is_bootc_system();
+                            } catch (const libdnf5::RuntimeError & e) {
+                                context.print_info(libdnf5::utils::sformat(_("Warning: {}"), e.what()));
+                            }
+                        }
+                    } else {
+                        // /usr is not writable. We should try harder to
+                        // ascertain `bootc status` to avoid showing a bootc
+                        // user the generic error for read-only /usr.
+                        if (!libdnf5::utils::am_i_root()) {
+                            throw insufficient_privileges_error;
+                        }
+                        is_bootc_system = libdnf5::utils::bootc::is_bootc_system();
+                        if (!*is_bootc_system) {
+                            throw libdnf5::cli::ReadOnlySystemError(
+                                M_("Error: /usr is configured to be read-only. You may be running an image-based or "
+                                   "immutable operating system. For more information, refer to your "
+                                   "distribution's documentation."));
+                        }
                     }
-                    throw libdnf5::cli::ReadOnlySystemError(
-                        M_("Error: /usr is configured to be read-only. You may be running an image-based or immutable "
-                           "operating system. For more information, refer to your "
-                           "distribution's documentation."));
                 }
 
                 if (!user_has_privileges(context)) {
-                    throw libdnf5::cli::InsufficientPrivilegesError(M_(
-                        "The requested operation requires superuser privileges. Please log in as a user with elevated "
-                        "rights, or use the \"--assumeno\" or \"--downloadonly\" options to run the command without "
-                        "modifying the system state."));
+                    throw insufficient_privileges_error;
                 }
+            }
+
+            const bool is_bootc_transaction = cmd_requires_privileges && is_bootc_system.value_or(false);
+            bool bootc_system_needs_unlock = false;
+            const auto & persistence = base.get_config().get_persistence_option().get_value();
+            if (is_bootc_transaction) {
+                if (persistence == "persist") {
+                    throw libdnf5::cli::CommandExitError(
+                        1,
+                        M_("Error: persistent transactions aren't supported on bootc systems. Pass --transient to "
+                           "perform "
+                           "this operation in a transient overlay which will reset when the system reboots."));
+                }
+
+                if (!libdnf5::utils::bootc::is_writable()) {
+                    bootc_system_needs_unlock = true;
+                    if (persistence == "auto") {
+                        throw libdnf5::cli::CommandExitError(
+                            1,
+                            M_("Error: this bootc system is configured to be read-only. Pass --transient to "
+                               "perform this operation in a transient overlay which will reset when "
+                               "the system reboots."));
+                    }
+                }
+                context.set_persistence(libdnf5::base::TransactionPersistence::TRANSIENT);
+
+            } else {
+                // Not a bootc transaction.
+                if (persistence == "transient") {
+                    throw libdnf5::cli::CommandExitError(
+                        1, M_("Error: transient transactions are only supported on bootc systems."));
+                }
+                context.set_persistence(libdnf5::base::TransactionPersistence::PERSIST);
             }
 
             const auto load_available = context.get_load_available_repos() != dnf5::Context::LoadAvailableRepos::NONE;
@@ -1560,8 +1663,13 @@ int main(int argc, char * argv[]) try {
                 download_callbacks->set_show_total_bar_limit(0);
 
                 libdnf5::cli::output::TransactionAdapter cli_output_transaction(*context.get_transaction());
-                if (!libdnf5::cli::output::print_transaction_table(
-                        static_cast<libdnf5::cli::output::ITransaction &>(cli_output_transaction))) {
+                auto transaction_table_printed = libdnf5::cli::output::print_transaction_table(
+                    static_cast<libdnf5::cli::output::ITransaction &>(cli_output_transaction));
+
+                print_vendor_change_skipped(context);
+                print_resolve_hints(context);
+
+                if (!transaction_table_printed) {
                     return static_cast<int>(libdnf5::cli::ExitCode::SUCCESS);
                 }
 
@@ -1585,10 +1693,70 @@ int main(int argc, char * argv[]) try {
                                 "checks will be performed."));
                         }
                     }
+                    if (!context.get_should_store_offline()) {
+                        auto offline_state = libdnf5::offline::OfflineTransactionState::from_base(base);
+                        if (offline_state.is_pending()) {
+                            auto cmd_line = offline_state.get_data().get_cmd_line();
+                            if (cmd_line.empty()) {
+                                context.print_error(_("Warning: A pending offline transaction will be invalidated."));
+                            } else {
+                                context.print_error(libdnf5::utils::sformat(
+                                    _("Warning: A pending offline transaction initiated by the following command "
+                                      "will be invalidated: {}"),
+                                    cmd_line));
+                            }
+                        }
+                    }
+                }
+
+                // Check whether the transaction modifies usr_drift_protected_paths
+                const auto & usr_drift_protected_paths =
+                    base.get_config().get_usr_drift_protected_paths_option().get_value();
+                if (!usr_drift_protected_paths.empty()) {
+                    std::map<std::string, std::vector<std::string>> transaction_protected_paths;
+                    for (const auto & tspkg : context.get_transaction()->get_transaction_packages()) {
+                        const auto & pkg = tspkg.get_package();
+                        for (const auto & pkg_file_path : pkg.get_files()) {
+                            for (const auto & protected_pattern : usr_drift_protected_paths) {
+                                if (fnmatch(protected_pattern.c_str(), pkg_file_path.c_str(), 0) == 0) {
+                                    transaction_protected_paths[pkg.get_nevra()].push_back(pkg_file_path);
+                                }
+                            }
+                        }
+                    }
+                    if (!transaction_protected_paths.empty()) {
+                        context.print_error(
+                            _("This transaction would modify the following paths, possibly introducing "
+                              "inconsistencies when the transient overlay on /usr is discarded. See the "
+                              "usr_drift_protected_paths configuration option for more information."));
+                        for (const auto & [nevra, protected_paths] : transaction_protected_paths) {
+                            context.print_error(nevra);
+                            for (const auto & protected_path : protected_paths) {
+                                context.print_error(std::string("  ") + protected_path);
+                            }
+                        }
+                        throw libdnf5::cli::CommandExitError(
+                            1,
+                            M_("Operation aborted. Pass --setopt=usr_drift_protected_paths= to disable this "
+                               "check and proceed anyway."));
+                    }
+                }
+
+                if (bootc_system_needs_unlock && !libdnf5::utils::bootc::has_read_only_usr_overlay()) {
+                    // Only tell the user about the transient overlay if
+                    // it's not already in place
+                    context.print_error(
+                        _("A transient overlay will be created on /usr that will be discarded on reboot. "
+                          "Keep in mind that changes to /etc and /var will still persist, and packages "
+                          "commonly modify these directories."));
                 }
 
                 if (!libdnf5::cli::utils::userconfirm::userconfirm(context.get_base().get_config())) {
                     throw libdnf5::cli::AbortedByUserError();
+                }
+
+                if (bootc_system_needs_unlock) {
+                    libdnf5::utils::bootc::make_usr_writable();
                 }
 
                 context.download_and_run(*context.get_transaction());
@@ -1602,6 +1770,7 @@ int main(int argc, char * argv[]) try {
                          "of the host system, pass --use-host-config.")
                     << std::endl;
             } else {
+                print_vendor_change_skipped(context);
                 if (context.get_transaction() != nullptr) {
                     // download command can throw GoalResolveError without context.transaction being set
                     print_resolve_hints(context);

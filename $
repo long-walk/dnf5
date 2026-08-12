@@ -1,0 +1,107 @@
+/* about:config */
+/* toolkit.legacyUserProfileCustomizations.stylesheets */
+
+/* cat /home/thomas/.mozilla/firefox/eyj53y57.default-release/chrome/userContent.css */
+@-moz-document domain(youtube2.com) {
+	/* hidde the toast message if a video is added*/
+        ytd-miniplayer-toast {
+                visibility: hidden !important;;
+        }
+
+	/* inrease the miniplayer hight to the full hight */
+	/* :not(.ytdMiniplayerComponentAnimatingPlaylistExpand) without this it will not shrink!*/
+	ytd-miniplayer:not(.ytdMiniplayerComponentAnimatingPlaylistExpand):has(.ytdMiniplayerComponentContent):has(ytd-playlist-panel-renderer) {
+                height: calc(60%) !important;;
+        }
+        /*#draggable.ytd-miniplayer {
+                height: 301px !important;;
+        }*/
+	
+	/* zoom the list off videos to the right size */
+	.ytdMiniplayerComponentPlaylistPanel {
+		min-height: calc(60%) !important;;
+	}
+	.ytdMiniplayerComponentDraggable {
+		height: 31% !important;;
+	}
+
+
+/* Befor 23.07.2025
+ *      ytd-miniplayer[expanded] {
+                height: calc(100% - 80px) !important;;
+        }
+
+        #draggable.ytd-miniplayer {
+                height: 301px !important;;
+                // min-height: calc(100% - 301px) !important;; 
+        }
+
+      #modern-playlist.ytd-miniplayer {
+                height: calc(100% - 301px) !important;;
+                min-height: calc(100% - 301px) !important;;
+        }
+
+*/
+}
+
+/* userContent.css */
+@-moz-document domain("youtube.com") {
+        /* hidde the toast message if a video is added*/
+        ytd-miniplayer-toast {
+                visibility: hidden !important;
+        }
+
+        /* inrease the miniplayer hight to the full hight */
+        /* :not(.ytdMiniplayerComponentAnimatingPlaylistExpand) without this it will not shrink!*/
+        ytd-miniplayer:not(.ytdMiniplayerComponentAnimatingPlaylistExpand):has(.ytdMiniplayerComponentContent):has(ytd-playlist-panel-renderer) {
+                height: calc(60%) !important;
+        }
+
+        /* zoom the list off videos to the right size */
+        .ytdMiniplayerComponentPlaylistPanel {
+                min-height: calc(60%) !important;
+        }
+
+        /* FIX: Verhindert, dass das Video mitwächst, wenn der Miniplayer vergrößert wird */
+        ytd-miniplayer:has(ytd-playlist-panel-renderer) .ytdMiniplayerComponentDraggable {
+                height: 280px !important; /* Fixiert das Video auf die Standard-Miniplayer-Höhe */
+        }
+}
+
+@-moz-document domain("youtube3.com") {
+
+    /* Wenn der Miniplayer oder die Playlist erweitert/vergrößert ist */
+    ytd-miniplayer[expanded] #items.ytd-playlist-panel-video-list-renderer,
+    ytd-playlist-panel-renderer[expanded] #items,
+    [expanded] #items.ytd-watch-next-secondary-results-renderer {
+        /* Setzt die maximale Höhe so hoch, dass ca. 10 Videos ohne Scrollen sichtbar sind */
+        max-height: 720px !important;
+        min-height: 650px !important;
+        height: auto !important;
+        overflow-y: auto !important;
+    }
+
+    /* Optionale Anpassung: Kompaktierung der Abstände NUR im erweiterten Zustand,
+       damit 10 Videos garantiert ohne riesiges Scrollen untereinander passen */
+    ytd-miniplayer[expanded] ytd-playlist-panel-video-renderer,
+    ytd-playlist-panel-renderer[expanded] ytd-playlist-panel-video-renderer {
+        padding: 4px 0 !important;
+        margin: 0 !important;
+    }
+}
+
+@-moz-document domain("youtube4.com") {
+
+    /* Zwingt die Videoliste im Miniplayer, sich flexibel an die gezogene Höhe anzupassen */
+    ytd-miniplayer #items.ytd-playlist-panel-video-list-renderer {
+        height: 100% !important;
+        max-height: 100% !important;
+        overflow-y: auto !important;
+    }
+
+    /* Macht den inneren Container flexibel, damit er den Platz ausfüllt */
+    ytd-miniplayer #container.ytd-playlist-panel-renderer {
+        height: 100% !important;
+        max-height: 100% !important;
+    }
+}

@@ -38,6 +38,7 @@
 
 #include <solv/transaction.h>
 
+#include <condition_variable>
 #include <mutex>
 
 
@@ -98,6 +99,7 @@ public:
     std::string get_last_script_output();
     void clear_last_script_output();
     void append_last_script_output(std::string_view output);
+    void flush_last_script_output();
     void process_scriptlets_output(int fd);
 
     /// Getter/setter for RPM log messages
@@ -131,6 +133,7 @@ private:
     std::vector<std::vector<std::pair<libdnf5::ProblemRules, std::vector<std::string>>>> solver_problems{};
     std::vector<libdnf5::rpm::Package> broken_dependency_packages;
     std::vector<libdnf5::rpm::Package> conflicting_packages;
+    std::vector<std::pair<libdnf5::rpm::Package, std::string>> vendor_change_skipped_packages;
 
     // history db transaction id
     int64_t history_db_id = 0;
@@ -140,6 +143,10 @@ private:
 
     std::string last_script_output{};
     std::mutex last_script_output_mutex;
+
+    int scriptlet_read_end_pipe_fd{-1};
+    std::mutex scriptlet_pipe_sync_mutex;
+    std::condition_variable scriptlet_pipe_sync_cv;
 
     std::vector<std::string> rpm_messages;
 
