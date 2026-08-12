@@ -102,8 +102,10 @@ For more details see the separate man page for the specific command, f.e. ``man 
 :ref:`mark <mark_command_ref-label>`
     | Change the reason of an installed package.
 
+@IF WITH_MODULEMD@
 :ref:`module <module_command_ref-label>`
     | Manage modules.
+@ENDIF@
 
 :ref:`offline <offline_command_ref-label>`
     | Manage offline transactions.
@@ -183,6 +185,11 @@ Following options are applicable in the general context for any ``dnf5`` command
 ``--assumeno``
     | Automatically answer no for all questions.
 
+.. _allow_vendor_change_option_ref-label:
+
+``--allow-vendor-change``
+    | Allow automatic package replacements from different vendors for RPM upgrades or downgrades.
+
 .. _best_option_ref-label:
 
 ``--best``
@@ -259,6 +266,13 @@ Following options are applicable in the general context for any ``dnf5`` command
     | Setup installroot path.
     | Absolute path is required.
     | :ref:`See <installroot_misc_ref-label>` :manpage:`dnf5-installroot(7)` for more info.
+
+.. _no_allow_vendor_change_option_ref-label:
+
+``--no-allow-vendor-change``
+    | Do not allow automatic package replacements from different vendors for RPM upgrades or downgrades.
+    | The behavior of this option can be fine-tuned with vendor change policy configuration.
+    | :ref:`See <vendorpolicy_conf-label>` :manpage:`dnf5.conf-vendorpolicy(5)` for more info.
 
 .. _no_best_option_ref-label:
 
@@ -352,6 +366,12 @@ Following options are applicable in the general context for any ``dnf5`` command
 ``-x PACKAGE-SPEC-N,..., --exclude=PACKAGE-SPEC-N,...``
     | Exclude packages specified in ``PACKAGE-SPEC-N`` arguments from the transaction.
     | This is a list option.
+
+Special Arguments
+=================
+
+``--``
+    | Stop parsing command line options. All remaining arguments will be treated as positional arguments.
 
 
 Metadata Synchronization
@@ -471,8 +491,8 @@ Commands:
     | :manpage:`dnf5-leaves(8)`, :ref:`Leaves command <leaves_command_ref-label>`
     | :manpage:`dnf5-list(8)`, :ref:`List command <list_command_ref-label>`
     | :manpage:`dnf5-makecache(8)`, :ref:`Makecache command <makecache_command_ref-label>`
-    | :manpage:`dnf5-mark(8)`, :ref:`Mark command <mark_command_ref-label>`
-    | :manpage:`dnf5-module(8)`, :ref:`Module command <module_command_ref-label>`
+    | :manpage:`dnf5-mark(8)`, :ref:`Mark command <mark_command_ref-label>`@IF WITH_MODULEMD@
+    | :manpage:`dnf5-module(8)`, :ref:`Module command <module_command_ref-label>`@ENDIF@
     | :manpage:`dnf5-offline(8)`, :ref:`Offline command <offline_command_ref-label>`
     | :manpage:`dnf5-provides(8)`, :ref:`Provides command <provides_command_ref-label>`
     | :manpage:`dnf5-reinstall(8)`, :ref:`Reinstall command <reinstall_command_ref-label>`
@@ -505,6 +525,7 @@ Library Plugins:
 
 Configuration:
     | :manpage:`dnf5.conf(5)`, :ref:`DNF5 Configuration Reference <dnf5_conf-label>`
+    | :manpage:`dnf5.conf-vendorpolicy(5)`, :ref:`DNF5 Vendor Change Policy File Reference <vendorpolicy_conf-label>`
 
 Miscellaneous:
     | :manpage:`dnf5-aliases(7)`, :ref:`Aliases for command line arguments <aliases_misc_ref-label>`
@@ -512,8 +533,8 @@ Miscellaneous:
     | :manpage:`dnf5-comps(7)`, :ref:`Comps groups and environments <comps_misc_ref-label>`
     | :manpage:`dnf5-filtering(7)`, :ref:`Packages filtering, <filtering_misc_ref-label>`
     | :manpage:`dnf5-forcearch(7)`, :ref:`Forcearch parameter <forcearch_misc_ref-label>`
-    | :manpage:`dnf5-installroot(7)`, :ref:`Installroot parameter <installroot_misc_ref-label>`
-    | :manpage:`dnf5-modularity(7)`, :ref:`Modularity overview, <modularity_misc_ref-label>`
+    | :manpage:`dnf5-installroot(7)`, :ref:`Installroot parameter <installroot_misc_ref-label>`@IF WITH_MODULEMD@
+    | :manpage:`dnf5-modularity(7)`, :ref:`Modularity overview, <modularity_misc_ref-label>`@ENDIF@
     | :manpage:`dnf5-specs(7)`, :ref:`Patterns specification <specs_misc_ref-label>`
     | :manpage:`dnf5-system-state(7)`, :ref:`System state <systemstate_misc_ref-label>`
 

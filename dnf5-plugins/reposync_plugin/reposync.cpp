@@ -115,6 +115,9 @@ void ReposyncCommand::set_argument_parser() {
     download_metadata_option = std::make_unique<libdnf5::cli::session::BoolOption>(
         *this, "download-metadata", '\0', "Download all repository metadata", false);
 
+    min_buildtime_option = std::make_unique<libdnf5::cli::session::DateOption>(
+        *this, "min-buildtime", 0, "Download only packages with buildtime newer or equal to YYYY-MM-DD", "YYYY-MM-DD");
+
     auto * destdir_arg = parser.add_new_named_arg("destdir");
     destdir_arg->set_long_name("destdir");
     destdir_arg->set_description("Root path under which the downloaded repositories are stored");
@@ -228,12 +231,20 @@ ReposyncCommand::download_list_type ReposyncCommand::get_packages_list(const lib
     // a separator is enforced.
     safe_write_path /= "";
 
+#ifdef WITH_MODULEMD
     libdnf5::rpm::PackageQuery query(ctx.get_base(), libdnf5::sack::ExcludeFlags::IGNORE_MODULAR_EXCLUDES);
+#else
+    libdnf5::rpm::PackageQuery query(ctx.get_base());
+#endif
     query.filter_available();
     query.filter_repo_id(repo.get_id());
 
     if (newest_option->get_value()) {
         limit_to_latest(query);
+    }
+
+    if (min_buildtime_option->get_arg()->get_parse_count() >= 1) {
+        query.filter_recent(min_buildtime_option->get_value());
     }
 
     if (!arch_option.empty()) {
@@ -272,10 +283,14 @@ void ReposyncCommand::download_packages(const ReposyncCommand::download_list_typ
         downloader.add(pkg, pth.parent_path());
     }
     downloader.download();
-    // TODO(mblaha): Return exit code 1 if any of packages was not downloaded.
-    // In case of fail_fast set to false, the download() method does
-    // not throw an exception if particular package could not be downloaded.
-    // See https://github.com/rpm-software-management/dnf5/issues/1926 for details
+    const auto failed_packages = downloader.get_failed_packages();
+    if (!failed_packages.empty()) {
+        for (const auto & pkg : failed_packages) {
+            std::cerr << libdnf5::utils::sformat(_("Failed to download package: {}"), pkg.get_full_nevra())
+                      << std::endl;
+        }
+        throw libdnf5::cli::CommandExitError(1, M_("Failed to download one or more packages"));
+    }
 }
 
 void ReposyncCommand::delete_old_local_packages(

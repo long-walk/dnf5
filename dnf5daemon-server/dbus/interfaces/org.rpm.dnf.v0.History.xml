@@ -32,8 +32,11 @@ along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
         @options: an array of key/value pairs
         @changeset: a dictionary {"<type_of_change>":[<package>,<package>,...]}
 
-        Get a list of packages that have been recently changed. The
-        "type_of_change" key in the output dictionary can be one of the
+        Get a list of packages that have been recently changed. The result
+        represents the difference between the currently installed package set
+        and the set at a given point in time.
+
+        The "type_of_change" key in the output dictionary can be one of the
         following: "installed", "removed", "upgraded", or "downgraded". The
         packages in the output are represented as dictionaries containing the
         requested set of attributes for the changed packages.
@@ -41,8 +44,9 @@ along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
         For installed, upgraded, and downgraded packages, the currently
         installed version is returned.
 
-        For upgraded and downgraded packages, the "original_evr" attribute
-        is also included, containing the package EVR before the change.
+        For upgraded and downgraded packages, the "original_evr" and
+        "original_arch" attributes are also included, containing the
+        package EVR and architecture before the change.
 
         If requested, upgraded packages may also include an "advisories" list
         field, indicating the name of the updates that contain the upgraded
@@ -52,6 +56,10 @@ along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
 
         For removed packages, only the name, arch, and evr of the removed
         version are provided.
+
+        All packages in the output include a "transaction_time" attribute
+        (uint64, unix timestamp) indicating when the transaction that caused
+        the change was completed.
 
         Following options and filters are supported:
 
@@ -82,6 +90,44 @@ along with libdnf.  If not, see <https://www.gnu.org/licenses/>.
     <method name="recent_changes">
         <arg name="options" type="a{sv}" direction="in" />
         <arg name="changeset" type="a{saa{sv}}" direction="out" />
+    </method>
+
+    <!--
+        list:
+        @options: an array of key/value pairs
+        @transactions: array of transactions with their packages
+
+        Get a list of transactions from the history database. Each transaction
+        includes metadata and categorized package changes.
+
+        The packages in each category are represented as dictionaries containing
+        the requested set of attributes. For upgraded and downgraded packages,
+        an "original_evr" attribute is included with the original package EVR.
+
+        Following options are supported:
+
+            - limit: int64
+                Maximum number of transactions to return.
+            - since: int64, unix timestamp
+                Only return transactions completed after this time.
+            - reverse: boolean, default "false"
+                If true, return oldest transactions first. Default is newest first.
+            - contains_pkgs: list of strings
+                Filter to transactions containing packages with these names.
+            - transaction_attrs: list of strings, default ["id", "start", "end", "user_id", "description", "status"]
+                List of transaction attributes to include. Supported: id, start, end,
+                user_id, description, status, releasever, comment.
+            - package_attrs: list of strings, default ["name", "arch", "evr"]
+                List of package attributes to include. Supported: name, epoch,
+                version, release, arch, evr, repo_id, action, reason.
+            - include_packages: boolean, default "true"
+                Whether to include package lists (installed, removed, upgraded, downgraded).
+
+        Unknown options are ignored.
+    -->
+    <method name="list">
+        <arg name="options" type="a{sv}" direction="in" />
+        <arg name="transactions" type="aa{sv}" direction="out" />
     </method>
 </interface>
 

@@ -255,6 +255,22 @@ void check_state(const libdnf5::offline::OfflineTransactionState & state) {
     }
 }
 
+void invalidate_if_not_valid(libdnf5::offline::OfflineTransactionState & state, libdnf5::Base & base) {
+    if (state.is_pending() && !state.check_rpmdb_cookie(base)) {
+        auto cmd_line = state.get_data().get_cmd_line();
+        state.invalidate();
+        if (cmd_line.empty()) {
+            throw libdnf5::cli::CommandExitError(
+                1, M_("The system has been modified since the offline transaction was prepared."));
+        }
+        throw libdnf5::cli::CommandExitError(
+            1,
+            M_("The system has been modified since the offline transaction was prepared. "
+               "To reschedule, run: {}"),
+            cmd_line);
+    }
+}
+
 void reboot(bool poweroff = false) {
     if (std::getenv("DNF_SYSTEM_UPGRADE_NO_REBOOT")) {
         if (poweroff) {
@@ -328,6 +344,7 @@ void OfflineRebootCommand::run() {
     }
 
     check_state(*state);
+    invalidate_if_not_valid(*state, ctx.get_base());
 
     auto & offline_data = state->get_data();
     if (offline_data.get_status() != libdnf5::offline::STATUS_DOWNLOAD_COMPLETE &&
@@ -457,14 +474,19 @@ void OfflineExecuteCommand::configure() {
     ctx.get_base().get_config().get_system_cachedir_option().set(cachedir);
     ctx.get_base().get_config().get_cachedir_option().set(cachedir);
 
+#ifdef WITH_MODULEMD
     auto module_platform_id = state->get_data().get_module_platform_id();
     if (!module_platform_id.empty()) {
         ctx.get_base().get_config().get_module_platform_id_option().set(module_platform_id);
     }
+#endif
 }
 
 void OfflineExecuteCommand::run() {
     auto & ctx = get_context();
+
+    invalidate_if_not_valid(*state, ctx.get_base());
+
     auto & offline_data = state->get_data();
 
     const auto & system_releasever = offline_data.get_system_releasever();
@@ -723,8 +745,16 @@ void OfflineStatusCommand::run() {
     }
     check_state(*state);
 
+    const bool rpmdb_changed = state->is_pending() && !state->check_rpmdb_cookie(get_context().get_base());
+
     const auto & status = state->get_data().get_status();
-    if (status == libdnf5::offline::STATUS_DOWNLOAD_INCOMPLETE) {
+    if (rpmdb_changed) {
+        std::cout << _("The system has been modified since the offline transaction was prepared. "
+                       "The offline transaction initiated by the following command is no longer valid:")
+                  << std::endl
+                  << "  " << state->get_data().get_cmd_line() << std::endl
+                  << _("To reschedule, run the command above. To clean up, run `dnf5 offline clean`.") << std::endl;
+    } else if (status == libdnf5::offline::STATUS_DOWNLOAD_INCOMPLETE) {
         std::cout << no_transaction_message << std::endl;
     } else if (status == libdnf5::offline::STATUS_DOWNLOAD_COMPLETE || status == libdnf5::offline::STATUS_READY) {
         std::cout << _("An offline transaction was initiated by the following command:") << std::endl

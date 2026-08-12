@@ -28,6 +28,7 @@
 #include "libdnf5/advisory/advisory_query.hpp"
 #include "libdnf5/base/base.hpp"
 #include "libdnf5/common/exception.hpp"
+#include "libdnf5/rpm/checksum.hpp"
 #include "libdnf5/utils/patterns.hpp"
 
 extern "C" {
@@ -40,6 +41,7 @@ extern "C" {
 #include <fnmatch.h>
 
 #include <filesystem>
+#include <utility>
 
 namespace libdnf5::rpm {
 
@@ -1620,6 +1622,52 @@ void PackageQuery::filter_location(const std::vector<std::string> & patterns, li
     }
 }
 
+void PackageQuery::filter_checksum(
+    const std::vector<std::string> & patterns, Checksum::Type checksum_type, libdnf5::sack::QueryCmp cmp_type) {
+    bool cmp_not = (cmp_type & libdnf5::sack::QueryCmp::NOT) == libdnf5::sack::QueryCmp::NOT;
+    if (cmp_not) {
+        // Removal of NOT CmpType makes following comparisons easier and effective
+        cmp_type = cmp_type - libdnf5::sack::QueryCmp::NOT;
+    }
+
+    auto & pool = get_rpm_pool(p_impl->base);
+    libdnf5::solv::SolvMap filter_result(pool.get_nsolvables());
+    int expected_libsolv_type = 0;
+    if (checksum_type != Checksum::Type::UNKNOWN) {
+        expected_libsolv_type = Checksum::checksum_type_to_libsolv(checksum_type);
+    }
+
+    // The repo internalization is needed before calling the `solvable_lookup_checksum` function.
+    p_impl->base->get_repo_sack()->internalize_repos();
+
+    switch (cmp_type) {
+        case libdnf5::sack::QueryCmp::EQ: {
+            for (Id candidate_id : *p_impl) {
+                Solvable * solvable = pool.id2solvable(candidate_id);
+                int type;
+                const char * checksum = solvable_lookup_checksum(solvable, SOLVABLE_CHECKSUM, &type);
+                if (checksum && (expected_libsolv_type == 0 || type == expected_libsolv_type)) {
+                    for (const auto & pattern : patterns) {
+                        if (strcasecmp(pattern.c_str(), checksum) == 0) {
+                            filter_result.add_unsafe(candidate_id);
+                            break;
+                        }
+                    }
+                }
+            }
+        } break;
+        default:
+            libdnf_throw_assert_unsupported_query_cmp_type(cmp_type);
+    }
+
+    // Apply filter results to query
+    if (cmp_not) {
+        *p_impl -= filter_result;
+    } else {
+        *p_impl &= filter_result;
+    }
+}
+
 void PackageQuery::filter_provides(const ReldepList & reldep_list, libdnf5::sack::QueryCmp cmp_type) {
     bool cmp_not = (cmp_type & libdnf5::sack::QueryCmp::NOT) == libdnf5::sack::QueryCmp::NOT;
     if (cmp_not) {
@@ -2332,6 +2380,9 @@ void PackageQuery::filter_latest_unresolved_advisories(
     libdnf5::sack::QueryCmp cmp_type) {
     auto adv_pkgs = advisory_query.get_advisory_packages_sorted_by_name_arch_evr();
     std::vector<libdnf5::advisory::AdvisoryPackage> latest_unresolved_adv_pkgs;
+    libdnf5::solv::RpmPool & pool = get_rpm_pool(get_base());
+
+    auto highest_name_arch_evr = adv_pkgs.end();
     for (std::vector<libdnf5::advisory::AdvisoryPackage>::iterator i = adv_pkgs.begin(); i != adv_pkgs.end(); ++i) {
         // Filter out already resolved advisories
         if (i->p_impl->is_resolved_in(installed)) {
@@ -2339,11 +2390,28 @@ void PackageQuery::filter_latest_unresolved_advisories(
         }
 
         // Include only the advisory package with the most recent EVR
-        auto next_adv_pkg = std::next(i);
-        if (next_adv_pkg == adv_pkgs.end() || i->get_name() != next_adv_pkg->get_name() ||
-            i->get_arch() != next_adv_pkg->get_arch()) {
-            latest_unresolved_adv_pkgs.push_back(*i);
+        {
+            if (highest_name_arch_evr == adv_pkgs.end()) {
+                highest_name_arch_evr = i;
+                continue;
+            }
+
+            const auto & best = *highest_name_arch_evr->p_impl;
+            const auto & current = *i->p_impl;
+            if (current.get_name_id() != best.get_name_id() || current.get_arch_id() != best.get_arch_id()) {
+                latest_unresolved_adv_pkgs.push_back(*highest_name_arch_evr);
+                highest_name_arch_evr = i;
+                continue;
+            }
+
+            if (pool.evrcmp(current.get_evr_id(), best.get_evr_id(), EVRCMP_COMPARE) > 0) {
+                highest_name_arch_evr = i;
+            }
         }
+    }
+
+    if (highest_name_arch_evr != adv_pkgs.end()) {
+        latest_unresolved_adv_pkgs.push_back(*highest_name_arch_evr);
     }
 
     PQImpl::filter_sorted_advisory_pkgs(*this, latest_unresolved_adv_pkgs, cmp_type);
@@ -2931,12 +2999,11 @@ std::vector<std::vector<Package>> PackageQuery::filter_leaves_groups() {
 
 void PackageQuery::filter_recent(const time_t timestamp) {
     auto & pool = get_rpm_pool(p_impl->base);
-    const unsigned long long time_long = static_cast<unsigned long long>(timestamp);
 
     for (const auto candidate_id : *p_impl) {
         auto solvable = pool.id2solvable(candidate_id);
         auto buildtime = solvable_lookup_num(solvable, SOLVABLE_BUILDTIME, 0);
-        if (buildtime < time_long) {
+        if (std::cmp_less(buildtime, timestamp)) {
             p_impl->remove_unsafe(candidate_id);
         }
     }

@@ -1,17 +1,23 @@
 %global project_version_prime 5
 %global project_version_major 4
-%global project_version_minor 2
-%global project_version_micro 5
+%global project_version_minor 3
+%global project_version_micro 0
 
 %bcond dnf5_obsoletes_dnf %[0%{?fedora} > 40 || 0%{?rhel} > 10]
 
+%if 0%{?rhel} >= 11
+%bcond_with modulemd
+%else
+%bcond_without modulemd
+%endif
+
 Name:           dnf5
-Version:        5.4.2.6
-Release:        1
+Version:        %{project_version_prime}.%{project_version_major}.%{project_version_minor}.%{project_version_micro}
+Release:        1%{?dist}
 Summary:        Command-line package manager
 License:        GPL-2.0-or-later
-URL:            https://github.com/long-walk/dnf5
-Source0:        %{url}/archive/refs/tags/%{version}.tar.gz
+URL:            https://github.com/rpm-software-management/dnf5
+Source0:        %{url}/archive/%{version}/dnf5-%{version}.tar.gz
 
 Requires:       libdnf5%{?_isa} = %{version}-%{release}
 Requires:       libdnf5-cli%{?_isa} = %{version}-%{release}
@@ -58,7 +64,9 @@ Provides:       dnf5-command(leaves)
 Provides:       dnf5-command(list)
 Provides:       dnf5-command(makecache)
 Provides:       dnf5-command(mark)
+%if %{with modulemd}
 Provides:       dnf5-command(module)
+%endif
 Provides:       dnf5-command(offline)
 Provides:       dnf5-command(provides)
 Provides:       dnf5-command(reinstall)
@@ -95,7 +103,7 @@ Provides:       dnf5-command(versionlock)
 
 %bcond_without acl
 %bcond_without comps
-%bcond_without modulemd
+
 %bcond_without systemd
 
 %bcond_with    html
@@ -130,7 +138,9 @@ Provides:       dnf5-command(versionlock)
 
 # ========== versions of dependencies ==========
 
+%if %{with modulemd}
 %global libmodulemd_version 2.5.0
+%endif
 %global librepo_version 1.20.0
 %global libsolv_version 0.7.36
 %global sqlite_version 3.35.0
@@ -147,7 +157,6 @@ BuildRequires:  bash-completion
 BuildRequires:  cmake >= 3.21
 BuildRequires:  doxygen
 BuildRequires:  gettext
-BuildRequires:  pkgconfig(check)
 BuildRequires:  pkgconfig(fmt)
 BuildRequires:  pkgconfig(json-c)
 BuildRequires:  pkgconfig(libcrypto)
@@ -266,7 +275,7 @@ BuildRequires:  python3-devel
 %description
 DNF5 is a command-line package manager that automates the process of installing,
 upgrading, configuring, and removing computer programs in a consistent manner.
-It supports RPM packages, modulemd modules, and comps groups & environments.
+It supports RPM packages%{?with_modulemd:, modulemd modules,} and comps groups & environments.
 
 %post
 %if %{with dnf5_obsoletes_dnf}
@@ -343,7 +352,9 @@ It supports RPM packages, modulemd modules, and comps groups & environments.
 %{_mandir}/man8/dnf5-list.8.*
 %{_mandir}/man8/dnf5-makecache.8.*
 %{_mandir}/man8/dnf5-mark.8.*
+%if %{with modulemd}
 %{_mandir}/man8/dnf5-module.8.*
+%endif
 %{_mandir}/man8/dnf5-offline.8.*
 %{_mandir}/man8/dnf5-provides.8.*
 %{_mandir}/man8/dnf5-reinstall.8.*
@@ -362,7 +373,9 @@ It supports RPM packages, modulemd modules, and comps groups & environments.
 %{_mandir}/man7/dnf5-filtering.7.*
 %{_mandir}/man7/dnf5-forcearch.7.*
 %{_mandir}/man7/dnf5-installroot.7.*
+%if %{with modulemd}
 %{_mandir}/man7/dnf5-modularity.7.*
+%endif
 %{_mandir}/man7/dnf5-specs.7.*
 %{_mandir}/man7/dnf5-system-state.7.*
 %{_mandir}/man7/dnf5-changes-from-dnf4.7.*
@@ -393,7 +406,9 @@ It supports RPM packages, modulemd modules, and comps groups & environments.
 %{_mandir}/man8/dnf-list.8.*
 %{_mandir}/man8/dnf-makecache.8.*
 %{_mandir}/man8/dnf-mark.8.*
+%if %{with modulemd}
 %{_mandir}/man8/dnf-module.8.*
+%endif
 %{_mandir}/man8/dnf-offline.8.*
 %{_mandir}/man8/dnf-provides.8.*
 %{_mandir}/man8/dnf-reinstall.8.*
@@ -412,7 +427,9 @@ It supports RPM packages, modulemd modules, and comps groups & environments.
 %{_mandir}/man7/dnf-filtering.7.*
 %{_mandir}/man7/dnf-forcearch.7.*
 %{_mandir}/man7/dnf-installroot.7.*
+%if %{with modulemd}
 %{_mandir}/man7/dnf-modularity.7.*
+%endif
 %{_mandir}/man7/dnf-specs.7.*
 %{_mandir}/man7/dnf-system-state.7.*
 %{_mandir}/man7/dnf-changes-from-dnf4.7.*
@@ -438,7 +455,6 @@ It supports RPM packages, modulemd modules, and comps groups & environments.
 %package -n libdnf5
 Summary:        Package management library
 License:        LGPL-2.1-or-later
-#Requires:       libmodulemd{?_isa} >= {libmodulemd_version}
 Requires:       libsolv%{?_isa} >= %{libsolv_version}
 Requires:       librepo%{?_isa} >= %{librepo_version}
 %if 0%{?fedora} >= 43 || 0%{?rhel} >= 11
@@ -457,6 +473,7 @@ Package management library.
 %config(noreplace) %{_sysconfdir}/dnf/dnf.conf
 %dir %{_sysconfdir}/dnf/vars
 %dir %{_sysconfdir}/dnf/protected.d
+%dir %{_sysconfdir}/dnf/usr-drift-protected-paths.d
 %else
 %exclude %{_sysconfdir}/dnf/dnf.conf
 %endif
@@ -479,7 +496,9 @@ Package management library.
 %attr(0755, root, root) %ghost %dir %{_prefix}/lib/sysimage/libdnf5/comps_groups/groups
 %verify(not md5 size mtime) %attr(0644, root, root) %ghost %{_prefix}/lib/sysimage/libdnf5/environments.toml
 %verify(not md5 size mtime) %attr(0644, root, root) %ghost %{_prefix}/lib/sysimage/libdnf5/groups.toml
+%if %{with modulemd}
 %verify(not md5 size mtime) %attr(0644, root, root) %ghost %{_prefix}/lib/sysimage/libdnf5/modules.toml
+%endif
 %verify(not md5 size mtime) %attr(0644, root, root) %ghost %{_prefix}/lib/sysimage/libdnf5/nevras.toml
 %attr(0755, root, root) %ghost %dir %{_prefix}/lib/sysimage/libdnf5/offline
 %verify(not md5 size mtime) %attr(0644, root, root) %ghost %{_prefix}/lib/sysimage/libdnf5/offline/offline-transaction-state.toml
@@ -490,6 +509,7 @@ Package management library.
 %verify(not md5 size mtime) %attr(0644, root, root) %ghost %{_prefix}/lib/sysimage/libdnf5/transaction_history.sqlite{,-shm,-wal}
 %license lgpl-2.1.txt
 %ghost %attr(0755, root, root) %dir %{_var}/cache/libdnf5
+%{_tmpfilesdir}/libdnf5.conf
 %attr(0755, root, root) %dir %{_sharedstatedir}/dnf
 %verify(not md5 size mtime) %attr(0644, root, root) %{_sharedstatedir}/dnf/system-repo.lock
 
@@ -961,6 +981,7 @@ automatically and regularly from systemd timers, cron jobs or similar.
 %ghost %attr(0644, root, root) %{_sysconfdir}/motd.d/dnf5-automatic
 %{_libdir}/dnf5/plugins/automatic_cmd_plugin.so
 %{_datadir}/dnf5/dnf5-plugins/automatic.conf
+%{_datadir}/dbus-1/system.d/org.rpm.dnf.v0.Automatic.conf
 %ghost %attr(0644, root, root) %config(noreplace) %{_sysconfdir}/dnf/automatic.conf
 %ghost %attr(0644, root, root) %config(noreplace) %{_sysconfdir}/dnf/dnf5-plugins/automatic.conf
 %if %{with man}
@@ -1030,6 +1051,8 @@ DNF5 plugin for working with RPM package manifest files.
     -DWITH_COMPS=%{?with_comps:ON}%{!?with_comps:OFF} \
     -DWITH_MODULEMD=%{?with_modulemd:ON}%{!?with_modulemd:OFF} \
     -DWITH_SYSTEMD=%{?with_systemd:ON}%{!?with_systemd:OFF} \
+    -DSYSTEMD_DIR=%{_unitdir} \
+    -DTMPFILES_DIR=%{_tmpfilesdir} \
     \
     -DWITH_HTML=%{?with_html:ON}%{!?with_html:OFF} \
     -DWITH_MAN=%{?with_man:ON}%{!?with_man:OFF} \
@@ -1084,7 +1107,11 @@ ln -s dnf-makecache.timer %{buildroot}%{_unitdir}/dnf5-makecache.timer
 # own dirs and files that dnf5 creates on runtime
 mkdir -p %{buildroot}%{_prefix}/lib/sysimage/libdnf5
 for file in \
-    environments.toml groups.toml modules.toml nevras.toml packages.toml \
+    environments.toml groups.toml \
+%if %{with modulemd}
+    modules.toml \
+%endif
+    nevras.toml packages.toml \
     system.toml \
     transaction_history.sqlite transaction_history.sqlite-shm \
     transaction_history.sqlite-wal
@@ -1144,42 +1171,8 @@ mkdir -p %{buildroot}%{_libdir}/libdnf5/plugins
 %ldconfig_scriptlets
 
 %changelog
-* Tue May 19 2026 Thomas <temp.mail@hispeed.ch> 5.4.2.6-1
-- 
-
-* Sat May 16 2026 Thomas <temp.mail@hispeed.ch> 5.4.2.6-1
-- 
-
-* Sat May 16 2026 Thomas <temp.mail@hispeed.ch> 5.4.2.5-1
-- 
-
-* Sat May 16 2026 Thomas <temp.mail@hispeed.ch> 5.4.2.4-1
-- 
-
-* Sat May 16 2026 Thomas <temp.mail@hispeed.ch> 5.4.2.3-1
-- 
-
-* Sat May 16 2026 Thomas <temp.mail@hispeed.ch> 5.4.2.1-1
-- Release 5.4.2.1 (evan-goode@users.noreply.github.com)
-- Update translations from weblate (github-actions@github.com)
-- Move system-repo.lock to /var/lib/dnf/system-repo.lock (mail@evangoo.de)
-- dnfdaemon: Document interactive option in D-Bus API (mblaha@redhat.com)
-- dnfdaemon: Add repo_key_imported informational signal (mblaha@redhat.com)
-- dnfdaemon: Avoid timeout on repo key import (mblaha@redhat.com)
-- dnfdaemon: Pass interactive parameter to repo key import callback
-  (mblaha@redhat.com)
-- refactor(download): preallocate memory in `DownloadCommand::configure`
-  (65706193+vil02@users.noreply.github.com)
-- Fix list --installed-from-repo to imply --installed (mblaha@redhat.com)
-- Fix typos in docs, comments, and user-facing strings (userfrom1995@gmail.com)
-- dnf5.8.rst: s/sytem/system (mail@evangoo.de)
-- Suggest allow_vendor_change=true when solver blocks vendor update
-  (me@fhbash.com)
-- Shell completion: use space for all options (userfrom1995@gmail.com)
-- doc: Annotate a fix for CVE-2026-3836 (ppisar@redhat.com)
-- refactor: pass by const reference (65706193+vil02@users.noreply.github.com)
-- Fix data loss caused by POLLHUP race in poll loop (mblaha@redhat.com)
-- test: Use POSIX octal escapes in test_binary_data (mblaha@redhat.com)
+* Tue Aug 11 2026 Packit Team <hello@packit.dev> - 5.4.3.0-1
+- New upstream release 5.4.3.0
 
 * Tue May 05 2026 Packit Team <hello@packit.dev> - 5.4.2.1-1
 - New upstream release 5.4.2.1

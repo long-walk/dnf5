@@ -168,13 +168,14 @@ operation should work on. It is a case insensitive string (supporting globbing c
 is matched against a group's|environment's ID, canonical name and name translated into the
 current ``LC_MESSAGES`` locale (if possible).
 
-Comps ``specs`` are prefixed by ``@`` for commands that also accept package ``specs``.
+Comps ``specs`` are prefixed by ``@@`` for commands that also accept package ``specs``.
 For example see :manpage:`dnf5-install(8)`, :ref:`Install Command <install_command_ref-label>`.
 
 The group and environment commands accept both ``<group-spec>`` and ``<environment-spec>``, but
 prefer only their corresponding type in case both groups and environments match the given argument.
 Other commands that accept both types affect both groups and environments.
 
+@IF WITH_MODULEMD@
 Modules
 =======
 
@@ -196,6 +197,7 @@ Since `NEVRA` matching form is insufficient for modules, they are uniquely ident
 
 In case stream is not specified, the enabled or the default stream is used, in this order.
 In case profile is not specified, the system default profile or the 'default' profile is used.
+@ENDIF@
 
 .. _transaction_spec-label:
 

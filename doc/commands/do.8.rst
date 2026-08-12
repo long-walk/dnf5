@@ -43,7 +43,7 @@ Another difference is that the ``do`` command allows for the explicit specificat
 in the transaction: ``package``, ``group``, or ``auto``. For the ``group`` type, it is possible to specify whether
 a group ID or a group name is used. By default, the ``auto`` type is active. In this mode, the ``do`` command
 behaves like other commands, inferring the object's type from its specification. For example, if a specification starts
-with the ``@`` character, it is treated as a group ID or a module.
+with the ``@@`` character, it is treated as a group ID@IF WITH_MODULEMD@ or a module@ENDIF@.
 
 Individual actions and object types are specified by options and are combinable.
 
@@ -94,6 +94,9 @@ Options
 
 ``--offline``
     | Store the transaction to be performed offline. See :manpage:`dnf5-offline(8)`, :ref:`Offline command <offline_command_ref-label>`.
+
+``--transient``
+    Applicable only on bootc (bootable containers) systems. Perform transactions using a transient overlay which will be lost on the next reboot. See also the :ref:`persistence <persistence_options-label>` configuration option.
 
 .. include:: ../_shared/options/advisories.rst
 

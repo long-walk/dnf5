@@ -243,6 +243,42 @@ repository configuration file should aside from repo ID consists of baseurl, met
 
     Default: ``[]``.
 
+.. _gpgcheck_options-label:
+
+``gpgcheck``
+
+    Due to compatibility ``gpgcheck`` option is supported as well but ``pkg_gpgcheck`` is preferred.
+    The meaning of ``gpgcheck`` is controlled by the
+    :ref:`gpgcheck_policy <gpgcheck_policy_options-label>` option.
+
+    Default: ``pkg_gpgcheck`` value.
+.. :
+
+.. _gpgcheck_policy_options-label:
+
+``gpgcheck_policy``
+    ``legacy``, ``full``, or ``all``
+
+    Controls how the ``gpgcheck`` option expands when explicitly set in a configuration section.
+
+    ``legacy``
+        ``gpgcheck=1`` sets only ``pkg_gpgcheck=1``.
+        This preserves the original DNF behavior.
+
+    ``full``
+        ``gpgcheck=1`` sets both ``pkg_gpgcheck=1`` and ``repo_gpgcheck=1``.
+
+    ``all``
+        ``gpgcheck=1`` sets ``pkg_gpgcheck=1``, ``repo_gpgcheck=1``, and ``localpkg_gpgcheck=1``.
+
+    Explicitly setting ``pkg_gpgcheck``, ``repo_gpgcheck``, or ``localpkg_gpgcheck`` in the
+    same configuration section overrides the policy for that specific option.
+
+    The policy is a global setting defined in ``[main]`` and affects all repository
+    sections that use ``gpgcheck``.
+
+    Default: ``legacy``.
+
 .. _group_package_types_options-label:
 
 ``group_package_types``
@@ -251,7 +287,7 @@ repository configuration file should aside from repo ID consists of baseurl, met
     List of the following: ``optional``, ``default``, ``mandatory`` or ``conditional``.
 
     Tells DNF5 which type of packages in groups will be installed when 'group install <group-spec>'
-    or 'install @<group-spec>' is called.
+    or 'install @@<group-spec>' is called.
 
     Default: ``default, mandatory, conditional``.
 
@@ -361,6 +397,7 @@ repository configuration file should aside from repo ID consists of baseurl, met
 
     Default: ``1M``.
 
+@IF WITH_MODULEMD@
 .. _module_platform_id_options-label:
 
 ``module_platform_id``
@@ -379,6 +416,7 @@ repository configuration file should aside from repo ID consists of baseurl, met
     If enabled, allows switching enabled streams of a module.
 
     Default: ``False``.
+@ENDIF@
 
 .. _multilib_policy_options-label:
 
@@ -415,7 +453,7 @@ repository configuration file should aside from repo ID consists of baseurl, met
 
     List of the following: ``comps``, ``filelists``, ``other``, ``presto``, ``updateinfo``, ``all``
 
-    Specifies the types of metadata to load in addition to the essential ``primary`` and ``modules`` metadata, which are always loaded. Note that individual DNF commands may extend this list at runtime.
+    Specifies the types of metadata to load in addition to the essential ``primary``@IF WITH_MODULEMD@ and ``modules``@ENDIF@ metadata, which are always loaded. Note that individual DNF commands may extend this list at runtime.
 
     Note: The list includes only metadata types recognized by DNF. However, a repository's metadata may include various other types (e.g., AppStream or metadata stored as databases instead of XML files). The special value ``all`` represents all metadata types present in the repository, including those unknown to DNF.
 
@@ -429,6 +467,24 @@ repository configuration file should aside from repo ID consists of baseurl, met
     Directory where DNF5 stores its persistent data between runs.
 
     Default: ``/var/lib/dnf``.
+
+.. _persistence_options-label:
+
+``persistence``
+    :ref:`string <string-label>`
+
+    Whether changes should persist across system reboots.
+    Passing ``--transient`` (see :ref:`transient option <transient_option-label>`) will override this setting to ``transient``.
+    Valid values are:
+
+    * ``auto``: Changes will persist across reboots, unless the target is a running bootc system
+      and the system is already in an unlocked state (i.e. ``/usr`` is writable).
+    * ``transient``: Changes will be lost on the next reboot. Only applicable on bootc systems.
+      Beware that changes to ``/etc`` and ``/var`` will persist, depending on the configuration
+      of your bootc system. See also https://bootc.dev/bootc//man/bootc-usr-overlay.8.html.
+    * ``persist``: Changes will persist across reboots.
+
+    Default: ``auto``.
 
 .. _pluginconfpath_options-label:
 
@@ -470,12 +526,12 @@ repository configuration file should aside from repo ID consists of baseurl, met
 
     They are protected via Obsoletes as well as user/plugin removals.
 
+    An entry prefixed with ``glob:``, such as ``glob:/path/to/dir/*.conf``,
+    expands to all matching files and reads one package per line from each.
+
     Default: ``dnf5,glob:/etc/dnf/protected.d/*.conf``.
 
     .. NOTE::
-       Any packages which should be protected can do so by including a file in ``/etc/dnf/protected.d``
-       with their  package name in it.
-
        DNF5 will protect also the package corresponding to the running version of the kernel. See also
        :ref:`protect_running_kernel <protect_running_kernel_options-label>` option.
 
@@ -618,6 +674,34 @@ repository configuration file should aside from repo ID consists of baseurl, met
 
     Default: ``False``.
 
+.. _usr_drift_protected_paths_options-label:
+
+``usr_drift_protected_paths``
+    :ref:`list <list-label>`
+
+    List of paths that are likely to cause problems when their contents drift
+    with respect to ``/usr``, e.g. ``/etc/pam.d/*``. If a transient transaction
+    would modify these paths, DNF5 aborts the operation and prints an error.
+
+    When using ``persistence=transient`` on bootc systems, a transient overlay
+    is created on ``/usr``, and any changes DNF5 makes to ``/usr`` will be
+    discarded on reboot. However, other paths such as ``/etc`` and ``/var`` are
+    (often) not backed by a transient overlay, so changes to them will persist
+    across reboots. Usually, this "filesystem drift" is fine, but it can cause
+    problems in certain situations. For example, a configuration file in
+    ``/etc`` that's shared by multiple packages might reference a ``.so`` file
+    under ``/usr/lib64`` that no longer exists.
+
+    If any paths are protected by this option, DNF5 will download filelist
+    metadata from repositories before resolving transient transactions.
+
+    An entry prefixed with ``glob:``, such as ``glob:/path/to/dir/*.conf``,
+    expands to all matching files and reads one path per line from each. Both
+    the glob pattern in the option list entry and the individual paths listed
+    within the files (e.g. ``/etc/pam.d/*``) may contain globs.
+
+    Default: ``glob:/etc/dnf/usr-drift-protected-paths.d/*.conf``.
+
 .. _varsdir_options-label:
 
 ``varsdir``
@@ -697,7 +781,7 @@ repository configuration file should aside from repo ID consists of baseurl, met
 ``color_update_local``
     :ref:`color <color-label>`
 
-    Color of local packages that are installed from the @commandline repository.
+    Color of local packages that are installed from the @@commandline repository.
     This option is used during displaying transactions.
 
     Default: ``dim,green``.
@@ -884,10 +968,12 @@ configuration.
 ``bandwidth``
     :ref:`storage size <storage_size-label>`
 
-    Total bandwidth available for downloading.
-    Meaningful when used with the :ref:`throttle option <throttle_options-label>`.
+    Total bandwidth available for downloading, in bytes per second. Used for
+    both metadata and package downloads. This value is only used when the
+    :ref:`throttle option <throttle_options-label>` is set as a percentage.
+    When ``throttle`` is set as an absolute value, ``bandwidth`` is ignored.
 
-    Default: ``0``.
+    Default: ``0`` (no limit).
 
 .. _build_cache_options-label:
 
@@ -1003,8 +1089,6 @@ configuration.
 
     Doesn't apply for packages passed directly as arguments, as they are not in any repository,
     see :ref:`localpkg_gpgcheck <localpkg_gpgcheck_options-label>`.
-
-    Due to compatibility `gpgcheck` option is supported as well but `pkg_gpgcheck` is preferred.
 
 .. _includepkgs_options-label:
 
@@ -1269,8 +1353,13 @@ configuration.
 ``throttle``
     :ref:`storage size <storage_size-label>`
 
-    Limits the downloading speed. It might be an absolute value or a percentage, relative to the value of the
-    :ref:`bandwidth option <bandwidth_options-label>` option. ``0`` means no throttling.
+    Limits the downloading speed, in bytes per second. Applied to both metadata
+    and package downloads. It can be an absolute value (e.g. ``5M`` for
+    5 MiB/s) or a percentage (e.g. ``60%``). When given as a percentage, the
+    actual speed limit is calculated relative to the
+    :ref:`bandwidth option <bandwidth_options-label>` value. ``0`` means no throttling.
+    The resulting speed limit must not be lower than
+    :ref:`minrate <minrate_options-label>`.
 
     Default: ``0``.
 
@@ -1354,7 +1443,7 @@ Types of Options
 .. _storage_size-label:
 
 ``storage size``
-    String representing storage sizes formed by an integer and a unit.
+    String representing storage sizes in bytes formed by an integer and a unit.
 
     Valid units are ``k``, ``M``, ``G``.
 
@@ -1459,8 +1548,8 @@ Override files support globs in the repository ID in order to support bulk modif
 
 The repository overrides are processed following this order:
 
-1. Files from ``/usr/share/dnf5/repos.override.d/`` and ``/etc/dnf5/repos.override.d/`` are loaded in an alphabetically
-   sorted list. In case files have the same name, the file from ``/etc/dnf5/repos.override.d/`` is used.
+1. Files from ``/usr/share/dnf5/repos.override.d/`` and ``/etc/dnf/repos.override.d/`` are loaded in an alphabetically
+   sorted list. In case files have the same name, the file from ``/etc/dnf/repos.override.d/`` is used.
    This implies the list has only unique filenames. This also implies that the repository configuration files can be
    simply masked by creating a file with the same name in the ``/etc`` override directory.
 

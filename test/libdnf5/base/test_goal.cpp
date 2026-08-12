@@ -93,6 +93,21 @@ void BaseGoalTest::test_install_from_cmdline() {
     CPPUNIT_ASSERT_EQUAL(expected, transaction.get_transaction_packages());
 }
 
+void BaseGoalTest::test_install_from_cmdline_multiple_resolves() {
+    // Tests that resolving a cmdline package install multiple times does not
+    // crash with "Id is out of bitmap range" due to stale bitmap in operator=.
+    add_repo_rpm("rpm-repo1");
+
+    libdnf5::Goal goal(base);
+
+    for (int i = 0; i < 16; ++i) {
+        auto cmdline_pkg = add_cmdline_pkg("repos-rpm/rpm-repo1/one-1-1.noarch.rpm");
+        goal.add_rpm_install(cmdline_pkg);
+        CPPUNIT_ASSERT_NO_THROW_MESSAGE("Resolve failed on iteration " + std::to_string(i), goal.resolve());
+        goal.reset();
+    }
+}
+
 void BaseGoalTest::test_install_multilib_all() {
     add_repo_solv("solv-multilib");
     base.get_config().get_multilib_policy_option().set("all");
@@ -122,6 +137,31 @@ void BaseGoalTest::test_reinstall() {
 
     libdnf5::Goal goal(base);
     goal.add_rpm_reinstall("one");
+
+    auto transaction = goal.resolve();
+
+    std::vector<libdnf5::base::TransactionPackage> expected = {
+        libdnf5::base::TransactionPackage(
+            get_pkg("one-0:1-1.noarch"),
+            TransactionItemAction::REINSTALL,
+            TransactionItemReason::DEPENDENCY,
+            TransactionItemState::STARTED),
+        libdnf5::base::TransactionPackage(
+            get_pkg("one-0:1-1.noarch", true),
+            TransactionItemAction::REPLACED,
+            TransactionItemReason::DEPENDENCY,
+            TransactionItemState::STARTED)};
+    CPPUNIT_ASSERT_EQUAL(expected, transaction.get_transaction_packages());
+}
+
+void BaseGoalTest::test_reinstall_installed_package() {
+    // Tests reinstallation when passing an installed Package object.
+    // The solver must receive the available solvable id, not the installed one.
+    add_repo_rpm("rpm-repo1");
+    auto installed_pkg = add_system_pkg("repos-rpm/rpm-repo1/one-1-1.noarch.rpm", TransactionItemReason::DEPENDENCY);
+
+    libdnf5::Goal goal(base);
+    goal.add_rpm_reinstall(installed_pkg);
 
     auto transaction = goal.resolve();
 
@@ -322,6 +362,27 @@ void BaseGoalTest::test_upgrade_not_downgrade_from_cmdline() {
         libdnf5::GoalUsedSetting::USED_FALSE, first_event.get_job_settings()->get_used_clean_requirements_on_remove());
     CPPUNIT_ASSERT_EQUAL(libdnf5::GoalUsedSetting::USED_TRUE, first_event.get_job_settings()->get_used_best());
     CPPUNIT_ASSERT_EQUAL(libdnf5::GoalUsedSetting::UNUSED, first_event.get_job_settings()->get_used_skip_unavailable());
+}
+
+void BaseGoalTest::test_upgrade_not_installed_from_cmdline() {
+    // Tests the upgrade using a local RPM file path when the package is not installed.
+    // The resolve log should contain the original file path, not the resolved NEVRA.
+    // (https://bugzilla.redhat.com/show_bug.cgi?id=2362262)
+    std::string rpm_path = PROJECT_BINARY_DIR "/test/data/repos-rpm/rpm-repo1/one-2-1.noarch.rpm";
+
+    libdnf5::Goal goal(base);
+    goal.add_upgrade(rpm_path);
+
+    auto transaction = goal.resolve();
+
+    CPPUNIT_ASSERT(transaction.get_transaction_packages().empty());
+
+    auto & log = transaction.get_resolve_logs();
+    CPPUNIT_ASSERT_EQUAL((size_t)1, log.size());
+    auto & first_event = *log.begin();
+    CPPUNIT_ASSERT_EQUAL(libdnf5::GoalAction::UPGRADE, first_event.get_action());
+    CPPUNIT_ASSERT_EQUAL(libdnf5::GoalProblem::NOT_INSTALLED, first_event.get_problem());
+    CPPUNIT_ASSERT_EQUAL(rpm_path, *first_event.get_spec());
 }
 
 void BaseGoalTest::test_upgrade_not_available() {

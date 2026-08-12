@@ -28,41 +28,87 @@
 
 #include <algorithm>
 #include <iomanip>
+#include <limits>
+#include <utility>
 
 
 namespace libdnf5::cli::progressbar {
 
 class MultiProgressBar::Impl {
 public:
-    Impl();
+    Impl(TrackingMode tracking_mode);
+
+    const TrackingMode tracking_mode;
 
     std::size_t total_bar_visible_limit{0};
     std::vector<std::unique_ptr<ProgressBar>> bars_all;
     std::vector<ProgressBar *> bars_todo;
-    std::vector<ProgressBar *> bars_done;
+    std::size_t bars_done_count{0};
     DownloadProgressBar total;
+
+    int64_t done_ticks{0};
+
+    int64_t inactive_ticks{0};
+    int64_t inactive_total_ticks{0};
+
     // Whether the last line was printed without a new line ending (such as an in progress bar)
     bool line_printed{false};
     std::size_t num_of_lines_to_clear{0};
+
+    // Reused across operator<< calls to retain allocated capacity between renders
+    std::ostringstream text_buffer;
 };
 
-MultiProgressBar::Impl::Impl() : total(0, _("Total")) {
+
+namespace {
+
+using BarNumberType = decltype(std::declval<ProgressBar>().get_number());
+
+/// Safely casts any numeric value to BarNumberType, clamping it within bounds.
+BarNumberType cast_to_bar_number(auto value) {
+    // Check if the input value exceeds the maximum limit of the target type
+    if (std::cmp_greater(value, std::numeric_limits<BarNumberType>::max())) {
+        return std::numeric_limits<BarNumberType>::max();
+    }
+
+    // Check if the input value is below the minimum limit of the target type
+    if (std::cmp_less(value, std::numeric_limits<BarNumberType>::min())) {
+        return std::numeric_limits<BarNumberType>::min();
+    }
+
+    return static_cast<BarNumberType>(value);
+}
+
+}  // namespace
+
+
+MultiProgressBar::Impl::Impl(TrackingMode tracking_mode) : tracking_mode(tracking_mode), total(0, _("Total")) {
     total.set_auto_finish(false);
     total.start();
 }
 
 
-MultiProgressBar::MultiProgressBar() : p_impl(new Impl()) {
+MultiProgressBar::MultiProgressBar(TrackingMode tracking_mode) : p_impl(new Impl(tracking_mode)) {
     if (tty::is_interactive()) {
         std::cerr << tty::cursor_hide;
     }
 }
+
+
+MultiProgressBar::MultiProgressBar() : MultiProgressBar(TrackingMode::ON_RENDER) {}
+
 
 MultiProgressBar::~MultiProgressBar() {
     if (tty::is_interactive()) {
         std::cerr << tty::cursor_show;
     }
 }
+
+
+MultiProgressBar::TrackingMode MultiProgressBar::get_tracking_mode() const noexcept {
+    return p_impl->tracking_mode;
+}
+
 
 void MultiProgressBar::print() {
     std::cerr << *this;
@@ -82,28 +128,30 @@ void MultiProgressBar::set_total_bar_number_widget_visible(bool value) noexcept 
 }
 
 void MultiProgressBar::add_bar(std::unique_ptr<ProgressBar> && bar) {
-    p_impl->bars_todo.push_back(bar.get());
+    // set bar number, clamp to bounds on overflow
+    auto next_number = cast_to_bar_number(p_impl->bars_all.size() + 1);
+    bar->set_number(next_number);
 
-    // if the number is not set, automatically find and set the next available
-    if (bar->get_number() == 0) {
-        int number = 0;
-        for (auto i : p_impl->bars_todo) {
-            number = std::max(number, i->get_number());
-        }
-        bar->set_number(number + 1);
-    }
+    auto * const registered_bar = bar.get();
 
+    // register bar to MultiProgressBar
     p_impl->bars_all.push_back(std::move(bar));
+    if (p_impl->tracking_mode == TrackingMode::ON_RENDER || registered_bar->get_state() != ProgressBarState::READY) {
+        p_impl->bars_todo.push_back(registered_bar);
+    } else {
+        // ON_CHANGE mode: track ticks for inactive bars (READY state, not yet in bars_todo)
+        if (const auto bar_ticks = registered_bar->get_ticks(); bar_ticks > 0) {
+            p_impl->inactive_ticks += bar_ticks;
+        }
+        if (const auto bar_total_ticks = registered_bar->get_total_ticks(); bar_total_ticks > 0) {
+            p_impl->inactive_total_ticks += bar_total_ticks;
+        }
+    }
 
     // update total (in [num/total]) in total progress bar
-    auto registered_bars_count = static_cast<int32_t>(p_impl->bars_all.size());
+    auto registered_bars_count = next_number;
     if (p_impl->total.get_total() < registered_bars_count) {
         p_impl->total.set_total(registered_bars_count);
-    }
-
-    // update total (in [num/total]) in all bars to do
-    for (auto & i : p_impl->bars_todo) {
-        i->set_total(p_impl->total.get_total());
     }
 }
 
@@ -112,14 +160,9 @@ void MultiProgressBar::set_total_num_of_bars(std::size_t value) noexcept {
     if (value < p_impl->bars_all.size()) {
         value = p_impl->bars_all.size();
     }
-    auto num_of_bars = static_cast<int>(value);
+    auto num_of_bars = cast_to_bar_number(value);
     if (num_of_bars != p_impl->total.get_total()) {
         p_impl->total.set_total(num_of_bars);
-
-        // update total (in [num/total]) in all bars to do
-        for (auto & i : p_impl->bars_todo) {
-            i->set_total(p_impl->total.get_total());
-        }
     }
 }
 
@@ -132,12 +175,11 @@ std::size_t MultiProgressBar::get_total_num_of_bars() const noexcept {
 std::ostream & operator<<(std::ostream & stream, MultiProgressBar & mbar) {
     const bool is_interactive{tty::is_interactive()};
     auto terminal_width = static_cast<std::size_t>(tty::get_width());
+    auto total_num_of_bars = mbar.p_impl->total.get_total();
 
     // We'll buffer the output text to a single string and print it all at once.
     // This is to avoid multiple writes to the terminal, which can cause flickering.
-    static std::ostringstream text_buffer;
-    text_buffer.str("");
-    text_buffer.clear();
+    std::ostringstream & text_buffer = mbar.p_impl->text_buffer;
 
     if (is_interactive && mbar.p_impl->num_of_lines_to_clear > 0) {
         if (mbar.p_impl->num_of_lines_to_clear > 1) {
@@ -152,38 +194,44 @@ std::ostream & operator<<(std::ostream & stream, MultiProgressBar & mbar) {
     mbar.p_impl->num_of_lines_to_clear = 0;
     mbar.p_impl->line_printed = false;
 
-    // store numbers of bars in progress
-    std::vector<int32_t> numbers;
-    for (auto * bar : mbar.p_impl->bars_todo) {
-        numbers.insert(numbers.begin(), bar->get_number());
-    }
+    // initialize bar number counter to bars_done_count, clamp to bounds on overflow
+    auto number = cast_to_bar_number(mbar.p_impl->bars_done_count);
 
-    // print completed bars first and remove them from the list
-    for (std::size_t i = 0; i < mbar.p_impl->bars_todo.size(); i++) {
-        auto * bar = mbar.p_impl->bars_todo[i];
+    // print completed bars first and remove them from bars_todo
+    for (auto it = mbar.p_impl->bars_todo.begin(); it != mbar.p_impl->bars_todo.end();) {
+        auto * const bar = *it;
+
         if (!bar->is_finished()) {
+            ++it;
             continue;
         }
-        bar->set_number(numbers.back());
-        numbers.pop_back();
+
+        if (number < std::numeric_limits<decltype(number)>::max()) {
+            ++number;
+        }
+        bar->set_number(number);
+        bar->set_total(total_num_of_bars);
         text_buffer << *bar;
         text_buffer << std::endl;
-        mbar.p_impl->bars_done.push_back(bar);
-        // TODO(dmach): use iterator
-        mbar.p_impl->bars_todo.erase(mbar.p_impl->bars_todo.begin() + static_cast<int>(i));
-        i--;
+
+        if (const auto bar_ticks = bar->get_ticks(); bar_ticks > 0) {
+            mbar.p_impl->done_ticks += bar_ticks;
+        }
+        ++mbar.p_impl->bars_done_count;
+        it = mbar.p_impl->bars_todo.erase(it);
     }
 
     // then print incomplete
     for (auto & bar : mbar.p_impl->bars_todo) {
-        bar->set_number(numbers.back());
-        numbers.pop_back();
-
-        // skip printing bars that haven't started yet
+        // skip bars that haven't started yet
         if (bar->get_state() != libdnf5::cli::progressbar::ProgressBarState::STARTED) {
-            bar->update();
             continue;
         }
+
+        if (number < std::numeric_limits<decltype(number)>::max()) {
+            ++number;
+        }
+        bar->set_number(number);
 
         if (!is_interactive) {
             bar->update();
@@ -192,6 +240,7 @@ std::ostream & operator<<(std::ostream & stream, MultiProgressBar & mbar) {
         if (mbar.p_impl->line_printed) {
             text_buffer << std::endl;
         }
+        bar->set_total(total_num_of_bars);
         text_buffer << *bar;
         mbar.p_impl->line_printed = true;
         mbar.p_impl->num_of_lines_to_clear++;
@@ -199,27 +248,25 @@ std::ostream & operator<<(std::ostream & stream, MultiProgressBar & mbar) {
     }
 
     // then print the "total" progress bar
-    int32_t total_numbers = 0;
-    int64_t ticks = 0;
-    int64_t total_ticks = 0;
-
-    for (auto & bar : mbar.p_impl->bars_done) {
-        total_numbers = std::max(total_numbers, bar->get_total());
-        // completed bars can be unfinished
-        // add only processed ticks to both values
-        total_ticks += bar->get_ticks();
-        ticks += bar->get_ticks();
-    }
-
-    for (auto & bar : mbar.p_impl->bars_todo) {
-        total_numbers = std::max(total_numbers, bar->get_total());
-        total_ticks += bar->get_total_ticks();
-        ticks += bar->get_ticks();
-    }
-
-
     if ((mbar.p_impl->bars_all.size() >= mbar.p_impl->total_bar_visible_limit) &&
-        (is_interactive || mbar.p_impl->bars_todo.empty())) {
+        (is_interactive || mbar.p_impl->bars_all.size() == mbar.p_impl->bars_done_count)) {
+        // compute ticks and total_ticks for total progress bar
+        // done bars can be unfinished -> add only processed ticks to both values
+        int64_t ticks = mbar.p_impl->done_ticks;
+        int64_t total_ticks = ticks;
+        if (mbar.p_impl->tracking_mode == MultiProgressBar::TrackingMode::ON_CHANGE) {
+            ticks += mbar.p_impl->inactive_ticks;
+            total_ticks += mbar.p_impl->inactive_total_ticks;
+        }
+        for (auto & bar : mbar.p_impl->bars_todo) {
+            if (const auto bar_total_ticks = bar->get_total_ticks(); bar_total_ticks > 0) {
+                total_ticks += bar_total_ticks;
+            }
+            if (const auto bar_ticks = bar->get_ticks(); bar_ticks > 0) {
+                ticks += bar_ticks;
+            }
+        }
+
         if (mbar.p_impl->line_printed) {
             text_buffer << std::endl;
         }
@@ -229,12 +276,12 @@ std::ostream & operator<<(std::ostream & stream, MultiProgressBar & mbar) {
 
         // print Total progress bar
         auto & mbar_total = mbar.get_total_bar();
-        mbar_total.set_number(static_cast<int>(mbar.p_impl->bars_done.size()));
+        mbar_total.set_number(cast_to_bar_number(mbar.p_impl->bars_done_count));
 
         mbar_total.set_total_ticks(total_ticks);
         mbar_total.set_ticks(ticks);
 
-        if (mbar.p_impl->bars_todo.empty()) {
+        if (mbar.p_impl->bars_all.size() == mbar.p_impl->bars_done_count) {
             // all bars have finished, set the "Total" bar as finished too according to their states
             mbar_total.set_state(ProgressBarState::SUCCESS);
         }
@@ -251,7 +298,180 @@ std::ostream & operator<<(std::ostream & stream, MultiProgressBar & mbar) {
 
     stream << text_buffer.str();  // Single syscall to output all commands
 
+    text_buffer.str("");
+    text_buffer.clear();
+
     return stream;
+}
+
+
+int64_t MultiProgressBar::bar_get_ticks(ProgressBar & bar) const noexcept {
+    return bar.get_ticks();
+}
+
+
+void MultiProgressBar::bar_set_ticks(ProgressBar & bar, int64_t value) {
+    if (bar.is_finished()) {
+        return;
+    }
+    if (p_impl->tracking_mode == TrackingMode::ON_CHANGE && bar.get_state() == ProgressBarState::READY) {
+        const auto old_ticks = bar.get_ticks();
+        p_impl->inactive_ticks += (value > 0 ? value : 0) - (old_ticks > 0 ? old_ticks : 0);
+    }
+    bar.set_ticks(value);
+}
+
+
+void MultiProgressBar::bar_add_ticks(ProgressBar & bar, int64_t value) {
+    bar_set_ticks(bar, bar.get_ticks() + value);
+}
+
+
+int64_t MultiProgressBar::bar_get_total_ticks(ProgressBar & bar) const noexcept {
+    return bar.get_total_ticks();
+}
+
+
+void MultiProgressBar::bar_set_total_ticks(ProgressBar & bar, int64_t value) {
+    if (bar.is_finished()) {
+        return;
+    }
+    if (p_impl->tracking_mode == TrackingMode::ON_CHANGE && bar.get_state() == ProgressBarState::READY) {
+        const auto old_ticks = bar.get_total_ticks();
+        p_impl->inactive_total_ticks += (value > 0 ? value : 0) - (old_ticks > 0 ? old_ticks : 0);
+    }
+    bar.set_total_ticks(value);
+}
+
+
+int32_t MultiProgressBar::bar_get_number(ProgressBar & bar) const noexcept {
+    return bar.get_number();
+}
+
+
+void MultiProgressBar::bar_start(ProgressBar & bar) {
+    if (bar.is_finished()) {
+        return;
+    }
+    if (p_impl->tracking_mode == TrackingMode::ON_CHANGE && bar.get_state() == ProgressBarState::READY) {
+        if (const auto bar_ticks = bar.get_ticks(); bar_ticks > 0) {
+            p_impl->inactive_ticks -= bar_ticks;
+        }
+        if (const auto bar_total_ticks = bar.get_total_ticks(); bar_total_ticks > 0) {
+            p_impl->inactive_total_ticks -= bar_total_ticks;
+        }
+        p_impl->bars_todo.push_back(&bar);
+    }
+    bar.start();
+}
+
+
+ProgressBarState MultiProgressBar::bar_get_state(ProgressBar & bar) const noexcept {
+    return bar.get_state();
+}
+
+
+bool MultiProgressBar::bar_is_finished(ProgressBar & bar) const noexcept {
+    return bar.is_finished();
+}
+
+
+bool MultiProgressBar::bar_is_failed(ProgressBar & bar) const noexcept {
+    return bar.is_failed();
+}
+
+
+void MultiProgressBar::bar_set_state(ProgressBar & bar, ProgressBarState value) {
+    if (bar.is_finished() || value == ProgressBarState::READY) {
+        return;
+    }
+    if (p_impl->tracking_mode == TrackingMode::ON_CHANGE && bar.get_state() == ProgressBarState::READY) {
+        if (const auto bar_ticks = bar.get_ticks(); bar_ticks > 0) {
+            p_impl->inactive_ticks -= bar_ticks;
+        }
+        if (const auto bar_total_ticks = bar.get_total_ticks(); bar_total_ticks > 0) {
+            p_impl->inactive_total_ticks -= bar_total_ticks;
+        }
+        p_impl->bars_todo.push_back(&bar);
+    }
+    bar.set_state(value);
+}
+
+
+std::string MultiProgressBar::bar_get_description(ProgressBar & bar) const noexcept {
+    return bar.get_description();
+}
+
+
+void MultiProgressBar::bar_set_description(ProgressBar & bar, const std::string & value) {
+    if (bar.is_finished()) {
+        return;
+    }
+    bar.set_description(value);
+}
+
+
+void MultiProgressBar::bar_add_message(ProgressBar & bar, MessageType type, const std::string & message) {
+    if (bar.is_finished()) {
+        return;
+    }
+    bar.add_message(type, message);
+}
+
+
+void MultiProgressBar::bar_pop_message(ProgressBar & bar) {
+    if (bar.is_finished()) {
+        return;
+    }
+    bar.pop_message();
+}
+
+
+const std::vector<ProgressBar::Message> & MultiProgressBar::bar_get_messages(ProgressBar & bar) const noexcept {
+    return bar.get_messages();
+}
+
+
+const std::string & MultiProgressBar::bar_get_message_prefix(ProgressBar & bar) const noexcept {
+    return bar.get_message_prefix();
+}
+
+
+bool MultiProgressBar::bar_get_auto_finish(ProgressBar & bar) const noexcept {
+    return bar.get_auto_finish();
+}
+
+
+void MultiProgressBar::bar_set_auto_finish(ProgressBar & bar, bool value) {
+    if (bar.is_finished()) {
+        return;
+    }
+    bar.set_auto_finish(value);
+}
+
+
+int32_t MultiProgressBar::bar_get_percent_done(ProgressBar & bar) const noexcept {
+    return bar.get_percent_done();
+}
+
+
+int64_t MultiProgressBar::bar_get_current_speed(ProgressBar & bar) const noexcept {
+    return bar.get_current_speed();
+}
+
+
+int64_t MultiProgressBar::bar_get_average_speed(ProgressBar & bar) const noexcept {
+    return bar.get_average_speed();
+}
+
+
+int64_t MultiProgressBar::bar_get_elapsed_seconds(ProgressBar & bar) const noexcept {
+    return bar.get_elapsed_seconds();
+}
+
+
+int64_t MultiProgressBar::bar_get_remaining_seconds(ProgressBar & bar) const noexcept {
+    return bar.get_remaining_seconds();
 }
 
 

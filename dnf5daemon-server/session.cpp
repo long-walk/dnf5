@@ -61,9 +61,11 @@ static const std::unordered_set<std::string> ALLOWED_MAIN_CONF_OVERRIDES = {
     "installonlypkgs",
     "install_weak_deps",
     "keepcache",
+#ifdef WITH_MODULEMD
     "module_obsoletes",
     "module_platform_id",
     "module_stream_switch",
+#endif
     "multilib_policy",
     "obsoletes",
     "optional_metadata_types",
@@ -358,8 +360,7 @@ void Session::store_transaction_offline(bool downloadonly) {
     const auto & offline_datadir = installroot / libdnf5::offline::DEFAULT_DATADIR.relative_path();
     const auto & offline_destdir = installroot / libdnf5::offline::DEFAULT_DESTDIR.relative_path();
     std::filesystem::create_directories(offline_datadir);
-    const std::filesystem::path state_path{offline_datadir / libdnf5::offline::TRANSACTION_STATE_FILENAME};
-    libdnf5::offline::OfflineTransactionState state{state_path};
+    auto state = libdnf5::offline::OfflineTransactionState::from_base(*base);
     auto & state_data = state.get_data();
     state_data.set_status(libdnf5::offline::STATUS_DOWNLOAD_INCOMPLETE);
     state.write();
@@ -406,10 +407,12 @@ void Session::store_transaction_offline(bool downloadonly) {
     }
     state_data.set_target_releasever(base->get_vars()->get_value("releasever"));
 
+#ifdef WITH_MODULEMD
     const auto module_platform_id = base->get_config().get_module_platform_id_option();
     if (!module_platform_id.empty()) {
         state_data.set_module_platform_id(module_platform_id.get_value());
     }
+#endif
 
     // create the magic symlink /system-update -> datadir
     if (downloadonly) {
@@ -420,6 +423,7 @@ void Session::store_transaction_offline(bool downloadonly) {
         }
         state_data.set_status(libdnf5::offline::STATUS_READY);
     }
+    state.capture_rpmdb_cookie(*base);
     state.write();
 }
 
