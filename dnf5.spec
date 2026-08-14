@@ -17,7 +17,7 @@ Release:        1
 Summary:        Command-line package manager
 License:        GPL-2.0-or-later
 URL:            https://github.com/long-walk/dnf5
-Source0:        %{url}/archive/refs/tags/dnf5-%{version}-%{release}.tar.gz
+Source0:        %{url}/archive/refs/tags/%{version}.tar.gz
 
 Requires:       libdnf5%{?_isa} = %{version}-%{release}
 Requires:       libdnf5-cli%{?_isa} = %{version}-%{release}
