@@ -12,7 +12,7 @@
 %endif
 
 Name:           dnf5
-Version:        5.4.3.1
+Version:        5.4.3.2
 Release:        1
 Summary:        Command-line package manager
 License:        GPL-2.0-or-later
@@ -1171,6 +1171,9 @@ mkdir -p %{buildroot}%{_libdir}/libdnf5/plugins
 %ldconfig_scriptlets
 
 %changelog
+* Fri Aug 14 2026 Thomas <temp.mail@hispeed.ch> 5.4.3.2-1
+- 
+
 * Fri Aug 14 2026 Thomas <temp.mail@hispeed.ch> 5.4.3.1-1
 - 5.4.3.0 (temp.mail@hispeed.ch)
 - 5.4.3.0 (temp.mail@hispeed.ch)
