@@ -13,7 +13,7 @@
 
 Name:           dnf5
 Version:        5.4.3.0
-Release:        1
+Release:        3
 Summary:        Command-line package manager
 License:        GPL-2.0-or-later
 URL:            https://github.com/long-walk/dnf5
