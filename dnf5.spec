@@ -12,8 +12,8 @@
 %endif
 
 Name:           dnf5
-Version:        5.4.3.0
-Release:        3
+Version:        5.4.3.1
+Release:        1
 Summary:        Command-line package manager
 License:        GPL-2.0-or-later
 URL:            https://github.com/long-walk/dnf5
@@ -1171,6 +1171,214 @@ mkdir -p %{buildroot}%{_libdir}/libdnf5/plugins
 %ldconfig_scriptlets
 
 %changelog
+* Fri Aug 14 2026 Thomas <temp.mail@hispeed.ch> 5.4.3.1-1
+- 5.4.3.0 (temp.mail@hispeed.ch)
+- 5.4.3.0 (temp.mail@hispeed.ch)
+- 5.4.3.0 (temp.mail@hispeed.ch)
+- Fix a crash when a terminal width is forced to negative values
+  (ppisar@redhat.com)
+- Release 5.4.3.0 (7495216+evan-goode@users.noreply.github.com)
+- Update translations from weblate (github-actions@github.com)
+- offline: Drop ConditionPathExists=/system-update (mblaha@redhat.com)
+- repo: Deprecate protected_packages config option (mblaha@redhat.com)
+- Set version back to 5.4.3.0 (mail@evangoo.de)
+- config-manager: Use RepoConfigOverride API (mblaha@redhat.com)
+- daemon: Use RepoConfigOverride for enable/disable repos (mblaha@redhat.com)
+- repo: Add RepoConfigOverride API (mblaha@redhat.com)
+- tests: OptionStringAppendList: add and add_item never clean existing
+  (jrohel@redhat.com)
+- conf: Distinguish set() and add() behavior for append options
+  (jrohel@redhat.com)
+- tests: OptionStringAppendList: Add unit tests for add and add_item
+  (jrohel@redhat.com)
+- conf: Fix OptionStringContainer::add_item to use new add() logic
+  (jrohel@redhat.com)
+- Fix an integer underflow in
+  libdnf5::cli::progressbar::DescriptionWidget::set_total_width()
+  (ppisar@redhat.com)
+- Fix an integer underflow in
+  libdnf5::cli::progressbar::DownloadProgressBar::to_stream()
+  (ppisar@redhat.com)
+- Simplify and comment code for adjusting widgets when fitting a bar into the
+  terminal (ppisar@redhat.com)
+- test: Cover multi-byte progressbar descriptions (ppisar@redhat.com)
+- test: Rename ProgressbarTest::test_progress_bar_multi_byte_character()
+  (ppisar@redhat.com)
+- Fix aligning multi-byte-character widgets when rendering progressbar
+  (ppisar@redhat.com)
+- Cache a width of a progressbar description (ppisar@redhat.com)
+- Enable TrackingMode::ON_CHANGE for faster progress bar rendering
+  (jrohel@redhat.com)
+- Switch callbacks to use MultiProgressBar::bar_*() wrapper methods
+  (jrohel@redhat.com)
+- tests: Add unit tests for MultiProgressBar TrackingMode::ON_CHANGE
+  (jrohel@redhat.com)
+- MultiProgressBar: Add TrackingMode::ON_CHANGE for faster rendering
+  (jrohel@redhat.com)
+- MultiProgressBar: Add bar_*() wrapper methods for registered bar access
+  (jrohel@redhat.com)
+- MultiProgressBar: Fix bar number gaps caused by unstarted bars
+  (jrohel@redhat.com)
+- Disuse module_stream_switch option if built without modularity
+  (ppisar@redhat.com)
+- Disuse module_platform_id option if built without modularity
+  (ppisar@redhat.com)
+- Do not parse and print "module_obsoletes" configuation option if built
+  without modularity (ppisar@redhat.com)
+- Guard vendor-change callback against C++ exceptions escaping into C
+  (mblaha@redhat.com)
+- Expose vendor-change-skipped packages over D-Bus (mblaha@redhat.com)
+- Display packages skipped due to vendor change restriction (mblaha@redhat.com)
+- Detect packages skipped due to vendor change restriction (mblaha@redhat.com)
+- Track rejected vendor changes in the libsolv pool callback
+  (mblaha@redhat.com)
+- dnf5daemon: fix recent_changes upgrade reporting (mblaha@redhat.com)
+- zsh-completion: Escape colons in completion candidates
+  (luanv.oliveira@outlook.com)
+- Remove modularity support from advisories if compiled without modulemd
+  (ppisar@redhat.com)
+- Add --[no-]allow-vendor-change option (neal@gompa.dev)
+- Distinguish between execute_transaction and execute_trusted_transaction
+  polkit actions (git@mavit.org.uk)
+- Fix typo (git@mavit.org.uk)
+- Fix scriptlets processing race condition (amatej@redhat.com)
+- subprocess.cpp: deduplicate `OnScopeExit` definitions (amatej@redhat.com)
+- Disable modular filtering if modularity support is disabled
+  (ppisar@redhat.com)
+- doc: Run doxygen only on to-be-installed header files (ppisar@redhat.com)
+- doc: Leave out modularity from the documenation if built without modularity
+  (ppisar@redhat.com)
+- build: Preprocess restructured files for at-expressions (ppisar@redhat.com)
+- build: Add a doc/atp.py tool for parametrizing documentation
+  (ppisar@redhat.com)
+- manifest: Download packages by checksum if available (pkratoch@redhat.com)
+- Add a filter for PackageQuery to filter by checksum (pkratoch@redhat.com)
+- MultiProgressBar: Move text_buffer from static local to Impl member
+  (jrohel@redhat.com)
+- MultiProgressBar: Skip ticks computation when total bar is not rendered
+  (jrohel@redhat.com)
+- MultiProgressBar: Replace bars_done vector with a counter (jrohel@redhat.com)
+- MultiProgressBar: Replace O(n) done_ticks loop with incremental counter
+  (jrohel@redhat.com)
+- MultiProgressBar: Exclude negative ticks from total progress bar sums
+  (jrohel@redhat.com)
+- MultiProgressBar: Remove unnecessary update() call for unstarted bars
+  (jrohel@redhat.com)
+- ProgressBar: Remove end timestamp written in update() but never read
+  (jrohel@redhat.com)
+- fix: Goal::add_rpm_reinstall(Package) passes available solvable id to solver
+  (me@fhbash.com)
+- MultiProgressBar: Fix missing overflow check in set_total_num_of_bars()
+  (jrohel@redhat.com)
+- MultiProgressBar: Replace index loop with iterator loop in operator<<
+  (jrohel@redhat.com)
+- MultiProgressBar: Replace O(n*n) bar number vector with a counter
+  (jrohel@redhat.com)
+- MultiProgressBar::add_bar: bar num: Replace O(n) scan with O(1) assign
+  (jrohel@redhat.com)
+- MultiProgressBar::set_total_num_of_bars: Defer per-bar set_total
+  (jrohel@redhat.com)
+- MultiProgressBar::add_bar: Defer per-bar set_total to render time
+  (jrohel@redhat.com)
+- MultiProgressBar: Remove total_numbers computed in a loop but never used
+  (jrohel@redhat.com)
+- repo: suppress transient "Signing key not found" error from progress bar
+  (mblaha@redhat.com)
+- Reflink root cache metadata when cloning to user cache (mblaha@redhat.com)
+- local plugin: reflink packages and log copy failures (mblaha@redhat.com)
+- Reflink packages when prepopulating offline cache (mblaha@redhat.com)
+- Export reflink_or_copy to public API (mblaha@redhat.com)
+- doc: Clarify behavior of `glob:/path/to/*.conf` (mail@evangoo.de)
+- history: Translate output of `list` and `info` (mail@evangoo.de)
+- cmd_requires_privileges: false when storing transaction (mail@evangoo.de)
+- bootc: Implement usr_drift_protected_paths (mail@evangoo.de)
+- bootc: Add transaction persistence field (mail@evangoo.de)
+- bootc: Document persistence option and --transient (mail@evangoo.de)
+- bootc: Create read-only overlay when persistence=transient (mail@evangoo.de)
+- bootc: Add --transient option (mail@evangoo.de)
+- bootc: Add `persistence` ConfigMain option (mail@evangoo.de)
+- bootc: Prepare permission check for --transient (mail@evangoo.de)
+- bootc: Add has_read_only_usr_overlay, make_usr_writable (mail@evangoo.de)
+- bootc: Doc comments for is_bootc_system, is_writable (mail@evangoo.de)
+- doc: Correct the history of modularity (ppisar@redhat.com)
+- Reflink local packages into the cache when supported (daan@amutable.com)
+- Build: If modularity is disabled, leave out artefacts related to modulariy
+  (ppisar@redhat.com)
+- transaction: use system_clock::to_time_t for start time (tchaikov@gmail.com)
+- plugin: enable SWIG director for IPlugin2_1 and add goal_resolved
+  (mblaha@redhat.com)
+- iplugin: fix Sphinx formatting of @param in Python API docs
+  (mblaha@redhat.com)
+- python_plugins_loader: add missing hooks to demo plugin (mblaha@redhat.com)
+-     libdnf5-cli: Stop option parsing after "--"     Treat "--" as the
+  positional argument separator. Once it is     encountered, all remaining
+  command line arguments are handled as     positional values, even if they
+  start with a hyphen or match a     subcommand name. (userfrom1995@gmail.com)
+- doc: Clarify bandwidth/throttle options usage (mblaha@redhat.com)
+- automatic: Fix sdbus-cpp v1.x compatibility (mblaha@redhat.com)
+- Add remove --duplicates option to remove older duplicate packages
+  (me@fhbash.com)
+- spec: Disable modularity on RHEL >= 11 (ppisar@redhat.com)
+- filter_latest_unresolved_advisories: fix missing result due to id order
+  (amatej@redhat.com)
+- reposync: exit non-zero when a package fails to download
+  (lin.liu01@citrix.com)
+- PackageDownloader: track and expose per-package download failures
+  (lin.liu01@citrix.com)
+- automatic: add DBus emitter (sfalken@kalpadesktop.org)
+- automatic: add distro-sync upgrade_type (sfalken@kalpadesktop.org)
+- module commands: hard-code privileges for `enable`, `disable`, `reset`
+  (amatej@redhat.com)
+- manifest: allow storing install transaction (amatej@redhat.com)
+- build: Work around detecting Ruby vendorarch directory (ppisar@redhat.com)
+- CI: Build and test on ELN (ppisar@redhat.com)
+- doc: document repository-packages command removal and DNF5 alternatives
+  (jrohel@redhat.com)
+- Show protected package info when removing its dependency (mblaha@redhat.com)
+- Fix inconsistent indentation in multi-problem solver output
+  (mblaha@redhat.com)
+- [ci] Update GitHub Actions to latest major release (foss@grueninger.de)
+- Introduce gpgcheck_policy to control gpgcheck (me@fhbash.com)
+- needs-restarting: Reuse system bus connection everywhere (mail@evangoo.de)
+- cmake: Use CACHE variables for SYSTEMD_DIR and TMPFILES_DIR (mail@evangoo.de)
+- spec: Pass SYSTEMD_DIR, TMPFILES_DIR to cmake (mail@evangoo.de)
+- Add tmpfiles config to create system repo lockfile (mail@evangoo.de)
+- spec: Remove unused dependency on "check" pkg-config file (ppisar@redhat.com)
+- Store rpmdb cookie in offline transaction state file (mblaha@redhat.com)
+- Invalidate offline transaction after successful transaction
+  (mblaha@redhat.com)
+- libdnf5: add OfflineTransactionState::from_base() factory (mblaha@redhat.com)
+- Copr documentation moved to docs.copr.fedorainfracloud.org (frostyx@email.cz)
+- Add e2k to ARCH_MAP (6yearold@gmail.com)
+- Fix GoalPrivate::operator= not resetting resolve-time members
+  (kfarnung@outlook.com)
+- fix(rpm): report unexpected implicit rpm transaction elements instead of
+  crashing (mblaha@redhat.com)
+- manifest: Split downloaded packages by basearch with --per-arch option
+  (pkratoch@redhat.com)
+- manifest: Remove an unused variable (pkratoch@redhat.com)
+- dnfdaemon: Include transaction_time in History.recent_changes() response
+  (mblaha@redhat.com)
+- refactor(search): allow move by removing `const` from loop
+  (65706193+vil02@users.noreply.github.com)
+- refactor(search): preallocate memory in `search_processor`
+  (65706193+vil02@users.noreply.github.com)
+- fix(refactor): add specialized transaction listings (mfocko@redhat.com)
+- feat(daemon): add History.list method (mfocko@redhat.com)
+- filter_recent: drop time_t timestamp cast (amatej@redhat.com)
+- DateOption: input date is YYYY-MM-DD 00:00:00 UTC (amatej@redhat.com)
+- reposync: add `--min-buildtime <YYYY-MM-DD>` option (amatej@redhat.com)
+- Extract `DateOption` from changelog plugin so it can be reused
+  (amatej@redhat.com)
+- dnfdaemon: Add install_time package attribute (mblaha@redhat.com)
+- goal: Preserve original filepath in resolve log messages (mblaha@redhat.com)
+- test(goal): Add test for filepath spec in "not installed" message
+  (mblaha@redhat.com)
+- copr: update detection of ELN (yselkowi@redhat.com)
+- doc: Fix typo /etc/dnf5 -> /etc/dnf (mail@evangoo.de)
+- Update system state when installing a package already installed via rpm
+  (mblaha@redhat.com)
+
 * Tue Aug 11 2026 Packit Team <hello@packit.dev> - 5.4.3.0-1
 - New upstream release 5.4.3.0
 
