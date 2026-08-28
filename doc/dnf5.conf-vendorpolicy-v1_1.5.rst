@@ -4,15 +4,18 @@
 
 .. _dnf5_vendor_change_policy_v1_1-label:
 
-##################################################
- DNF5 Vendor Change Policy File Reference - v1.1
-##################################################
+##########################################################
+ DNF5 Vendor Change Policy File Reference - v1.1 / v1.2
+##########################################################
 
 Description
 ===========
 
 This document describes the structure and syntax of the DNF5 Vendor Change Policy
-configuration files using **version 1.1** format.
+configuration files using **version 1.1** and **version 1.2** format.
+
+Version 1.2 is identical to version 1.1 except that it adds support for additional
+negated string comparators (see :ref:`v1.2 comparators <vendorpolicy_v1_2_comparators-label>`).
 
 For general information about vendor change policy files, see :ref:`dnf5_vendor_change_policy-label`.
 
@@ -27,13 +30,13 @@ Required Fields
 
     Configuration file format version.
 
-    For this format, must be set to ``"1.1"``.
+    Must be set to ``"1.1"`` or ``"1.2"``.
 
     This field is mandatory and must be specified at the top level of the TOML file.
 
     Example::
 
-        version = '1.1'
+        version = '1.2'
 
 .. NOTE::
    For the configuration file to have any effect on vendor change policy, it must contain
@@ -117,6 +120,17 @@ can contain the following fields:
     - ``"ENDSWITH"`` - ends with (case-sensitive)
     - ``"IENDSWITH"`` - ends with (case-insensitive)
     - ``"NOT_EXACT"``, ``"NOT_IEXACT"``, ``"NOT_GLOB"``, ``"NOT_IGLOB"``, ``"NOT_CONTAINS"``, ``"NOT_ICONTAINS"`` - negated variants
+
+    .. _vendorpolicy_v1_2_comparators-label:
+
+    Additional negated comparators available in **version 1.2**:
+
+    - ``"NOT_STARTSWITH"`` - does not start with (case-sensitive)
+    - ``"NOT_ISTARTSWITH"`` - does not start with (case-insensitive)
+    - ``"NOT_ENDSWITH"`` - does not end with (case-sensitive)
+    - ``"NOT_IENDSWITH"`` - does not end with (case-insensitive)
+    - ``"NOT_REGEX"`` - does not match regular expression (case-sensitive)
+    - ``"NOT_IREGEX"`` - does not match regular expression (case-insensitive)
 
 ``exclude``
     Boolean
@@ -210,6 +224,9 @@ Each entry in ``[[outgoing_packages]]`` or ``[[incoming_packages]]`` can contain
         ``STARTSWITH``, ``ISTARTSWITH``, ``ENDSWITH``, ``IENDSWITH``, ``REGEX``,
         ``IREGEX``, ``GLOB``, ``NOT_GLOB``, ``IGLOB``, ``NOT_IGLOB``
 
+        Version 1.2 additionally supports: ``NOT_STARTSWITH``, ``NOT_ISTARTSWITH``,
+        ``NOT_ENDSWITH``, ``NOT_IENDSWITH``, ``NOT_REGEX``, ``NOT_IREGEX``
+
         **For version-based filters** (``evr``, ``epoch``, ``version``, ``release``):
 
         - ``"EXACT"`` - equal to
@@ -249,7 +266,7 @@ This example shows the minimal required configuration, allowing a change from
 
 .. code-block:: toml
 
-    version = '1.1'
+    version = '1.2'
 
     [[outgoing_vendors]]
     vendor = 'VendorA'
@@ -265,7 +282,7 @@ but not the reverse. Missing ``outgoing_vendors`` means any vendor is allowed.
 
 .. code-block:: toml
 
-    version = '1.1'
+    version = '1.2'
 
     [[incoming_vendors]]
     vendor = 'My Trusted Vendor'
@@ -278,7 +295,7 @@ in both directions.
 
 .. code-block:: toml
 
-    version = '1.1'
+    version = '1.2'
 
     # All following vendors are mutually equivalent
     [[equivalent_vendors]]
@@ -300,7 +317,7 @@ for openSUSE Build Service.
 
 .. code-block:: toml
 
-    version = '1.1'
+    version = '1.2'
 
     # All following vendors are mutually equivalent except excluded ones
     [[equivalent_vendors]]
@@ -325,7 +342,7 @@ equivalent, and both can change to "Third Vendor".
 
 .. code-block:: toml
 
-    version = '1.1'
+    version = '1.2'
 
     [[equivalent_vendors]]
     vendor = 'First Vendor'
@@ -344,7 +361,7 @@ from any vendor, bypassing vendor restrictions.
 
 .. code-block:: toml
 
-    version = '1.1'
+    version = '1.2'
 
     [[incoming_packages]]
     filters = [
@@ -359,7 +376,7 @@ from any vendor, except for packages whose names start with "mypackage".
 
 .. code-block:: toml
 
-    version = '1.1'
+    version = '1.2'
 
     [[incoming_packages]]
     filters = [
@@ -381,7 +398,7 @@ version is greater than or equal to "2.0".
 
 .. code-block:: toml
 
-    version = '1.1'
+    version = '1.2'
 
     [[incoming_packages]]
     filters = [
