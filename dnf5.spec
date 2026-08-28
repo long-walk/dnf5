@@ -12,8 +12,8 @@
 %endif
 
 Name:           dnf5
-Version:        %{project_version_prime}.%{project_version_major}.%{project_version_minor}.%{project_version_micro}
-Release:        1%{?dist}
+Version:        5.4.4.1
+Release:        1
 Summary:        Command-line package manager
 License:        GPL-2.0-or-later
 URL:            https://github.com/long-walk/dnf5
