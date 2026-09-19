@@ -305,19 +305,8 @@ void Base::setup() {
     vars->load(vars_installroot, config.get_varsdir_option().get_value());
 
     // Load vendor change policies
-    fs::path vendor_conf_dir_path{VENDOR_CONF_DIR};
-    fs::path distribution_vendor_conf_dir_path{LIBDNF5_DISTRIBUTION_VENDOR_CONF_DIR};
-    const bool use_installroot_config{!p_impl->config.get_use_host_config_option().get_value()};
-    if (use_installroot_config) {
-        fs::path installroot_path{p_impl->config.get_installroot_option().get_value()};
-        vendor_conf_dir_path = installroot_path / vendor_conf_dir_path.relative_path();
-        distribution_vendor_conf_dir_path = installroot_path / distribution_vendor_conf_dir_path.relative_path();
-    }
-    const auto paths =
-        utils::fs::create_sorted_file_list({vendor_conf_dir_path, distribution_vendor_conf_dir_path}, ".conf");
-    for (const auto & path : paths) {
-        pool->load_vendor_change_policy(path);
-    }
+    p_impl->vendor_change_manager = std::unique_ptr<base::VendorChangeManager>(new base::VendorChangeManager(*this));
+    p_impl->vendor_change_manager->load_policies();
 
     config.get_varsdir_option().lock("Locked by Base::setup()");
     pool_setdisttype(**pool, DISTTYPE_RPM);
@@ -331,6 +320,12 @@ void Base::setup() {
     pool_set_rootdir(**pool, installroot.get_value().c_str());
 
     p_impl->plugins.post_base_setup();
+}
+
+base::VendorChangeManagerWeakPtr Base::get_vendor_change_manager() {
+    libdnf_user_assert(
+        p_impl->vendor_change_manager, "Base::get_vendor_change_manager() must not be called before Base::setup()");
+    return p_impl->vendor_change_manager->get_weak_ptr();
 }
 
 bool Base::lock_system_repo(libdnf5::utils::LockAccess access, libdnf5::utils::LockBlocking blocking) {

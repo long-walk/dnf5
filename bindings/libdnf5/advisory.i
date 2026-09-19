@@ -13,13 +13,13 @@
 %include <exception.i>
 %include <std_vector.i>
 
-%include "shared.i"
+%include "shared.swg"
 
 %import "common.i"
 %import "exception.i"
 
 %{
-    #include "bindings/libdnf5/exception.hpp"
+    #include "bindings/libdnf5/exception.swg"
 
     #include "libdnf5/advisory/advisory.hpp"
     #include "libdnf5/advisory/advisory_package.hpp"

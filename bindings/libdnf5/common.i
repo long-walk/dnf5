@@ -15,9 +15,10 @@
 %include <std_set.i>
 #endif
 %include <std_string.i>
+%include <std_string_view.i>
 %include <std_vector.i>
 
-%include "shared.i"
+%include "shared.swg"
 
 %import "exception.i"
 
@@ -30,7 +31,7 @@
 }
 
 %{
-    #include "bindings/libdnf5/exception.hpp"
+    #include "bindings/libdnf5/exception.swg"
 
     #include "libdnf5/common/message.hpp"
     #include "libdnf5/common/weak_ptr.hpp"
@@ -59,7 +60,10 @@
 %ignore std::vector::vector(unsigned int);
 %ignore std::vector::resize;
 
+%include "my_filesystem.swg"
+
 %template(VectorString) std::vector<std::string>;
+%template(VectorFilesystemPath) std::vector<std::filesystem::path>;
 #if defined(SWIGPYTHON) || defined(SWIGRUBY)
 %template(SetString) std::set<std::string>;
 #endif

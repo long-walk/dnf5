@@ -8,12 +8,12 @@
 
 %include <std_string.i>
 
-%include "shared.i"
+%include "shared.swg"
 
 %import "exception.i"
 
 %{
-    #include "bindings/libdnf5/exception.hpp"
+    #include "bindings/libdnf5/exception.swg"
 
     #include "libdnf5/utils/locale.hpp"
     #include "libdnf5/utils/patterns.hpp"

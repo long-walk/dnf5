@@ -10,12 +10,12 @@
 %include <stdint.i>
 %include <std_common.i>
 
-%include "shared.i"
+%include "shared.swg"
 
 %import "conf.i"
 
 %{
-    #include "bindings/libdnf5/exception.hpp"
+    #include "bindings/libdnf5/exception.swg"
 
     #include "libdnf5/plugin/iplugin.hpp"
     #include "libdnf5/plugin/plugin_info.hpp"

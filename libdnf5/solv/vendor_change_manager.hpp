@@ -9,7 +9,9 @@
 #include "libdnf5/common/sack/query_cmp.hpp"
 
 #include <filesystem>
+#include <map>
 #include <string>
+#include <string_view>
 #include <vector>
 
 extern "C" {
@@ -20,8 +22,18 @@ namespace libdnf5::solv {
 
 class Pool;
 
+/// Internal vendor change policy engine integrated with the libsolv pool.
+///
+/// Holds the list of vendor change policies, evaluates whether a vendor transition
+/// between two solvables is allowed, and caches per-vendor bitmasks for fast lookups.
+///
+/// Policies are loaded from TOML files or compact strings and stored as
+/// VendorChangePolicy structs. During solver operation, libsolv calls
+/// `is_vendor_change_allowed()` via a callback registered by RpmPool.
 class VendorChangeManager {
 public:
+    /// Represents a single vendor change policy — the runtime equivalent of one
+    /// TOML configuration file or one compact policy string.
     struct VendorChangePolicy {
         struct PackageDef {
             struct Filter;
@@ -41,23 +53,96 @@ public:
 
         struct VendorDef {
             std::string vendor;         // Vendor name or pattern
-            sack::QueryCmp comparator;  //Comparison operator for the vendor name
+            sack::QueryCmp comparator;  // Comparison operator for the vendor name
             bool is_exclusion;          // Whether this vendor is excluded from the policy
+        };
+
+        enum class VendorGroupType { OUTGOING, INCOMING, EQUIVALENT };
+
+        struct VendorEntry {
+            VendorGroupType group_type;
+            VendorDef def;
         };
 
         std::vector<PackageDef> outgoing_packages;
         std::vector<PackageDef> incoming_packages;
-        std::vector<VendorDef> outgoing_vendors;
-        std::vector<VendorDef> incoming_vendors;
+        std::vector<VendorEntry> vendor_entries;  // Ordered list preserving original group types
+        std::string source;                       // Origin of the policy (file URI or custom label with "text:" prefix)
     };
 
     /// Constructor
     /// @param pool Reference to the solvable pool
     VendorChangeManager(const Pool & pool);
 
-    /// Load one vendor change policy from configuration file
+    /// Parse a vendor change policy from TOML content and add it.
+    /// @param toml_content The TOML content to parse
+    /// @param source Origin of the policy (file URI or custom label with "text:" prefix)
+    void add_policy_from_toml(std::string_view toml_content, std::string_view source);
+
+    /// Load one vendor change policy from a TOML configuration file and add it.
     /// @param path Path to the configuration file
-    void load_vendor_change_policy(const std::filesystem::path & path);
+    void add_policy_from_toml(const std::filesystem::path & path);
+
+    /// Parse a vendor change policy from a compact representation and add it.
+    /// Format: direction:eop"value",...@direction:e[filters],...
+    /// @param policy_str The policy string to parse
+    /// @param source Origin of the policy (file URI or custom label with "text:" prefix)
+    void add_policy_from_compact(std::string_view policy_str, std::string_view source);
+
+    /// Remove all vendor change policies.
+    void clear_policies();
+
+    /// Remove a vendor change policy at the specified index.
+    /// @param index The index of the policy to remove (0-based)
+    /// @throws base::VendorChangeManagerError if index is out of bounds
+    void remove_policy(std::size_t index);
+
+    /// Remove vendor change policies whose source matches the specified glob pattern.
+    /// @param source_pattern A glob pattern to match against policy sources
+    /// @return The number of policies that were removed
+    std::size_t remove_policies_matching_source(const std::string & source_pattern);
+
+    /// Get the number of registered vendor change policies.
+    /// @return The number of policies in vendor_policies_def
+    [[nodiscard]] std::size_t get_policies_count() const noexcept { return vendor_policies_def.size(); }
+
+    /// Get the source (origin) of a vendor change policy.
+    /// @param index The index of the policy in vendor_policies_def
+    /// @return The source string (file URI or custom label with "text:" prefix)
+    /// @throws base::VendorChangeManagerError if index is out of bounds
+    [[nodiscard]] const std::string & get_policy_source(std::size_t index) const;
+
+    /// Get a vendor change policy as a TOML string.
+    /// @param index The index of the policy in vendor_policies_def
+    /// @return The policy formatted as a TOML string
+    /// @throws base::VendorChangeManagerError if index is out of bounds
+    [[nodiscard]] std::string get_policy_as_toml(std::size_t index) const;
+
+    /// Get a vendor change policy as a compact format string.
+    /// @param index The index of the policy in vendor_policies_def
+    /// @return The policy formatted as a compact string
+    /// @throws base::VendorChangeManagerError if index is out of bounds
+    [[nodiscard]] std::string get_policy_as_compact(std::size_t index) const;
+
+    /// Convert a vendor change policy from TOML content to compact format.
+    /// @param toml_content The TOML content to parse
+    /// @param source Origin of the policy (for error messages)
+    /// @return The policy formatted as a compact string
+    /// @throws base::VendorChangeManagerError if parsing fails
+    static std::string convert_policy_toml_to_compact(std::string_view toml_content, std::string_view source);
+
+    /// Convert a vendor change policy from TOML file to compact format.
+    /// @param path Path to the TOML configuration file
+    /// @return The policy formatted as a compact string
+    /// @throws base::VendorChangeManagerError if parsing fails
+    static std::string convert_policy_toml_to_compact(const std::filesystem::path & path);
+
+    /// Convert a vendor change policy from compact format to TOML format.
+    /// @param compact_str The policy in compact format
+    /// @param source Origin of the policy (for error messages)
+    /// @return The policy formatted as a TOML string
+    /// @throws base::VendorChangeManagerError if parsing fails
+    static std::string convert_policy_compact_to_toml(std::string_view compact_str, std::string_view source);
 
     /// Check if a vendor change is allowed between two solvables
     /// @param outgoing The currently installed solvable
@@ -87,14 +172,15 @@ public:
 
 private:
     struct VendorChangeMasks {
-        Id vendor;
         SolvMap outgoing_mask{0};
         SolvMap incoming_mask{0};
     };
 
+    void add_policy(VendorChangePolicy && policy);
+
     const Pool & pool;
     std::vector<VendorChangePolicy> vendor_policies_def;
-    std::vector<VendorChangeMasks> vendor_masks;
+    std::map<Id, VendorChangeMasks> vendor_masks;
     SolvMap incoming_vendor_bypassed_solvables{0};
 
     /// Retrieve or cache masks for a specific vendor
@@ -107,6 +193,11 @@ private:
     /// @param solvable The solvable to evaluate
     /// @return true if the solvable matches the criteria and is not excluded
     bool matches_package_defs(const std::vector<VendorChangePolicy::PackageDef> & pkgs_def, const Solvable & solvable);
+
+    /// Convert path to source string
+    /// @param path Path to convert
+    /// @return Source string (file URI)
+    static std::string path_to_source(const std::filesystem::path & path);
 };
 
 }  // namespace libdnf5::solv

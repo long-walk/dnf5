@@ -10,10 +10,10 @@
 %include <cstring.i>
 %include <std_string.i>
 
-%include "shared.i"
+%include "shared.swg"
 
 %{
-    #include "bindings/libdnf5/exception.hpp"
+    #include "bindings/libdnf5/exception.swg"
     #include "libdnf5/base/active_transaction_info_errors.hpp"
 %}
 
@@ -48,7 +48,7 @@
 
 %ignore NonLibdnf5Exception::NonLibdnf5Exception;
 %ignore create_swig_exception;
-%include "bindings/libdnf5/exception.hpp"
+%include "bindings/libdnf5/exception.swg"
 
 // Ignore macros
 %ignore LIBDNF_LOCATION;
@@ -58,6 +58,7 @@
 %ignore libdnf_user_assert;
 
 %ignore libdnf5::SourceLocation;
+%ignore libdnf5::NamedErrorArg;
 %ignore libdnf5::Error::Error;
 %ignore libdnf5::AssertionError::AssertionError;
 %ignore libdnf5::UserAssertionError::UserAssertionError;
@@ -74,6 +75,10 @@
 %ignore libdnf5::base::TransactionError::TransactionError;
 %rename(BaseTransactionError) libdnf5::base::TransactionError;
 %include "libdnf5/base/transaction_errors.hpp"
+
+%ignore libdnf5::base::VendorChangeManagerError::VendorChangeManagerError;
+%rename(BaseVendorChangeManagerError) libdnf5::base::VendorChangeManagerError;
+%include "libdnf5/base/vendor_change_manager_errors.hpp"
 
 %ignore libdnf5::comps::InvalidPackageType::InvalidPackageType;
 %rename(CompsInvalidPackageType) libdnf5::comps::InvalidPackageType;
@@ -264,6 +269,7 @@
 
 %template(BaseActiveTransactionInfoParseErrorNested) libdnf5::NestedException<libdnf5::base::ActiveTransactionInfoParseError>;
 %template(BaseTransactionErrorNested) libdnf5::NestedException<libdnf5::base::TransactionError>;
+%template(BaseVendorChangeManagerErrorNested) libdnf5::NestedException<libdnf5::base::VendorChangeManagerError>;
 
 %template(CompsInvalidPackageTypeNested) libdnf5::NestedException<libdnf5::comps::InvalidPackageType>;
 

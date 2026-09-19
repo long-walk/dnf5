@@ -11,7 +11,7 @@
 %include <std_pair.i>
 %include <std_vector.i>
 
-%include "shared.i"
+%include "shared.swg"
 
 
 %import "advisory.i"
@@ -26,7 +26,7 @@
 %import "transaction.i"
 
 %{
-    #include "bindings/libdnf5/exception.hpp"
+    #include "bindings/libdnf5/exception.swg"
 
     #include "libdnf5/logger/memory_buffer_logger.hpp"
     #include "libdnf5/base/base.hpp"
@@ -39,6 +39,7 @@
     #include "libdnf5/base/transaction_package.hpp"
     #include "libdnf5/base/goal.hpp"
     #include "libdnf5/base/goal_elements.hpp"
+    #include "libdnf5/base/vendor_change_manager.hpp"
 %}
 
 // Deletes any previously defined general purpose exception handler
@@ -51,6 +52,7 @@
 
 %template(BaseWeakPtr) libdnf5::WeakPtr<libdnf5::Base, false>;
 %template(VarsWeakPtr) libdnf5::WeakPtr<libdnf5::Vars, false>;
+%template(VendorChangeManagerWeakPtr) libdnf5::WeakPtr<libdnf5::base::VendorChangeManager, false>;
 
 %ignore std::vector<libdnf5::plugin::PluginInfo>::insert;
 %ignore std::vector<libdnf5::plugin::PluginInfo>::pop;
@@ -196,6 +198,41 @@
 wrap_unique_ptr(InteractionCallbacksUniquePtr, libdnf5::base::InteractionCallbacks);
 
 %include "libdnf5/base/base.hpp"
+
+// Perl-specific: ignore original get_policy_files and provide string-returning version
+#if defined(SWIGPERL)
+%ignore libdnf5::base::VendorChangeManager::get_policy_files;
+#endif
+
+%include "libdnf5/base/vendor_change_manager.hpp"
+
+#if defined(SWIGPERL)
+// Add get_policy_files returning vector<string> for both VendorChangeManager and WeakPtr
+%extend libdnf5::base::VendorChangeManager {
+    std::vector<std::string> get_policy_files() const {
+        auto paths = self->libdnf5::base::VendorChangeManager::get_policy_files();
+        std::vector<std::string> result;
+        result.reserve(paths.size());
+        for (const auto &path : paths) {
+            result.push_back(path.string());
+        }
+        return result;
+    }
+}
+
+%extend libdnf5::WeakPtr<libdnf5::base::VendorChangeManager, false> {
+    std::vector<std::string> get_policy_files() const {
+        // Dereference WeakPtr to get VendorChangeManager and call its method
+        auto paths = (*self)->libdnf5::base::VendorChangeManager::get_policy_files();
+        std::vector<std::string> result;
+        result.reserve(paths.size());
+        for (const auto &path : paths) {
+            result.push_back(path.string());
+        }
+        return result;
+    }
+}
+#endif
 
 %include "libdnf5/base/solver_problems.hpp"
 %include "libdnf5/base/log_event.hpp"
