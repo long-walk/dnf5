@@ -76,7 +76,7 @@
 %endif
 
 Name:           dnf5
-Version:        5.4.4.1
+Version:        5.4.5.0
 Release:        1
 Summary:        Command-line package manager
 License:        GPL-2.0-or-later
