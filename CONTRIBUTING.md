@@ -210,7 +210,15 @@ To build RPMs using Mock for a more reproducible build (or to target a
 different Fedora version):
 ```
 make rpms-mock
-make rpms-mock MOCK_CONFIG=fedora-43-x86_64
+make rpms-mock FEDORA_VERSION=43
+```
+
+`FEDORA_VERSION` also sets the default base image used to build the
+integration test container. To use a non-Fedora Mock root (e.g. rhel or epel)
+or a different container image, override `MOCK_CONFIG` and `CI_BASE_IMAGE`
+directly instead, independently of `FEDORA_VERSION`:
+```
+make rpms-mock MOCK_CONFIG=epel-10-x86_64
 ```
 
 If the container is already built, you can skip the RPM build and container
@@ -262,19 +270,20 @@ sudo behave -Ddnf_command=dnf5 -Ddestructive=yes dnf/cache.feature
 
 ## License Header
 
+New source files should be licensed under the **GNU Lesser General Public License v2.1 or later**.
+Specify the license using `SPDX-License-Identifier`.
+
 New C++ and C source files should start with the following header:
 ```
 // Copyright Contributors to the DNF5 project
-// SPDX-License-Identifier: THE-LICENSE-IDENTIFIER
+// SPDX-License-Identifier: LGPL-2.1-or-later
 ```
 
 The same rule applies to other source files, with the header adjusted according to the rules of the specific language. For example, Perl, Python, and Ruby source files should start with the header:
 ```
 # Copyright Contributors to the DNF5 project
-# SPDX-License-Identifier: THE-LICENSE-IDENTIFIER
+# SPDX-License-Identifier: LGPL-2.1-or-later
 ```
-
-Replace `THE-LICENSE-IDENTIFIER` with either `GPL-2.0-or-later` or `LGPL-2.1-or-later`, according to COPYING.md.
 
 ## Pull request checklist
 

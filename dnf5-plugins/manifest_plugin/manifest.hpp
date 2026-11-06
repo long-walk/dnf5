@@ -12,7 +12,7 @@
 
 #include <vector>
 
-const std::string DEFAULT_INPUT_FILENAME{"rpms.in.yaml"};
+const std::string DEFAULT_INPUT_FILENAME{"packages.input.yaml"};
 const std::string DEFAULT_MANIFEST_FILENAME{"packages.manifest.yaml"};
 const std::string MODULE_FILENAME{"modules_dump.modulemd.yaml"};
 const std::string MODULAR_DATA_SEPARATOR{"..."};
@@ -21,11 +21,16 @@ std::vector<libdnf5::rpm::Package> sort_pkgs(std::vector<libdnf5::rpm::Package> 
 
 libdnf5::rpm::Nevra nevra_manifest_to_dnf(const libpkgmanifest::manifest::Nevra & manifest_nevra);
 
+libdnf5::rpm::Checksum::Type checksum_method_manifest_to_dnf(libpkgmanifest::manifest::ChecksumMethod method);
+
 std::filesystem::path get_manifest_path(libdnf5::OptionPath & option, const std::string & arch);
 
 void set_repo_callbacks(libdnf5::Base & base);
 
 void load_host_repos(dnf5::Context & ctx, libdnf5::Base & base);
+
+std::pair<libdnf5::rpm::PackageSet, std::vector<std::string>> get_packages_from_manifest(
+    libdnf5::Base & base, libpkgmanifest::manifest::Manifest & manifest, bool with_srpm = false);
 
 namespace dnf5 {
 

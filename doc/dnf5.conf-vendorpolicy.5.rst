@@ -60,9 +60,25 @@ If a file with the same name exists in both directories, the file from ``/etc/dn
 is used. This implies that the distribution configuration file can be simply overridden
 by creating a file with the same name in the ``/etc/dnf/vendors.d/`` directory.
 
+Command-Line Policies
+=====================
+
+Vendor change policies can also be specified directly on the command line using
+the :ref:`--with-vendor-policy <with_vendor_policy_option_ref-label>` option with a compact syntax.
+This is useful for adding policies for a single run without creating configuration files.
+
+The :ref:`--clear-vendor-policies <clear_vendor_policies_option_ref-label>` option
+can be used to remove all policies, optionally replacing them with command-line policies.
+
+The :ref:`--disable-vendor-policy-source <disable_vendor_policy_source_option_ref-label>` option
+can be used to disable policies from specific sources.
+
+For the compact format syntax and examples, see
+:ref:`Compact Format <vendorpolicy_compact_format-label>` in the v1.1 reference.
+
 See Also
 ========
 
-* :manpage:`dnf5.conf-vendorpolicy-v1_1(5)`, :ref:`DNF5 Vendor Change Policy File Reference - v1.1 / v1.2 <dnf5_vendor_change_policy_v1_1-label>`
-* :manpage:`dnf5.conf-vendorpolicy-v1_0(5)`, :ref:`DNF5 Vendor Change Policy File Reference - v1.0 <dnf5_vendor_change_policy_v1_0-label>`
-* :manpage:`dnf5.conf(5)`, :ref:`DNF5 Configuration Reference <dnf5_conf-label>`
+* :ref:`DNF5 Vendor Change Policy File Reference - v1.1 / v1.2 <dnf5_vendor_change_policy_v1_1-label>`
+* :ref:`DNF5 Vendor Change Policy File Reference - v1.0 <dnf5_vendor_change_policy_v1_0-label>`
+* :ref:`DNF5 Configuration Reference <dnf5_conf-label>`

@@ -21,9 +21,11 @@
 #ifndef DNF5_COMMANDS_CONFIG_MANAGER_CONFIG_MANAGER_SHARED_HPP
 #define DNF5_COMMANDS_CONFIG_MANAGER_CONFIG_MANAGER_SHARED_HPP
 
+#include <curl/curl.h>
 #include <dnf5/context.hpp>
 #include <libdnf5/common/sack/match_string.hpp>
 #include <libdnf5/conf/config_main.hpp>
+#include <libdnf5/repo/repo_query.hpp>
 #include <libdnf5/utils/bgettext/bgettext-lib.h>
 #include <libdnf5/utils/bgettext/bgettext-mark-domain.h>
 
@@ -46,6 +48,10 @@ void write_warning(libdnf5::Logger & log, BgettextMessage msg, Args &&... args) 
     log.warning(b_gettextmsg_get_id(msg), args...);
     std::cerr << libdnf5::utils::sformat(TM_(msg, 1), args...) << std::endl;
 }
+
+// Extracts a specific part of the URL from a URL string.
+// Returns an empty string if the URL is not valid/supported or the required part is not present.
+std::string get_url_part(const std::string & url, CURLUPart what_part);
 
 // Checks if the `path` directory exists. If not, according to the `create_missing_dirs` argument,
 // the directories (missing paths elements) are created or `ConfigManagerError` exception is thrown.
@@ -161,6 +167,14 @@ inline std::set<std::string> load_existing_repo_ids(Context & ctx) {
                 }
             }
         }
+    }
+
+    // Repositories created by libdnf5 plugins (e.g. local, apt) have no repo file, but
+    // the overrides apply to them too: they are created before the overrides are loaded.
+    libdnf5::repo::RepoQuery repos(base);
+    repos.filter_type(libdnf5::repo::Repo::Type::AVAILABLE);
+    for (const auto & repo : repos) {
+        repo_ids.insert(repo->get_id());
     }
 
     return repo_ids;

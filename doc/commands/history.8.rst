@@ -39,7 +39,7 @@ use the transactions in these commands, it is assumed that they were committed w
 ``history_record`` configuration option.
 
 For more information about ``<transaction-spec>`` see
-:manpage:`dnf5-specs(7)`, :ref:`Patterns specification <transaction_spec-label>`.
+:ref:`Patterns specification <transaction_spec-label>`.
 
 Subcommands
 ===========
@@ -70,6 +70,18 @@ Subcommands
 ``store``
     | Store the transaction into a directory.
     | If no ``<transaction-spec>`` is specified it uses the last transaction.
+
+
+The ``Action(s)`` column in the ``list`` output shows a letter for each distinct kind of item
+action performed in the transaction:
+
+    - ``I`` - Install
+    - ``U`` - Upgrade
+    - ``D`` - Downgrade
+    - ``R`` - Reinstall
+    - ``E`` - Remove (Erase)
+    - ``O`` - Obsolete
+    - ``C`` - Reason Change
 
 
 Options for ``list`` and ``info``
@@ -159,6 +171,7 @@ Each transaction object contains the following fields:
     - ``status`` (string) - Transaction status, typically "Ok".
     - ``releasever`` (string) - System release version when transaction occurred.
     - ``altered_count`` (integer) - Number of packages altered in the transaction.
+    - ``actions`` (array of strings) - Distinct kinds of item actions performed in the transaction.
 
 * ``dnf5 history info --json``
 
@@ -192,4 +205,4 @@ For empty results, both commands return ``[]``.
 See Also
 ========
 
-    | :manpage:`dnf5-specs(7)`, :ref:`Patterns specification <specs_misc_ref-label>`
+    | :ref:`Patterns specification <specs_misc_ref-label>`

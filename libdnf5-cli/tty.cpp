@@ -70,7 +70,21 @@ bool is_interactive() {
     return isatty(fileno(stdout)) == 1;
 }
 
+std::ostream & set_taskbar_progress(std::ostream & stream, TaskbarProgressState state, int percent) {
+    if (is_interactive()) {
+        if (percent < 0) {
+            percent = 0;
+        } else if (percent > 100) {
+            percent = 100;
+        }
+        // OSC 9 ; 4 ; <state> ; <percent> ST
+        stream << "\x1b]9;4;" << static_cast<int>(state) << ";" << percent << "\x1b\x5c";
+    }
+    return stream;
+}
+
 static ColoringEnabled coloring = ColoringEnabled::AUTO;
+static bool cursor_hidden = false;
 
 void coloring_enable(ColoringEnabled value) {
     coloring = value;
@@ -143,6 +157,28 @@ TTY_COMMAND(cursor_hide, "\x1b[?25l")
 
 // tty::cursor_show
 TTY_COMMAND(cursor_show, "\x1b[?25h")
+
+void hide_cursor() {
+    if (is_interactive()) {
+        std::cerr << cursor_hide;
+        if (std::cerr) {
+            cursor_hidden = true;
+        }
+    }
+}
+
+void show_cursor() {
+    if (is_interactive()) {
+        std::cerr << cursor_show;
+        if (std::cerr) {
+            cursor_hidden = false;
+        }
+    }
+}
+
+bool is_cursor_hidden() {
+    return cursor_hidden;
+}
 
 
 }  // namespace libdnf5::cli::tty

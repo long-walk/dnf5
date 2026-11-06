@@ -42,10 +42,13 @@
 #include <systemd/sd-journal.h>
 #endif
 
+#include <chrono>
+#include <csignal>
 #include <cstdlib>
 #include <exception>
 #include <iostream>
 #include <string>
+#include <thread>
 
 using namespace libdnf5::cli;
 
@@ -271,7 +274,7 @@ void invalidate_if_not_valid(libdnf5::offline::OfflineTransactionState & state, 
     }
 }
 
-void reboot(bool poweroff = false) {
+void reboot(bool poweroff = false, PlymouthOutput * plymouth = nullptr) {
     if (std::getenv("DNF_SYSTEM_UPGRADE_NO_REBOOT")) {
         if (poweroff) {
             std::cerr << "DNF_SYSTEM_UPGRADE_NO_REBOOT is set, not powering off." << std::endl;
@@ -291,6 +294,89 @@ void reboot(bool poweroff = false) {
     }
     if (connection != nullptr) {
         auto proxy = sdbus::createProxy(*connection, LOGIND_DESTINATION_NAME, LOGIND_OBJECT_PATH);
+
+        // Busy-wait for other processes blocking the shutdown to release their locks.
+        // Otherwise, the Reboot() call will fail with a D-Bus error if an active
+        // block lock is held (e.g., by akmods building kernel modules).
+        using InhibitorTuple = sdbus::Struct<std::string, std::string, std::string, std::string, uint32_t, uint32_t>;
+        const auto timeout = std::chrono::minutes(5);
+        const auto start_time = std::chrono::steady_clock::now();
+        const uint32_t my_pid = static_cast<uint32_t>(::getpid());
+        const auto timeout_seconds = std::chrono::duration_cast<std::chrono::seconds>(timeout).count();
+        constexpr int report_interval_seconds = 30;
+        auto next_report_time = start_time;
+        while (true) {
+            std::vector<InhibitorTuple> blockers;
+            try {
+                std::vector<InhibitorTuple> inhibitors;
+                proxy->callMethod("ListInhibitors").onInterface(LOGIND_MANAGER_INTERFACE).storeResultsTo(inhibitors);
+                for (const auto & inhibitor : inhibitors) {
+                    const auto & [what, who, why, mode, uid, pid] = inhibitor;
+                    if (mode == "block" && what.find("shutdown") != std::string::npos && pid != my_pid) {
+                        blockers.push_back(inhibitor);
+                    }
+                }
+            } catch (const sdbus::Error &) {
+                // On D-Bus error treat as not blocked
+            }
+            const auto now = std::chrono::steady_clock::now();
+            const auto elapsed_seconds = std::chrono::duration_cast<std::chrono::seconds>(now - start_time).count();
+            if (!blockers.empty()) {
+                if (now >= next_report_time && elapsed_seconds < timeout_seconds) {
+                    next_report_time = now + std::chrono::seconds(report_interval_seconds);
+                    std::string waiting_message;
+                    std::string blocker_details;
+                    for (const auto & [what, who, why, mode, uid, pid] : blockers) {
+                        blocker_details += libdnf5::utils::sformat("\n  - {} (PID {}): {}", who, pid, why);
+                    }
+                    waiting_message = libdnf5::utils::sformat(
+                        P_("Waiting for {0} process blocking shutdown ({1}/{2}s)",
+                           "Waiting for {0} processes blocking shutdown ({1}/{2}s)",
+                           blockers.size()),
+                        blockers.size(),
+                        elapsed_seconds,
+                        timeout_seconds);
+                    std::cerr << waiting_message << blocker_details << std::endl;
+                    if (plymouth != nullptr) {
+                        plymouth->message(waiting_message);
+                    }
+                }
+            }
+            if (blockers.empty() || elapsed_seconds >= timeout_seconds) {
+                if (!blockers.empty()) {
+                    const auto timeout_message =
+                        _("Timed out waiting for processes blocking shutdown. Continuing shutdown request.");
+                    std::cerr << timeout_message << std::endl;
+                    if (plymouth != nullptr) {
+                        plymouth->message(timeout_message);
+                    }
+                }
+                break;
+            }
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
+
+        // Ignore SIGTERM/SIGINT so systemd's teardown signals cannot invoke our
+        // _exit(1) signal handlers
+        std::signal(SIGTERM, SIG_IGN);
+        std::signal(SIGINT, SIG_IGN);
+
+        // Try to acquire inhibit delay lock to prevent systemd from starting
+        // the shutdown process while our destructors execute.
+        try {
+            sdbus::UnixFd fd;
+            proxy->callMethod("Inhibit")
+                .onInterface(LOGIND_MANAGER_INTERFACE)
+                .withArguments("shutdown", "dnf5", "Finalizing offline transaction", "delay")
+                .storeResultsTo(fd);
+            // Transfer ownership of the raw file descriptor out of sdbus::UnixFd
+            // so sdbus::UnixFd's destructor won't close it.
+            // The kernel will automatically close leaked_fd when the process terminates.
+            [[maybe_unused]] int leaked_fd = fd.release();
+        } catch (const sdbus::Error &) {
+        }
+
+        // Fire reboot/poweroff request.
         if (poweroff) {
             proxy->callMethod("PowerOff").onInterface(LOGIND_MANAGER_INTERFACE).withArguments(true);
         } else {
@@ -591,7 +677,7 @@ void OfflineExecuteCommand::run() {
     // If the transaction succeeded, remove downloaded data
     clean_datadir_and_destdir(ctx, get_datadir(), get_destdir());
 
-    reboot(offline_data.get_poweroff_after());
+    reboot(offline_data.get_poweroff_after(), &plymouth);
 }
 
 void OfflineCleanCommand::set_argument_parser() {

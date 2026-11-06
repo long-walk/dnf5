@@ -21,8 +21,15 @@
 #include "test_conf.hpp"
 
 #include "../shared/utils.hpp"
+#include "conf/config.h"
+#include "repo/key_auto_import.hpp"
 
 #include <libdnf5/repo/config_repo.hpp>
+#include <libdnf5/utils/fs/temp.hpp>
+
+#include <filesystem>
+#include <fstream>
+#include <vector>
 
 
 CPPUNIT_TEST_SUITE_REGISTRATION(ConfTest);
@@ -58,6 +65,16 @@ void ConfTest::test_config_repo() {
     CPPUNIT_ASSERT_EQUAL(baseurl, config_repo.get_baseurl_option().get_value());
 }
 
+void ConfTest::test_config_repo_backslash() {
+    repo::ConfigRepo config_repo(config, "repo-backslash");
+    ConfigParser parser;
+    parser.read(PROJECT_SOURCE_DIR "/test/libdnf5/conf/data/main.conf");
+    base->setup();
+    config_repo.load_from_parser(parser, "repo-backslash", *base->get_vars(), logger);
+
+    CPPUNIT_ASSERT_EQUAL(std::string("M\\y ug\\ly name"), config_repo.get_name_option().get_value());
+}
+
 void ConfTest::test_config_pkg_gpgcheck() {
     // Ensure both pkg_gpgcheck and gpgcheck point to the same underlying OptionBool object
 
@@ -70,6 +87,149 @@ void ConfTest::test_config_pkg_gpgcheck() {
     repo::ConfigRepo config_repo(config, "test-repo");
     CPPUNIT_ASSERT_EQUAL(&config_repo.get_pkg_gpgcheck_option(), &config_repo.get_gpgcheck_option());
 #pragma GCC diagnostic pop
+}
+
+void ConfTest::test_config_auto_import_local_keys() {
+    // The option is an opt-in and must default to false.
+    CPPUNIT_ASSERT_EQUAL(false, config.get_auto_import_local_keys_option().get_value());
+
+    repo::ConfigRepo config_repo(config, "test-repo");
+    CPPUNIT_ASSERT_EQUAL(false, config_repo.get_auto_import_local_keys_option().get_value());
+
+    // The repository option inherits the value set in [main].
+    config.get_auto_import_local_keys_option().set(Option::Priority::MAINCONFIG, true);
+    CPPUNIT_ASSERT_EQUAL(true, config_repo.get_auto_import_local_keys_option().get_value());
+
+    // A per-repository value overrides the inherited one.
+    config_repo.get_auto_import_local_keys_option().set(Option::Priority::REPOCONFIG, false);
+    CPPUNIT_ASSERT_EQUAL(false, config_repo.get_auto_import_local_keys_option().get_value());
+
+    // The option is registered under its name on both the main and the
+    // repository configuration, so it can be set from configuration files
+    // and --setopt.
+    config.opt_binds().at("auto_import_local_keys").new_string(Option::Priority::RUNTIME, "0");
+    CPPUNIT_ASSERT_EQUAL(false, config.get_auto_import_local_keys_option().get_value());
+    config_repo.opt_binds().at("auto_import_local_keys").new_string(Option::Priority::RUNTIME, "1");
+    CPPUNIT_ASSERT_EQUAL(true, config_repo.get_auto_import_local_keys_option().get_value());
+}
+
+void ConfTest::test_is_key_auto_importable() {
+    namespace stdfs = std::filesystem;
+
+    // Layout: keys_dir/key, keys_dir/link -> outside/key, and a sibling
+    // directory whose name has keys_dir as a prefix.
+    utils::fs::TempDir temp_dir("libdnf_unittest_auto_import");
+    const auto keys_dir = temp_dir.get_path() / "rpm-gpg";
+    const auto sibling_dir = temp_dir.get_path() / "rpm-gpg-other";
+    const auto outside_dir = temp_dir.get_path() / "outside";
+    stdfs::create_directories(keys_dir);
+    stdfs::create_directories(sibling_dir);
+    stdfs::create_directories(outside_dir);
+    const auto key = keys_dir / "key";
+    const auto sibling_key = sibling_dir / "key";
+    const auto outside_key = outside_dir / "key";
+    const auto link = keys_dir / "link";
+    for (const auto & path : {key, sibling_key, outside_key}) {
+        std::ofstream(path) << "not really a key";
+    }
+    stdfs::create_symlink(outside_key, link);
+
+    repo::ConfigRepo config_repo(config, "test-repo");
+    const auto url = [](const stdfs::path & path) { return "file://" + path.string(); };
+    const std::vector<stdfs::path> keys_dirs{keys_dir};
+
+    // The option is off by default: nothing is imported automatically.
+    CPPUNIT_ASSERT_EQUAL(false, repo::is_key_auto_importable(config_repo, url(key), keys_dirs));
+
+    config_repo.get_auto_import_local_keys_option().set(Option::Priority::REPOCONFIG, true);
+
+    // A key inside the directory, spelled "file:///path": the one spelling both
+    // key readers open as the same file.
+    CPPUNIT_ASSERT_EQUAL(true, repo::is_key_auto_importable(config_repo, url(key), keys_dirs));
+    // A key in a subdirectory of the directory.
+    stdfs::create_directories(keys_dir / "sub");
+    std::ofstream(keys_dir / "sub" / "key") << "not really a key";
+    CPPUNIT_ASSERT_EQUAL(true, repo::is_key_auto_importable(config_repo, url(keys_dir / "sub" / "key"), keys_dirs));
+    // A symlink inside the directory that resolves to a key inside it.
+    const auto alias = keys_dir / "alias";
+    stdfs::create_symlink(key, alias);
+    CPPUNIT_ASSERT_EQUAL(true, repo::is_key_auto_importable(config_repo, url(alias), keys_dirs));
+
+    // Other spellings are left to the confirmation: "file:/path" and a bare
+    // path are read differently by the two key readers, a host name is not
+    // accepted, and a relative path would be resolved against the working
+    // directory.
+    CPPUNIT_ASSERT_EQUAL(false, repo::is_key_auto_importable(config_repo, "file:" + key.string(), keys_dirs));
+    CPPUNIT_ASSERT_EQUAL(false, repo::is_key_auto_importable(config_repo, key.string(), keys_dirs));
+    CPPUNIT_ASSERT_EQUAL(
+        false, repo::is_key_auto_importable(config_repo, "file://localhost" + key.string(), keys_dirs));
+    const auto relative_key = stdfs::relative(key, stdfs::current_path());
+    CPPUNIT_ASSERT_EQUAL(
+        false, repo::is_key_auto_importable(config_repo, "file://" + relative_key.string(), keys_dirs));
+    CPPUNIT_ASSERT_EQUAL(false, repo::is_key_auto_importable(config_repo, relative_key.string(), keys_dirs));
+
+    // Paths that leave the directory are rejected: "..", a symlink pointing
+    // outside, and a sibling directory sharing the prefix.
+    CPPUNIT_ASSERT_EQUAL(
+        false, repo::is_key_auto_importable(config_repo, url(keys_dir / ".." / "outside" / "key"), keys_dirs));
+    CPPUNIT_ASSERT_EQUAL(false, repo::is_key_auto_importable(config_repo, url(link), keys_dirs));
+    CPPUNIT_ASSERT_EQUAL(false, repo::is_key_auto_importable(config_repo, url(sibling_key), keys_dirs));
+    CPPUNIT_ASSERT_EQUAL(false, repo::is_key_auto_importable(config_repo, url(outside_key), keys_dirs));
+    // The directory itself is not inside the directory.
+    CPPUNIT_ASSERT_EQUAL(false, repo::is_key_auto_importable(config_repo, url(keys_dir), keys_dirs));
+    // A key that does not exist cannot be trusted.
+    CPPUNIT_ASSERT_EQUAL(false, repo::is_key_auto_importable(config_repo, url(keys_dir / "missing"), keys_dirs));
+    // Remote keys always go through the confirmation.
+    CPPUNIT_ASSERT_EQUAL(false, repo::is_key_auto_importable(config_repo, "https://example.com/key", keys_dirs));
+
+    // Several trusted directories: a key in any of them is accepted, a key in
+    // none of them is rejected, a directory that does not exist is skipped
+    // without hiding the others, and an empty list accepts nothing.
+    const auto second_dir = temp_dir.get_path() / "share-rpm-gpg";
+    stdfs::create_directories(second_dir);
+    const auto second_key = second_dir / "key";
+    std::ofstream(second_key) << "not really a key";
+    const auto missing_dir = temp_dir.get_path() / "missing-dir";
+    const std::vector<stdfs::path> two_dirs{second_dir, keys_dir};
+    CPPUNIT_ASSERT_EQUAL(true, repo::is_key_auto_importable(config_repo, url(key), two_dirs));
+    CPPUNIT_ASSERT_EQUAL(true, repo::is_key_auto_importable(config_repo, url(second_key), two_dirs));
+    CPPUNIT_ASSERT_EQUAL(false, repo::is_key_auto_importable(config_repo, url(outside_key), two_dirs));
+    CPPUNIT_ASSERT_EQUAL(false, repo::is_key_auto_importable(config_repo, url(second_key), keys_dirs));
+    const std::vector<stdfs::path> with_missing{missing_dir, keys_dir};
+    CPPUNIT_ASSERT_EQUAL(true, repo::is_key_auto_importable(config_repo, url(key), with_missing));
+    CPPUNIT_ASSERT_EQUAL(false, repo::is_key_auto_importable(config_repo, url(key), {missing_dir}));
+    CPPUNIT_ASSERT_EQUAL(false, repo::is_key_auto_importable(config_repo, url(key), std::vector<stdfs::path>{}));
+
+    // Without the third argument the build-time directories are used, as the
+    // callers in libdnf5 do. The temporary directory is not one of them.
+    CPPUNIT_ASSERT_EQUAL(false, repo::is_key_auto_importable(config_repo, url(key)));
+
+    // assumeno takes precedence over the option.
+    config.get_assumeno_option().set(Option::Priority::RUNTIME, true);
+    CPPUNIT_ASSERT_EQUAL(false, repo::is_key_auto_importable(config_repo, url(key), keys_dirs));
+    config.get_assumeno_option().set(Option::Priority::RUNTIME, false);
+    CPPUNIT_ASSERT_EQUAL(true, repo::is_key_auto_importable(config_repo, url(key), keys_dirs));
+}
+
+void ConfTest::test_parse_keys_dirs() {
+    namespace stdfs = std::filesystem;
+
+    // The build-time list is colon-separated. Empty entries are skipped, so a
+    // doubled, leading or trailing colon in the CMake value is harmless. A
+    // relative entry is skipped too: it would be resolved against the working
+    // directory, which is not a place to trust keys from.
+    const std::vector<stdfs::path> expected{"/usr/share/pki/rpm-gpg", "/etc/pki/rpm-gpg"};
+    CPPUNIT_ASSERT_EQUAL(expected, repo::parse_keys_dirs("/usr/share/pki/rpm-gpg:/etc/pki/rpm-gpg"));
+    CPPUNIT_ASSERT_EQUAL(expected, repo::parse_keys_dirs(":/usr/share/pki/rpm-gpg::/etc/pki/rpm-gpg:"));
+    CPPUNIT_ASSERT_EQUAL(expected, repo::parse_keys_dirs("/usr/share/pki/rpm-gpg:keys:/etc/pki/rpm-gpg"));
+    CPPUNIT_ASSERT_EQUAL(std::vector<stdfs::path>{"/etc/pki/rpm-gpg"}, repo::parse_keys_dirs("/etc/pki/rpm-gpg"));
+    CPPUNIT_ASSERT(repo::parse_keys_dirs("").empty());
+    CPPUNIT_ASSERT(repo::parse_keys_dirs("::").empty());
+    CPPUNIT_ASSERT(repo::parse_keys_dirs("keys:./keys:../keys").empty());
+
+    // The directories used by libdnf5 are the parsed value of the CMake option,
+    // whatever value the build was given.
+    CPPUNIT_ASSERT_EQUAL(repo::parse_keys_dirs(LIBDNF5_AUTO_IMPORT_KEYS_DIRS), repo::get_auto_import_keys_dirs());
 }
 
 void ConfTest::test_gpgcheck_policy_legacy() {

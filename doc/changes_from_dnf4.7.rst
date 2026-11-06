@@ -21,6 +21,27 @@ Options that cannot be applied to all commands or may be applicable but have no 
 Examples: ``--best``, ``--no-best`` are only relevant to several transaction commands.
 
 
+Option placement
+^^^^^^^^^^^^^^^^
+In DNF4, all options could typically be placed either before or after the command name on the command line.
+In DNF5, there is a distinction between general options and command-specific options:
+
+  * **General options** (such as ``--disable-repo``, ``--enable-repo``, ``--setopt``, ``--repo``) apply globally and can be placed either before or after the command name.
+  * **Command-specific options** (such as ``--downloadonly``, ``--skip-broken``, ``--allowerasing``) are only accepted after the command name.
+
+For example, both of the following are valid because ``--disable-repo`` is a general option::
+
+    dnf5 --disable-repo=updates install netcat
+    dnf5 install --disable-repo=updates netcat
+
+However, ``--downloadonly`` is a command-specific option for the ``install`` command, so only the first form works::
+
+    dnf5 install --downloadonly netcat
+    dnf5 --downloadonly install netcat  # error: unknown argument
+
+See the :ref:`main man page <command_ref-label>` for the list of general options and individual command man pages for their specific options.
+
+
 Options renaming
 ^^^^^^^^^^^^^^^^
 Renaming boolean options to the following formats:
@@ -462,6 +483,7 @@ Changes to individual commands
   * Dropped: ``--archlist`` alias for ``--arch``.
   * Dropped: ``-f`` alias for ``--file``. Also, the arguments to ``--file`` are separated by commas instead of spaces.
   * Moved ``--groupmember`` option to the ``info`` and ``list`` subcommands of the ``group`` and ``advisory`` commands, renaming it to ``--contains-pkgs``.
+  * The ``deptree`` plugin replaces the ``--tree`` and ``--deplist`` options.
   * ``--queryformat, --qf`` no longer prints an additional newline at the end of each formatted string, bringing it closer to the behavior of ``rpm --query``. To get the newline, use an explicit ``\n`` sequence in the formatting string.
   * ``--queryformat`` no longer supports ``size`` tag because it was printing install size for installed packages and download size for not-installed packages, which could be confusing.
   * Option ``--source`` was renamed to ``--sourcerpm``, and it now matches queryformat's ``sourcerpm`` tag.
@@ -622,7 +644,13 @@ Dropped configuration options
 -----------------------------
 ``arch`` and ``basearch``
   * It is no longer possible to change the detected architecute in configuration files.
-  * See the :manpage:`dnf5-forcearch(7)`, :ref:`Forcearch parameter <forcearch_misc_ref-label>` for overriding architecture.
+  * See the :ref:`Forcearch parameter <forcearch_misc_ref-label>` for overriding architecture.
 
 ``errorlevel``
   * The option was deprecated in dnf < 5 and is dropped now.
+
+
+Changes to transaction resolving
+================================
+
+The solver setup was changed to ensure it tries to install the latest versions of new dependencies, even if it results in bigger transactions.

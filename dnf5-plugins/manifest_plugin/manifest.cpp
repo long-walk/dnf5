@@ -6,6 +6,8 @@
 #include "download_callbacks.hpp"
 
 #include <dnf5/context.hpp>
+#include <libdnf5-cli/output/adapters/transaction.hpp>
+#include <libdnf5-cli/output/transaction_table.hpp>
 #include <libdnf5-cli/utils/userconfirm.hpp>
 #include <libdnf5/logger/logger.hpp>
 #include <libdnf5/repo/repo_errors.hpp>
@@ -51,6 +53,28 @@ libpkgmanifest::manifest::ChecksumMethod checksum_method_rpm_to_manifest(libdnf5
             return libpkgmanifest::manifest::ChecksumMethod::SHA512;
         default:
             throw libdnf5::RuntimeError(M_("Unknown RPM checksum method: {}"), rpm_checksum.get_type_str());
+    }
+}
+
+libdnf5::rpm::Checksum::Type checksum_method_manifest_to_dnf(libpkgmanifest::manifest::ChecksumMethod method) {
+    switch (method) {
+        case libpkgmanifest::manifest::ChecksumMethod::SHA1:
+            return libdnf5::rpm::Checksum::Type::SHA1;
+        case libpkgmanifest::manifest::ChecksumMethod::SHA224:
+            return libdnf5::rpm::Checksum::Type::SHA224;
+        case libpkgmanifest::manifest::ChecksumMethod::SHA256:
+            return libdnf5::rpm::Checksum::Type::SHA256;
+        case libpkgmanifest::manifest::ChecksumMethod::SHA384:
+            return libdnf5::rpm::Checksum::Type::SHA384;
+        case libpkgmanifest::manifest::ChecksumMethod::SHA512:
+            return libdnf5::rpm::Checksum::Type::SHA512;
+        case libpkgmanifest::manifest::ChecksumMethod::MD5:
+            return libdnf5::rpm::Checksum::Type::MD5;
+        case libpkgmanifest::manifest::ChecksumMethod::CRC32:
+        case libpkgmanifest::manifest::ChecksumMethod::CRC64:
+            throw libdnf5::RuntimeError(M_("Manifest checksum method (CRC) is not supported for RPM package lookup"));
+        default:
+            throw libdnf5::RuntimeError(M_("Unsupported manifest checksum method for RPM package lookup"));
     }
 }
 
@@ -124,6 +148,44 @@ void load_host_repos(dnf5::Context & ctx, libdnf5::Base & base) {
         path = vars->substitute(path);
     }
     repo_sack->create_repos_from_paths(repos_from_path, libdnf5::Option::Priority::COMMANDLINE);
+}
+
+std::pair<libdnf5::rpm::PackageSet, std::vector<std::string>> get_packages_from_manifest(
+    libdnf5::Base & base, libpkgmanifest::manifest::Manifest & manifest, bool with_srpm) {
+    const auto & arch = base.get_vars()->get_value("arch");
+    libdnf5::rpm::PackageSet packages(base);
+    std::vector<std::string> errors;
+    for (auto & manifest_pkg : manifest.get_packages().get(arch, with_srpm)) {
+        libdnf5::rpm::PackageQuery query{base};
+        query.filter_repo_id(manifest_pkg.get_repo_id());
+        const auto & nevra = nevra_manifest_to_dnf(manifest_pkg.get_nevra());
+        query.filter_nevra(nevra);
+        if (query.empty()) {
+            errors.push_back(libdnf5::utils::sformat(_("No package {} available."), to_nevra_string(nevra)));
+            continue;
+        }
+        const auto & checksum = manifest_pkg.get_checksum();
+        const auto & checksum_digest = checksum.get_digest();
+        if (!checksum_digest.empty()) {
+            libdnf5::rpm::Checksum::Type checksum_type;
+            try {
+                checksum_type = checksum_method_manifest_to_dnf(checksum.get_method());
+            } catch (const libdnf5::RuntimeError & ex) {
+                errors.push_back(libdnf5::utils::sformat(
+                    _("Package {} has checksum with unsupported method: {}"), to_nevra_string(nevra), ex.what()));
+                continue;
+            }
+            query.filter_checksum(checksum_digest, checksum_type);
+            if (query.empty()) {
+                errors.push_back(libdnf5::utils::sformat(
+                    _("No package {} with checksum {} available."), to_nevra_string(nevra), checksum_digest));
+                continue;
+            }
+        }
+        packages.add(*query.begin());
+    }
+
+    return {packages, errors};
 }
 
 class KeyImportRepoCB : public libdnf5::repo::RepoCallbacks2_1 {
@@ -301,6 +363,8 @@ std::vector<libdnf5::rpm::Package> ManifestSubcommand::resolve_goal(
     libdnf5::Goal & goal, libdnf5::Base & base, const bool include_srpms) {
     auto & ctx = get_context();
 
+    ctx.print_info(libdnf5::utils::sformat(_("Resolving transaction for arch {}"), base.get_vars()->get_value("arch")));
+
     // Resolve the goal
     auto transaction = goal.resolve();
     if (transaction.get_problems() != libdnf5::GoalProblem::NO_PROBLEM) {
@@ -344,6 +408,9 @@ std::vector<libdnf5::rpm::Package> ManifestSubcommand::resolve_goal(
         }
         resolved_pkgs_set.insert(source_pkgs.begin(), source_pkgs.end());
     }
+
+    libdnf5::cli::output::TransactionAdapter cli_output_transaction{transaction};
+    libdnf5::cli::output::print_transaction_table(cli_output_transaction);
 
     std::vector<libdnf5::rpm::Package> resolved_pkgs{resolved_pkgs_set.begin(), resolved_pkgs_set.end()};
     return sort_pkgs(std::move(resolved_pkgs));
@@ -421,11 +488,16 @@ void ManifestSubcommand::add_pkgs_to_manifest(
             manifest_pkg.set_location(get_pkg_location(base, dnf_pkg));
         }
 
-        const auto & dnf_checksum = is_from_system_repo ? dnf_pkg.get_hdr_checksum() : dnf_pkg.get_checksum();
+        auto dnf_checksum = dnf_pkg.get_checksum();
+        if (!dnf_checksum.get_checksum().empty()) {
+            manifest_pkg.get_checksum().set_method(checksum_method_rpm_to_manifest(dnf_checksum));
+            manifest_pkg.get_checksum().set_digest(dnf_checksum.get_checksum());
 
-        const auto & manifest_checksum_method = checksum_method_rpm_to_manifest(dnf_checksum);
-        manifest_pkg.get_checksum().set_method(manifest_checksum_method);
-        manifest_pkg.get_checksum().set_digest(dnf_checksum.get_checksum());
+        } else if (is_from_system_repo) {
+            auto dnf_hdr_checksum = dnf_pkg.get_hdr_checksum();
+            manifest_pkg.get_hdr_checksum().set_method(checksum_method_rpm_to_manifest(dnf_hdr_checksum));
+            manifest_pkg.get_hdr_checksum().set_digest(dnf_hdr_checksum.get_checksum());
+        }
 
         if (multiarch) {
             manifest.get_packages().add(manifest_pkg, arch);

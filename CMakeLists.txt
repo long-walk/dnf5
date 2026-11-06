@@ -1,5 +1,5 @@
 message("Running CMake on dnf5...")
-cmake_minimum_required(VERSION 3.21)
+cmake_minimum_required(VERSION 3.22)
 
 
 include(VERSION.cmake)
@@ -9,9 +9,12 @@ cmake_policy(VERSION ${CMAKE_VERSION})
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 set(SYSTEMD_DIR "/usr/lib/systemd/system" CACHE PATH "Directory for systemd unit files")
 set(TMPFILES_DIR "/usr/lib/tmpfiles.d" CACHE PATH "Directory for systemd tmpfiles.d files")
+set(AUTO_IMPORT_KEYS_DIRS "/usr/share/pki/rpm-gpg:/etc/pki/rpm-gpg" CACHE STRING
+    "Colon-separated list of directories of OpenPGP keys trusted by auto_import_local_keys")
 
 message("Building ${PROJECT_NAME} version ${PROJECT_VERSION}")
 
+include(CMakeDependentOption)
 
 # build options - components (sub-packages)
 option(WITH_DNF5DAEMON_CLIENT "Build command-line interface for Dnf5daemon" ON)
@@ -23,7 +26,7 @@ option(WITH_DNF5_OBSOLETES_DNF "Build with DNF 5 providing files that may confli
 option(WITH_PLUGIN_ACTIONS "Build a dnf5 actions plugin" ON)
 option(WITH_PLUGIN_APPSTREAM "Build with plugin to install repo's Appstream metadata" ON)
 option(WITH_PLUGIN_EXPIRED_PGP_KEYS "Build a libdnf5 expired pgp keys plugin" ON)
-option(WITH_PLUGIN_RHSM "Build a libdnf5 rhsm (Red Hat Subscription Manager) plugin" OFF)
+option(WITH_PLUGIN_RHSM_CONTAINER "Build a libdnf5 rhsm (Red Hat Subscription Manager) plugin for containers" OFF)
 option(WITH_PLUGIN_MANIFEST "Build manifest plugin" ON)
 option(WITH_PYTHON_PLUGINS_LOADER "Build a special dnf5 plugin that loads Python plugins. Requires WITH_PYTHON3=ON." ON)
 option(WITH_PLUGIN_LOCAL "Build a libdnf5 local plugin" ON)
@@ -38,25 +41,26 @@ option(ENABLE_SOLV_URPMREORDER "Build with support for URPM-like solution reorde
 option(ENABLE_SOLV_FOCUSNEW "Build with SOLVER_FLAG_FOCUS_NEW libsolv flag enabled to ensure new dependencies are installed in latests versions?" ON)
 
 # build options - documentation
-option(WITH_HTML "Build HTML documentation" ON)
-option(WITH_MAN "Build man pages" ON)
+option(ENABLE_HTML_ONLY "Build only HTML documentation, disables any C++ compilation and depencency checking" OFF)
+cmake_dependent_option(WITH_HTML "Build HTML documentation" OFF "NOT ENABLE_HTML_ONLY" ON)
+cmake_dependent_option(WITH_MAN "Build man pages" ON "NOT ENABLE_HTML_ONLY" OFF)
 
 # build options - translations
-option(WITH_TRANSLATIONS "Build translations" ON)
+cmake_dependent_option(WITH_TRANSLATIONS "Build translations" ON "NOT ENABLE_HTML_ONLY" OFF)
 
 # build options - tests
-option(WITH_TESTS "Build tests" ON)
-option(WITH_PERFORMANCE_TESTS "Build performance tests (DEBUG ONLY)" OFF)
-option(WITH_DNF5DAEMON_TESTS "Build dnf5daemon tests (requires configured dbus)" OFF)
+cmake_dependent_option(WITH_TESTS "Build tests" ON "NOT ENABLE_HTML_ONLY" OFF)
+cmake_dependent_option(WITH_PERFORMANCE_TESTS "Build performance tests (DEBUG ONLY)" OFF "NOT ENABLE_HTML_ONLY" OFF)
+cmake_dependent_option(WITH_DNF5DAEMON_TESTS "Build dnf5daemon tests (requires configured dbus)" OFF "NOT ENABLE_HTML_ONLY" OFF)
 
 # build options - debugging
-option(WITH_SANITIZERS "Build with address, leak and undefined sanitizers (DEBUG ONLY)" OFF)
+cmake_dependent_option(WITH_SANITIZERS "Build with address, leak and undefined sanitizers (DEBUG ONLY)" OFF "NOT ENABLE_HTML_ONLY" OFF)
 
 # build options - bindings
-option(WITH_GO "Build Go bindings" OFF)
-option(WITH_PERL5 "Build Perl 5 bindings" ON)
+cmake_dependent_option(WITH_GO "Build Go bindings" OFF "NOT ENABLE_HTML_ONLY" OFF)
+cmake_dependent_option(WITH_PERL5 "Build Perl 5 bindings" ON "NOT ENABLE_HTML_ONLY" OFF)
 option(WITH_PYTHON3 "Build Python 3 bindings" ON)
-option(WITH_RUBY "Build Ruby bindings" ON)
+cmake_dependent_option(WITH_RUBY "Build Ruby bindings" ON "NOT ENABLE_HTML_ONLY" OFF)
 
 
 if(WITH_PERFORMANCE_TESTS AND WITH_SANITIZERS)
@@ -141,8 +145,8 @@ add_subdirectory("include")
 add_subdirectory("libdnf5")
 add_subdirectory("libdnf5-cli")
 add_subdirectory("libdnf5-plugins")
-add_subdirectory("doc")
 add_subdirectory("bindings")
+add_subdirectory("doc")
 
 # dnf5daemon
 add_subdirectory("dnf5daemon-server")

@@ -486,25 +486,41 @@ repository configuration file should aside from repo ID consists of baseurl, met
 
     Default: ``auto``.
 
+.. _plugin_conf_dir_options-label:
+
+``plugin_conf_dir``
+    :ref:`list <list-label>`
+
+    List of directories from which libdnf5 plugin configuration files are loaded.
+    Only files with the ``.conf`` extension are loaded.
+
+    Directories are processed in the order they are listed in the configuration.
+    If a configuration file with the same name exists in multiple directories,
+    the first one found is used.
+
+    Default: [``/etc/dnf/libdnf5-plugins``, ``/usr/share/dnf5/libdnf.plugins.conf.d``]
+
 .. _pluginconfpath_options-label:
 
 ``pluginconfpath``
-    :ref:`list <list-label>`
+    :ref:`string <string-label>`
 
-    List of directories that are searched for libdnf5 plugin configurations to load.
+    Directory from which libdnf5 plugin configuration files are loaded.
+    Only files with the ``.conf`` extension are loaded.
 
-    All configuration files found in these directories, that are named same as a
-    plugin, are parsed.
+    This option is deprecated. Use :ref:`plugin_conf_dir <plugin_conf_dir_options-label>` instead,
+    which supports a list of directories.
 
     Default: ``/etc/dnf/libdnf5-plugins``.
 
 .. _pluginpath_options-label:
 
 ``pluginpath``
-    :ref:`list <list-label>`
+    :ref:`string <string-label>`
 
-    List of directories that are searched for libdnf5 plugins to load. Plugins found in
-    *any of the directories* in this configuration option are used.
+    Directory from which libdnf5 plugins are loaded.
+    Only enabled plugins that have a configuration file in the
+    :ref:`pluginconfpath <pluginconfpath_options-label>` directory are loaded.
 
     Default: ``/usr/lib64/libdnf5/plugins/``
 
@@ -617,7 +633,7 @@ repository configuration file should aside from repo ID consists of baseurl, met
 ``system_state_dir``
     :ref:`string <string-label>`
 
-    System state files location. See :manpage:`dnf5-system-state(7)`, :ref:`system state <systemstate_misc_ref-label>` for details.
+    System state files location. See :ref:`system state <systemstate_misc_ref-label>` for details.
 
     Default: ``/usr/lib/sysimage/libdnf5``.
 
@@ -670,7 +686,7 @@ repository configuration file should aside from repo ID consists of baseurl, met
 
     Use configuration files and variable definitions from the host system rather
     than the installroot.
-    :ref:`See <installroot_misc_ref-label>` :manpage:`dnf5-installroot(7)` for more info.
+    See :ref:`Installroot parameter <installroot_misc_ref-label>` for more info.
 
     Default: ``False``.
 
@@ -963,6 +979,36 @@ as the default value, which repositories can then override in their
 configuration.
 
 
+.. _auto_import_local_keys_options-label:
+
+``auto_import_local_keys``
+    :ref:`boolean <boolean-label>`
+
+    If enabled, DNF5 will import OpenPGP keys from the ``gpgkey`` URLs of this repository without
+    asking for confirmation, as long as the key file is inside one of the trusted keys directories,
+    ``/usr/share/pki/rpm-gpg`` and ``/etc/pki/rpm-gpg`` by default. The directories are set when
+    DNF5 is built (CMake option ``AUTO_IMPORT_KEYS_DIRS``, a colon-separated list) and cannot be
+    changed in configuration files. A directory that does not exist is ignored. An empty list turns
+    the automatic import off. A typical use is a key file installed by a package of the
+    distribution.
+
+    The key URL must be spelled ``file:///path``. The path is resolved before it is compared with
+    the directories, so ``..``, a symlink pointing outside the directories, and a directory whose
+    name only starts with the same prefix (for example ``/etc/pki/rpm-gpg-other``) are not trusted.
+    Any other key, including a key from a remote URL or a key spelled ``file:/path``, asks for
+    confirmation as usual, so the fingerprint can be verified before the key is trusted.
+    :ref:`assumeno <assumeno_options-label>` takes precedence: the import is declined and nothing
+    is imported.
+
+    The option applies to both places where DNF5 imports keys: the per-repository keyring used for
+    the metadata signature check (:ref:`repo_gpgcheck <repo_gpgcheck_options-label>`) and the RPM
+    database used for the package signature check
+    (:ref:`pkg_gpgcheck <pkg_gpgcheck_options-label>`). Keys for the package check are imported
+    when a transaction runs, so commands that only read repositories do not change the RPM
+    database. The signature checks themselves are not affected.
+
+    Default: ``False``.
+
 .. _bandwidth_options-label:
 
 ``bandwidth``
@@ -1089,6 +1135,9 @@ configuration.
 
     Doesn't apply for packages passed directly as arguments, as they are not in any repository,
     see :ref:`localpkg_gpgcheck <localpkg_gpgcheck_options-label>`.
+
+    To import the repository's signing keys without asking for confirmation, see
+    :ref:`auto_import_local_keys <auto_import_local_keys_options-label>`.
 
 .. _includepkgs_options-label:
 
@@ -1291,6 +1340,9 @@ configuration.
        This means that DNF5 may ask to import the same key multiple times. For example, when a key was
        already imported for package signature verification and this option is turned on, it may be needed
        to import it again for the repository.
+
+       To import these keys without asking for confirmation, see
+       :ref:`auto_import_local_keys <auto_import_local_keys_options-label>`.
 
     Default: ``False``.
 
@@ -1696,7 +1748,7 @@ Variables Directories
 See Also
 ========
 
-* :manpage:`dnf5(8)`, :ref:`DNF5 Command Reference <command_ref-label>`
-* :manpage:`dnf5.conf-vendorpolicy(5)`, :ref:`DNF5 Vendor Change Policy File Reference <dnf5_vendor_change_policy-label>`
-* :manpage:`dnf5.conf-todo(5)`, :ref:`Options that are documented/implemented in DNF but not in DNF5 <dnf5_conf_todo-label>`
-* :manpage:`dnf5.conf-deprecated(5)`, :ref:`Config Options that are deprecated in DNF5 <dnf5_conf_deprecated-label>`
+* :ref:`DNF5 Command Reference <command_ref-label>`
+* :ref:`DNF5 Vendor Change Policy File Reference <dnf5_vendor_change_policy-label>`
+* :ref:`Options that are documented/implemented in DNF but not in DNF5 <dnf5_conf_todo-label>`
+* :ref:`Config Options that are deprecated in DNF5 <dnf5_conf_deprecated-label>`

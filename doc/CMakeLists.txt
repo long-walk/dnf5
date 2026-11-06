@@ -18,6 +18,7 @@ foreach(RST_SOURCE IN LISTS RST_SOURCES)
         OUTPUT ${PROCESSED_DIR}/${RST_SOURCE}
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/atp.py
             --define "WITH_MODULEMD=${WITH_MODULEMD}"
+            --define "WITH_PYTHON3=${WITH_PYTHON3}"
             ${CMAKE_CURRENT_SOURCE_DIR}/${RST_SOURCE} ${PROCESSED_DIR}/${RST_SOURCE}
         COMMENT "Preprocessing ${RST_SOURCE}"
         DEPENDS ${RST_SOURCE} ${CMAKE_CURRENT_SOURCE_DIR}/atp.py
@@ -36,7 +37,9 @@ endforeach()
 file(GLOB_RECURSE LITERALINCLUDE_SOURCES LIST_DIRECTORIES false FOLLOW_SYMLINKS
     RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
     *.cpp *.hpp *.py *.conf CMakeLists.txt)
-list(REMOVE_ITEM LITERALINCLUDE_SOURCES "CMakeLists.txt" "sphinx/CMakeLists.txt")
+list(REMOVE_ITEM LITERALINCLUDE_SOURCES "atp.py" "CMakeLists.txt"
+    "sphinx/CMakeLists.txt" "sphinx/dbusdoc.py" "sphinx/dbusdomain.py"
+    "sphinx/dbusparser.py" "sphinx/manpage_refs.py")
 foreach(LITERALINCLUDE_SOURCE IN LISTS LITERALINCLUDE_SOURCES)
     cmake_path(GET LITERALINCLUDE_SOURCE PARENT_PATH LITERALINCLUDE_DIRECTORY)
     file(MAKE_DIRECTORY ${PROCESSED_DIR}/${LITERALINCLUDE_DIRECTORY})
@@ -54,7 +57,8 @@ endforeach()
 
 LIST(JOIN DOCUMENTED_HEADERS " \\\n" DOCUMENTED_HEADERS_STRING)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile.in ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/conf.py.in ${CMAKE_CURRENT_BINARY_DIR}/conf.py)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/conf.py.in ${CMAKE_CURRENT_BINARY_DIR}/conf.py.in)
+file(GENERATE OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/conf.py INPUT ${CMAKE_CURRENT_BINARY_DIR}/conf.py.in)
 
 
 add_custom_target(doc)
@@ -79,6 +83,10 @@ if(WITH_HTML)
     )
     add_dependencies(doc doc-html)
     add_dependencies(doc-html doxygen)
+
+    if(WITH_PYTHON3)
+        add_dependencies(doc-html python3-swig)
+    endif()
 
     #install(FILES ${HTML_FILES} )
 endif()
@@ -181,6 +189,7 @@ if(WITH_MAN)
         install(FILES ${CMAKE_CURRENT_BINARY_DIR}/man/dnf5-changelog.8 DESTINATION share/man/man8)
         install(FILES ${CMAKE_CURRENT_BINARY_DIR}/man/dnf5-config-manager.8 DESTINATION share/man/man8)
         install(FILES ${CMAKE_CURRENT_BINARY_DIR}/man/dnf5-copr.8 DESTINATION share/man/man8)
+        install(FILES ${CMAKE_CURRENT_BINARY_DIR}/man/dnf5-deptree.8 DESTINATION share/man/man8)
         install(FILES ${CMAKE_CURRENT_BINARY_DIR}/man/dnf5-needs-restarting.8 DESTINATION share/man/man8)
         install(FILES ${CMAKE_CURRENT_BINARY_DIR}/man/dnf5-repoclosure.8 DESTINATION share/man/man8)
         install(FILES ${CMAKE_CURRENT_BINARY_DIR}/man/dnf5-repomanage.8 DESTINATION share/man/man8)

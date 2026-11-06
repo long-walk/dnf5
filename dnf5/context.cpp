@@ -34,6 +34,7 @@
 #include <libdnf5-cli/utils/userconfirm.hpp>
 #include <libdnf5/base/base.hpp>
 #include <libdnf5/base/goal.hpp>
+#include <libdnf5/base/vendor_change_manager.hpp>
 #include <libdnf5/common/proc.hpp>
 #include <libdnf5/conf/const.hpp>
 #include <libdnf5/rpm/package_query.hpp>
@@ -64,6 +65,29 @@ namespace dnf5 {
 namespace {
 
 constexpr const char * STORED_REPO_PREFIX = "@stored_transaction";
+
+// Format metadata age like Python's datetime.timedelta used by DNF4.
+std::string format_metadata_age(int64_t age) {
+    const auto days = age / 86400;
+    age %= 86400;
+
+    const auto hours = age / 3600;
+    age %= 3600;
+
+    const auto minutes = age / 60;
+    const auto seconds = age % 60;
+
+    if (days > 0) {
+        return libdnf5::utils::sformat(
+            P_("{} day, {}:{:02}:{:02}", "{} days, {}:{:02}:{:02}", static_cast<unsigned long>(days)),
+            days,
+            hours,
+            minutes,
+            seconds);
+    }
+
+    return fmt::format("{}:{:02}:{:02}", hours, minutes, seconds);
+}
 
 // Helper function to format active transaction information for error messages
 std::string format_active_transaction_info(const libdnf5::base::ActiveTransactionInfo & info) {
@@ -308,9 +332,48 @@ void Context::Impl::load_repos(bool load_system, bool load_available) {
         base.get_repo_sack()->load_repos(libdnf5::repo::Repo::Type::AVAILABLE);
     }
 
+    bool repository_download_activity = false;
+
     if (auto download_callbacks = dynamic_cast<DownloadCallbacks *>(base.get_download_callbacks())) {
+        repository_download_activity = download_callbacks->has_download_activity();
         download_callbacks->reset_progress_bar();
     }
+
+    if (load_available) {
+        libdnf5::repo::RepoQuery repos(base);
+        repos.filter_enabled(true);
+        repos.filter_type(libdnf5::repo::Repo::Type::AVAILABLE);
+
+        int64_t min_age = 0;
+        int64_t max_timestamp = -1;
+        bool metadata_found = false;
+
+        for (auto & repo : repos) {
+            auto timestamp = repo->get_timestamp();
+            if (timestamp < 0) {
+                continue;
+            }
+
+            auto age = repo->get_age();
+
+            if (!metadata_found) {
+                min_age = age;
+                max_timestamp = timestamp;
+                metadata_found = true;
+            } else {
+                min_age = std::min(min_age, age);
+                max_timestamp = std::max(max_timestamp, timestamp);
+            }
+        }
+
+        if (metadata_found && !repository_download_activity && max_timestamp != 0) {
+            print_info(libdnf5::utils::sformat(
+                _("Last metadata expiration check: {} ago on {}."),
+                format_metadata_age(min_age),
+                libdnf5::utils::string::format_epoch(max_timestamp)));
+        }
+    }
+
     if (load_available) {
         print_info(_("Repositories loaded."));
     }
@@ -732,6 +795,14 @@ bool Context::get_dump_variables() const {
     return p_impl->get_dump_variables();
 }
 
+void Context::set_dump_vendor_policies(bool enable) {
+    p_impl->set_dump_vendor_policies(enable);
+}
+
+bool Context::get_dump_vendor_policies() const {
+    return p_impl->get_dump_vendor_policies();
+}
+
 void Context::set_show_new_leaves(bool show_new_leaves) {
     p_impl->set_show_new_leaves(show_new_leaves);
 }
@@ -853,6 +924,53 @@ std::vector<std::pair<std::vector<std::string>, bool>> & Context::get_libdnf_plu
 
 const std::vector<std::pair<std::vector<std::string>, bool>> & Context::get_libdnf_plugins_enablement() const {
     return p_impl->get_libdnf_plugins_enablement();
+}
+
+std::vector<std::string> & Context::get_cmdline_vendor_policies() {
+    return p_impl->get_cmdline_vendor_policies();
+}
+
+const std::vector<std::string> & Context::get_cmdline_vendor_policies() const {
+    return p_impl->get_cmdline_vendor_policies();
+}
+
+void Context::set_clear_vendor_policies(bool value) {
+    p_impl->set_clear_vendor_policies(value);
+}
+
+bool Context::get_clear_vendor_policies() const {
+    return p_impl->get_clear_vendor_policies();
+}
+
+void Context::add_disable_vendor_policy_source(const std::string & source_pattern) {
+    p_impl->add_disable_vendor_policy_source(source_pattern);
+}
+
+std::vector<std::string> & Context::get_disable_vendor_policy_sources() {
+    return p_impl->get_disable_vendor_policy_sources();
+}
+
+const std::vector<std::string> & Context::get_disable_vendor_policy_sources() const {
+    return p_impl->get_disable_vendor_policy_sources();
+}
+
+void Context::apply_cmdline_vendor_policies() {
+    const bool do_clear = p_impl->get_clear_vendor_policies();
+    const auto & disable_sources = p_impl->get_disable_vendor_policy_sources();
+    const auto & policies = p_impl->get_cmdline_vendor_policies();
+    if (!do_clear && disable_sources.empty() && policies.empty()) {
+        return;
+    }
+    auto vcm = p_impl->get_base().get_vendor_change_manager();
+    if (do_clear) {
+        vcm->unload_policies();
+    }
+    for (const auto & source_pattern : disable_sources) {
+        vcm->unload_policies_matching_source(source_pattern);
+    }
+    for (const auto & policy_str : policies) {
+        vcm->load_policy_from_compact(policy_str, "text:COMMAND LINE");
+    }
 }
 
 

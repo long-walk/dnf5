@@ -39,7 +39,9 @@ For working with RPM package manifest files using the `libpkgmanifest <https://g
     resolved and pinned in the manifest file.
 
     If a list of packages is not given, all installed packages on the system
-    will be pinned in the manifest file.
+    will be pinned in the manifest file. In this case, package checksums may
+    not be available which will make checksum verification impossible for
+    download and instalation.
 
 ``resolve``
     Create a manifest file from a provided input file.
@@ -50,8 +52,8 @@ For working with RPM package manifest files using the `libpkgmanifest <https://g
 ``download``
     Download all packages specified in the manifest file to disk.
 
-    If checksums are specified, download only the packages that match both the
-    NEVRAs and checksums, otherwise, match only the NEVRAs.
+    If package checksums are specified, download only the packages that match
+    both the NEVRAs and package checksums, otherwise, match only the NEVRAs.
 
     By default, packages are downloaded to a subfolder named after the
     manifest file. You can also use the ``--destdir`` option to
@@ -64,6 +66,9 @@ For working with RPM package manifest files using the `libpkgmanifest <https://g
 
 ``install``
     Install all packages specified in the manifest file.
+
+    If package checksums are specified, install only the packages that match
+    both the NEVRAs and package checksums, otherwise, match only the NEVRAs.
 
 ---------
 Arguments
@@ -79,8 +84,8 @@ Options
 -------
 
 ``--input``
-    Specify a custom path for the prototype input file.
-    By default, ``rpms.in.yaml`` is used.
+    Specify a custom path for the input file.
+    By default, ``packages.input.yaml`` is used.
 
 ``--manifest``
     Specify a custom path for the manifest file.
@@ -112,7 +117,7 @@ Examples
 --------
 
 ``dnf manifest resolve``
-    Resolve the ``rpms.in.yaml`` prototype input file in the current directory
+    Resolve the ``packages.input.yaml`` input file in the current directory
     and create the resulting manifest file at the default location:
     ``packages.manifest.yaml``.
 
@@ -140,4 +145,3 @@ See Also
 ========
 
     | `libpkgmanifest upstream <https://github.com/rpm-software-management/libpkgmanifest>`_
-    | `Prototype input file specification <https://github.com/konflux-ci/rpm-lockfile-prototype?tab=readme-ov-file#whats-the-input_file>`_

@@ -2,6 +2,10 @@ if(NOT WITH_DNF5_PLUGINS)
     return()
 endif()
 
+if(ENABLE_HTML_ONLY)
+    return()
+endif()
+
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 set(CMAKE_C_VISIBILITY_PRESET hidden)
 
@@ -19,6 +23,7 @@ add_subdirectory("needs_restarting_plugin")
 add_subdirectory("repoclosure_plugin")
 add_subdirectory("reposync_plugin")
 add_subdirectory("repomanage_plugin")
+add_subdirectory("deptree_plugin")
 if(WITH_PLUGIN_MANIFEST)
 add_subdirectory("manifest_plugin")
 endif()

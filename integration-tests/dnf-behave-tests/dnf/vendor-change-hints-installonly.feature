@@ -21,7 +21,10 @@ Scenario: Both regular and installonly packages from different vendor are report
         """
         Skipping 2 packages due to vendor change restriction: "Vendor A" -> "Vendor B".
         """
-    And stderr contains "--allow-vendor-change to allow changing package vendors"
+    And stderr contains "--allow-vendor-change-to=VENDOR to allow switching to packages from VENDOR"
+    And stderr contains "--allow-vendor-change-from=VENDOR to allow replacing packages from VENDOR"
+    And stderr contains "--with-vendor-policy=POLICY to add specific vendor change rules"
+    And stderr contains "--allow-vendor-change to allow all vendor changes"
 
 
 Scenario: Installing a specific installonly version from a different vendor shows no skipping section
@@ -53,7 +56,8 @@ Scenario: Skipping section shown when installonly upgrade is blocked by vendor c
         """
         Skipping 1 package due to vendor change restriction: "Vendor A" -> "Vendor B".
         """
-    And stderr contains "--allow-vendor-change to allow changing package vendors"
+    And stderr contains "--with-vendor-policy=POLICY to add specific vendor change rules"
+    And stderr contains "--allow-vendor-change to allow all vendor changes"
 
 
 Scenario: Skipping section shown when installonly versions from different vendors are present
@@ -71,4 +75,5 @@ Scenario: Skipping section shown when installonly versions from different vendor
     And Transaction is empty
     And stdout contains "Skipping 1 package due to vendor change restriction"
     And stdout contains "-> \"Vendor C\"."
-    And stderr contains "--allow-vendor-change to allow changing package vendors"
+    And stderr contains "--with-vendor-policy=POLICY to add specific vendor change rules"
+    And stderr contains "--allow-vendor-change to allow all vendor changes"
