@@ -1,3 +1,25 @@
+# 5.4.8.0
+
+- Update translations from weblate
+- Use CMake property to make -Werror overridable from the cmdline
+- Makefile: Add target to run dnf5daemon tests
+- daemon: report list_fd errors through completion signal
+- Fix refresh with non-default cachedir
+- goal: Compare obsoleted versions across architectures
+- libdnf5: subprocess: rename stdout/stderr members of CompletedProcess
+- dnf5: offline: fix building without systemd
+- doc: Annotate CVE-2026-111253 fix
+- dnf5daemon-server: cache_updated requires metadata to be loaded
+- spec: Fix libdnf5-plugin-appstream license
+- spec: Fix dnf5-plugin-manifest license
+- spec: Fix dnf5-plugin-automatic license
+- spec: Fix dnf5daemon-server license
+- spec: Fix dnf5daemon-client license
+- spec: Fix libdnf5-devel license
+- spec: Fix dnf5-devel license
+- spec: Fix libdnf5-cli license
+- progressbar: Use taskbar progress for transaction as well
+
 # 5.4.7.0
 
 - Update translations from weblate
@@ -23,7 +45,7 @@
 - base: Add VendorChangeManager::ensure_vendor_conf_dir_exists()
 - automatic: support IPv6 network availability checks
 - Always show cursor during userconfirm
-- dnf5daemon-server: Enforce session sender ownership
+- dnf5daemon-server: Enforce session sender ownership (CVE-2026-111253)
 - dnf5daemon-server: Unify exception message handling
 - base bindings: include utils so that lock_system_repo knows its params
 - repoquery/modules.feature: ensure setup step is successful
